@@ -52,6 +52,7 @@ model Review {
   difficulty    Float
   elapsedDays   Int
   scheduledDays Int
+  learningSteps Int
   reps          Int
   lapses        Int
   state         Int      // 0: New, 1: Learning, 2: Review, 3: Relearning
