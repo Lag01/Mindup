@@ -1,0 +1,66 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  decks     Deck[]
+  reviews   Review[]
+}
+
+model Deck {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cards     Card[]
+
+  @@index([userId])
+}
+
+model Card {
+  id      String   @id @default(cuid())
+  deckId  String
+  front   String   @db.Text
+  back    String   @db.Text
+  order   Int
+  deck    Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  reviews Review[]
+
+  @@index([deckId])
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  cardId        String
+  userId        String
+  // FSRS data stored as JSON
+  due           DateTime
+  stability     Float
+  difficulty    Float
+  elapsedDays   Int
+  scheduledDays Int
+  reps          Int
+  lapses        Int
+  state         Int      // 0: New, 1: Learning, 2: Review, 3: Relearning
+  lastReview    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  card          Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, userId])
+  @@index([userId, due])
+}
