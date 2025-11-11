@@ -110,7 +110,7 @@ export function parseCSV(content: string): Promise<ParsedDeck> {
           reject(error);
         }
       },
-      error: (error) => {
+      error: (error: any) => {
         reject(new Error(`Erreur lors du parsing CSV : ${error.message}`));
       },
     });
