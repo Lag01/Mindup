@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
       difficulty: newCardData.difficulty,
       elapsedDays: newCardData.elapsedDays,
       scheduledDays: newCardData.scheduledDays,
+      learningSteps: newCardData.learningSteps,
       reps: newCardData.reps,
       lapses: newCardData.lapses,
       state: newCardData.state,

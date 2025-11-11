@@ -1,4 +1,4 @@
-import { FSRS, Rating, Grade, Card, RecordLog, DateInput } from 'ts-fsrs';
+import { FSRS, Rating, Grade, Card, RecordLog, DateInput, createEmptyCard } from 'ts-fsrs';
 
 const fsrs = new FSRS({});
 
@@ -8,6 +8,7 @@ export interface ReviewData {
   difficulty: number;
   elapsedDays: number;
   scheduledDays: number;
+  learningSteps: number;
   reps: number;
   lapses: number;
   state: number;
@@ -15,13 +16,14 @@ export interface ReviewData {
 }
 
 export function createNewCard(): ReviewData {
-  const card = fsrs.createEmptyCard();
+  const card = createEmptyCard();
   return {
     due: card.due,
     stability: card.stability,
     difficulty: card.difficulty,
     elapsedDays: card.elapsed_days,
     scheduledDays: card.scheduled_days,
+    learningSteps: card.learning_steps,
     reps: card.reps,
     lapses: card.lapses,
     state: card.state,
@@ -40,6 +42,7 @@ export function reviewCard(
     difficulty: reviewData.difficulty,
     elapsed_days: reviewData.elapsedDays,
     scheduled_days: reviewData.scheduledDays,
+    learning_steps: reviewData.learningSteps,
     reps: reviewData.reps,
     lapses: reviewData.lapses,
     state: reviewData.state,
@@ -62,6 +65,7 @@ export function reviewCard(
     difficulty: recordLog.card.difficulty,
     elapsedDays: recordLog.card.elapsed_days,
     scheduledDays: recordLog.card.scheduled_days,
+    learningSteps: recordLog.card.learning_steps,
     reps: recordLog.card.reps,
     lapses: recordLog.card.lapses,
     state: recordLog.card.state,
