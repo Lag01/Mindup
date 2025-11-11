@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import 'katex/dist/katex.min.css';
+import RegisterServiceWorker from './register-sw';
 
 export const metadata: Metadata = {
   title: "Mindup - Révision",
@@ -40,6 +41,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
       <body className="antialiased">
+        <RegisterServiceWorker />
         {children}
       </body>
     </html>
