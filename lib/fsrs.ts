@@ -1,6 +1,6 @@
 import { FSRS, Rating, Grade, Card, RecordLog, DateInput } from 'ts-fsrs';
 
-const fsrs = new FSRS();
+const fsrs = new FSRS({});
 
 export interface ReviewData {
   due: Date;
