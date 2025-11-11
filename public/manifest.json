@@ -1,0 +1,21 @@
+{
+  "name": "Mindup - Révision par Flashcards",
+  "short_name": "Mindup",
+  "description": "Application de révision par flashcards avec algorithme FSRS pour optimiser la mémorisation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "lang": "fr",
+  "dir": "ltr"
+}
