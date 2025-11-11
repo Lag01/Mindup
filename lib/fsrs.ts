@@ -46,7 +46,7 @@ export function reviewCard(
     reps: reviewData.reps,
     lapses: reviewData.lapses,
     state: reviewData.state,
-    last_review: reviewData.lastReview,
+    last_review: reviewData.lastReview ?? undefined,
   };
 
   const ratingMap: Record<string, Rating> = {
