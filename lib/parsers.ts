@@ -76,7 +76,7 @@ export function parseXML(content: string): ParsedDeck {
   };
 }
 
-export function parseCSV(content: string): ParsedDeck {
+export function parseCSV(content: string): Promise<ParsedDeck> {
   return new Promise((resolve, reject) => {
     Papa.parse(content, {
       header: true,
