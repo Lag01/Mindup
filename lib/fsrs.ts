@@ -49,7 +49,7 @@ export function reviewCard(
     last_review: reviewData.lastReview ?? undefined,
   };
 
-  const ratingMap: Record<string, Rating> = {
+  const ratingMap: Record<string, Grade> = {
     again: Rating.Again,
     hard: Rating.Hard,
     good: Rating.Good,
