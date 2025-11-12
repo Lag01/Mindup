@@ -1,58 +1,123 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import katex from 'katex';
 
 interface MathTextProps {
   text: string;
+  contentType: 'TEXT' | 'LATEX';
   className?: string;
+  autoResize?: boolean;
+  maxHeight?: number;
 }
 
-export default function MathText({ text, className = '' }: MathTextProps) {
+export default function MathText({
+  text,
+  contentType,
+  className = '',
+  autoResize = true,
+  maxHeight = 400
+}: MathTextProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [fontSize, setFontSize] = useState(16);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    try {
-      // Clear previous content
-      containerRef.current.innerHTML = '';
+    const renderContent = () => {
+      if (!containerRef.current) return;
 
-      // Check if text contains LaTeX
-      const hasLatex = text.includes('\\') || text.includes('$');
+      try {
+        // Clear previous content
+        containerRef.current.innerHTML = '';
 
-      if (hasLatex) {
-        // Try to render as display math first
-        try {
-          katex.render(text, containerRef.current, {
-            displayMode: true,
-            throwOnError: false,
-            trust: true,
-          });
-        } catch (e) {
-          // If that fails, try inline math
+        if (contentType === 'LATEX') {
+          // Render as LaTeX
           try {
             katex.render(text, containerRef.current, {
-              displayMode: false,
+              displayMode: true,
               throwOnError: false,
               trust: true,
             });
-          } catch (e2) {
-            // If both fail, just display as text
-            containerRef.current.textContent = text;
+          } catch (e) {
+            // If display mode fails, try inline
+            try {
+              katex.render(text, containerRef.current, {
+                displayMode: false,
+                throwOnError: false,
+                trust: true,
+              });
+            } catch (e2) {
+              // If both fail, display as text
+              containerRef.current.textContent = text;
+            }
           }
+        } else {
+          // Render as plain text
+          containerRef.current.textContent = text;
         }
-      } else {
-        // No LaTeX, just display as text
-        containerRef.current.textContent = text;
+      } catch (error) {
+        console.error('Error rendering content:', error);
+        if (containerRef.current) {
+          containerRef.current.textContent = text;
+        }
       }
-    } catch (error) {
-      console.error('Error rendering math:', error);
-      if (containerRef.current) {
-        containerRef.current.textContent = text;
-      }
-    }
-  }, [text]);
+    };
 
-  return <div ref={containerRef} className={className} />;
+    const adjustFontSize = () => {
+      if (!containerRef.current || !autoResize) return;
+
+      // Start with a reasonable font size
+      let currentSize = 16;
+      const minSize = 8;
+      const maxSize = 24;
+
+      // Binary search for optimal font size
+      let low = minSize;
+      let high = maxSize;
+      let bestSize = currentSize;
+
+      while (low <= high) {
+        currentSize = Math.floor((low + high) / 2);
+        containerRef.current.style.fontSize = `${currentSize}px`;
+
+        renderContent();
+
+        const scrollHeight = containerRef.current.scrollHeight;
+
+        if (scrollHeight <= maxHeight) {
+          bestSize = currentSize;
+          low = currentSize + 1;
+        } else {
+          high = currentSize - 1;
+        }
+      }
+
+      setFontSize(bestSize);
+      containerRef.current.style.fontSize = `${bestSize}px`;
+    };
+
+    if (autoResize) {
+      adjustFontSize();
+    } else {
+      renderContent();
+    }
+  }, [text, contentType, autoResize, maxHeight]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+      style={{
+        fontSize: autoResize ? `${fontSize}px` : undefined,
+        maxHeight: autoResize ? `${maxHeight}px` : undefined,
+        overflow: autoResize ? 'hidden' : 'auto',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        wordBreak: 'break-word',
+        lineHeight: '1.5'
+      }}
+    />
+  );
 }

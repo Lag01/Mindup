@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import DeckStatistics from '@/components/DeckStatistics';
 
 interface Deck {
   id: string;
@@ -15,6 +16,7 @@ export default function Dashboard() {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [expandedDeck, setExpandedDeck] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -117,39 +119,67 @@ export default function Dashboard() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-4">
             {decks.map(deck => (
-              <div
-                key={deck.id}
-                className="bg-zinc-900 rounded-lg p-6 border border-zinc-800 hover:border-zinc-700 transition-colors"
-              >
-                <h2 className="text-xl font-semibold text-foreground mb-2">
-                  {deck.name}
-                </h2>
-                <div className="space-y-2 mb-4">
-                  <p className="text-zinc-400 text-sm">
-                    {deck.totalCards} carte{deck.totalCards > 1 ? 's' : ''}
-                  </p>
-                  <p className="text-blue-400 text-sm font-medium">
-                    {deck.dueCards} à réviser
-                  </p>
+              <div key={deck.id} className="space-y-4">
+                <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h2 className="text-xl font-semibold text-foreground mb-2">
+                        {deck.name}
+                      </h2>
+                      <div className="space-y-1">
+                        <p className="text-zinc-400 text-sm">
+                          {deck.totalCards} carte{deck.totalCards > 1 ? 's' : ''}
+                        </p>
+                        <p className="text-blue-400 text-sm font-medium">
+                          {deck.dueCards} à réviser
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => router.push(`/deck/${deck.id}/review`)}
+                      disabled={deck.dueCards === 0}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
+                    >
+                      {deck.dueCards > 0 ? 'Réviser' : 'Aucune carte'}
+                    </button>
+
+                    <button
+                      onClick={() => router.push(`/deck/${deck.id}/edit`)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                    >
+                      Éditer
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        setExpandedDeck(expandedDeck === deck.id ? null : deck.id)
+                      }
+                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium py-2 px-4 rounded-lg transition-colors"
+                    >
+                      {expandedDeck === deck.id ? 'Masquer' : 'Statistiques'}
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(deck.id)}
+                      disabled={deleting === deck.id}
+                      className="bg-red-900/30 hover:bg-red-900/50 text-red-400 font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {deleting === deck.id ? '...' : 'Supprimer'}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => router.push(`/deck/${deck.id}/review`)}
-                    disabled={deck.dueCards === 0}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
-                  >
-                    {deck.dueCards > 0 ? 'Réviser' : 'Aucune carte'}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(deck.id)}
-                    disabled={deleting === deck.id}
-                    className="bg-red-900/30 hover:bg-red-900/50 text-red-400 font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {deleting === deck.id ? '...' : 'Supprimer'}
-                  </button>
-                </div>
+
+                {/* Statistics Panel */}
+                {expandedDeck === deck.id && (
+                  <div className="bg-zinc-900/50 rounded-lg p-6 border border-zinc-800">
+                    <DeckStatistics deckId={deck.id} />
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -71,6 +71,8 @@ export async function GET(request: NextRequest) {
         id: card.id,
         front: card.front,
         back: card.back,
+        frontType: card.frontType,
+        backType: card.backType,
         review: card.reviews[0],
       })),
     });
