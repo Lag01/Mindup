@@ -8,6 +8,8 @@ interface Card {
   id: string;
   front: string;
   back: string;
+  frontType: 'TEXT' | 'LATEX';
+  backType: 'TEXT' | 'LATEX';
   review: any;
 }
 
@@ -139,7 +141,10 @@ export default function Review() {
               <div className="text-center">
                 <MathText
                   text={currentCard.front}
+                  contentType={currentCard.frontType}
                   className="text-2xl text-foreground"
+                  autoResize={true}
+                  maxHeight={350}
                 />
               </div>
             ) : (
@@ -148,14 +153,20 @@ export default function Review() {
                 <div className="text-center">
                   <MathText
                     text={currentCard.front}
+                    contentType={currentCard.frontType}
                     className="text-xl text-zinc-400"
+                    autoResize={true}
+                    maxHeight={150}
                   />
                 </div>
                 <div className="border-t border-zinc-700"></div>
                 <div className="text-center">
                   <MathText
                     text={currentCard.back}
+                    contentType={currentCard.backType}
                     className="text-2xl text-foreground"
+                    autoResize={true}
+                    maxHeight={200}
                   />
                 </div>
               </div>

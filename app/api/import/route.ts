@@ -60,6 +60,8 @@ export async function POST(request: NextRequest) {
             create: parsedDeck.cards.map((card, index) => ({
               front: card.front,
               back: card.back,
+              frontType: card.frontType,
+              backType: card.backType,
               order: index,
             })),
           },
