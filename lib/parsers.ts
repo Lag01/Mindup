@@ -87,11 +87,25 @@ export function parseCSV(content: string): Promise<ParsedDeck> {
             throw new Error('Aucune donnée trouvée dans le fichier CSV');
           }
 
+          // Récupérer les noms des colonnes
+          const fields = results.meta?.fields || [];
+
+          if (fields.length < 2) {
+            throw new Error('Le fichier CSV doit contenir au moins 2 colonnes');
+          }
+
           const cards: ParsedCard[] = [];
 
           results.data.forEach((row: any, index: number) => {
-            const front = row.Front || row.front || row.Question || row.question || '';
-            const back = row.Back || row.back || row.Answer || row.answer || '';
+            // Essayer d'abord les noms de colonnes standards
+            let front = row.Front || row.front || row.Question || row.question || '';
+            let back = row.Back || row.back || row.Answer || row.answer || '';
+
+            // Si aucun nom standard trouvé, utiliser les 2 premières colonnes
+            if (!front && !back && fields.length >= 2) {
+              front = row[fields[0]] || '';
+              back = row[fields[1]] || '';
+            }
 
             if (front || back) {
               cards.push({ front, back });
