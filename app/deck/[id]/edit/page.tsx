@@ -32,6 +32,7 @@ export default function EditDeck() {
     backType: 'TEXT' as 'TEXT' | 'LATEX',
   });
   const [saving, setSaving] = useState(false);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -116,6 +117,37 @@ export default function EditDeck() {
     }
   };
 
+  const handleBulkUpdate = async (updateFront: boolean, updateBack: boolean, targetType: 'TEXT' | 'LATEX') => {
+    const action = updateFront && updateBack ? 'tous les rectos ET versos' : updateFront ? 'tous les rectos' : 'tous les versos';
+    if (!confirm(`Êtes-vous sûr de vouloir changer ${action} en ${targetType} ?`)) {
+      return;
+    }
+
+    setBulkUpdating(true);
+    try {
+      const response = await fetch(`/api/decks/${deckId}/bulk-update-types`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ updateFront, updateBack, targetType }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to bulk update');
+      }
+
+      // Refresh the deck data
+      await fetchDeck();
+      alert('Mise à jour effectuée avec succès !');
+    } catch (error) {
+      console.error('Error bulk updating:', error);
+      alert('Erreur lors de la mise à jour en masse');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -149,6 +181,61 @@ export default function EditDeck() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8">
+        {/* Bulk Actions Section */}
+        <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800 mb-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
+            Actions en masse
+          </h2>
+          <p className="text-zinc-400 text-sm mb-4">
+            Changer le type de formatage de toutes les cartes du deck en une seule fois.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Front cards bulk update */}
+            <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+              <h3 className="text-zinc-300 font-medium mb-3">Tous les rectos</h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleBulkUpdate(true, false, 'TEXT')}
+                  disabled={bulkUpdating}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  → Texte
+                </button>
+                <button
+                  onClick={() => handleBulkUpdate(true, false, 'LATEX')}
+                  disabled={bulkUpdating}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  → LaTeX
+                </button>
+              </div>
+            </div>
+
+            {/* Back cards bulk update */}
+            <div className="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+              <h3 className="text-zinc-300 font-medium mb-3">Tous les versos</h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleBulkUpdate(false, true, 'TEXT')}
+                  disabled={bulkUpdating}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  → Texte
+                </button>
+                <button
+                  onClick={() => handleBulkUpdate(false, true, 'LATEX')}
+                  disabled={bulkUpdating}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  → LaTeX
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Cards List */}
         <div className="space-y-4">
           {deck.cards.map((card, index) => (
             <div

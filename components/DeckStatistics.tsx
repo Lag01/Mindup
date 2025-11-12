@@ -15,6 +15,24 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+// Hook pour détecter si on est sur mobile
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+}
+
 interface DeckStats {
   totalCards: number;
   cardsByState: {
@@ -55,6 +73,7 @@ const STATE_LABELS = {
 export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
   const [stats, setStats] = useState<DeckStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchStats();
@@ -111,7 +130,7 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
   return (
     <div className="space-y-6">
       {/* Key Metrics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
           <div className="text-zinc-400 text-sm mb-1">Total</div>
           <div className="text-2xl font-bold text-foreground">{stats.totalCards}</div>
@@ -147,15 +166,15 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
             Répartition des cartes
           </h3>
           {pieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={isMobile ? 300 : 250}>
               <PieChart>
                 <Pie
                   data={pieData}
                   cx="50%"
-                  cy="50%"
+                  cy={isMobile ? "40%" : "50%"}
                   labelLine={false}
-                  label={(entry) => `${entry.name}: ${entry.value}`}
-                  outerRadius={80}
+                  label={isMobile ? false : (entry) => `${entry.name}: ${entry.value}`}
+                  outerRadius={isMobile ? 60 : 80}
                   fill="#8884d8"
                   dataKey="value"
                 >
@@ -171,10 +190,17 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
                     color: '#fafafa',
                   }}
                 />
+                {isMobile && (
+                  <Legend
+                    verticalAlign="bottom"
+                    height={36}
+                    wrapperStyle={{ fontSize: '12px' }}
+                  />
+                )}
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[250px] flex items-center justify-center text-zinc-500">
+            <div className={`${isMobile ? 'h-[300px]' : 'h-[250px]'} flex items-center justify-center text-zinc-500`}>
               Aucune donnée disponible
             </div>
           )}
@@ -185,15 +211,18 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
           <h3 className="text-lg font-semibold text-foreground mb-4">
             Historique des révisions (7 jours)
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={isMobile ? 350 : 250}>
             <BarChart data={barData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
               <XAxis
                 dataKey="formattedDate"
                 stroke="#71717a"
-                style={{ fontSize: '12px' }}
+                style={{ fontSize: isMobile ? '10px' : '12px' }}
+                angle={isMobile ? -45 : 0}
+                textAnchor={isMobile ? 'end' : 'middle'}
+                height={isMobile ? 60 : 30}
               />
-              <YAxis stroke="#71717a" style={{ fontSize: '12px' }} />
+              <YAxis stroke="#71717a" style={{ fontSize: isMobile ? '10px' : '12px' }} />
               <Tooltip
                 contentStyle={{
                   backgroundColor: '#27272a',
