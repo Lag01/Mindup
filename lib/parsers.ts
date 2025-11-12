@@ -73,7 +73,19 @@ export function parseXML(content: string): ParsedDeck {
 
       texArray.forEach((tex: any) => {
         const name = tex['@_name'];
-        const content = (tex['#text'] || '').trim();
+
+        // Gérer différents formats de contenu retournés par fast-xml-parser
+        let content = '';
+        if (typeof tex === 'string') {
+          content = tex.trim();
+        } else if (tex['#text'] !== undefined && tex['#text'] !== null) {
+          content = String(tex['#text']).trim();
+        } else if (tex) {
+          // Fallback: chercher une valeur directe ou convertir
+          const val = tex.valueOf ? tex.valueOf() : tex;
+          content = String(val).trim();
+        }
+
         if (name === 'Front') {
           front = content;
         } else if (name === 'Back') {
