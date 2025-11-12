@@ -67,8 +67,11 @@ export function parseXML(content: string): ParsedDeck {
     let front = '';
     let back = '';
 
-    if (Array.isArray(card.tex)) {
-      card.tex.forEach((tex: any) => {
+    // Normaliser card.tex en tableau (qu'il soit déjà array ou objet unique)
+    if (card.tex) {
+      const texArray = Array.isArray(card.tex) ? card.tex : [card.tex];
+
+      texArray.forEach((tex: any) => {
         const name = tex['@_name'];
         const content = (tex['#text'] || '').trim();
         if (name === 'Front') {
@@ -77,15 +80,6 @@ export function parseXML(content: string): ParsedDeck {
           back = content;
         }
       });
-    } else if (card.tex) {
-      const tex = card.tex;
-      const name = tex['@_name'];
-      const content = (tex['#text'] || '').trim();
-      if (name === 'Front') {
-        front = content;
-      } else if (name === 'Back') {
-        back = content;
-      }
     }
 
     if (!front && !back) {
