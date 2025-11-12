@@ -41,7 +41,7 @@ export function parseXML(content: string): ParsedDeck {
     if (Array.isArray(card.tex)) {
       card.tex.forEach((tex: any) => {
         const name = tex['@_name'];
-        const content = tex['#text'] || '';
+        const content = (tex['#text'] || '').trim();
         if (name === 'Front') {
           front = content;
         } else if (name === 'Back') {
@@ -51,7 +51,7 @@ export function parseXML(content: string): ParsedDeck {
     } else if (card.tex) {
       const tex = card.tex;
       const name = tex['@_name'];
-      const content = tex['#text'] || '';
+      const content = (tex['#text'] || '').trim();
       if (name === 'Front') {
         front = content;
       } else if (name === 'Back') {
@@ -98,17 +98,20 @@ export function parseCSV(content: string): Promise<ParsedDeck> {
 
           results.data.forEach((row: any, index: number) => {
             // Essayer d'abord les noms de colonnes standards
-            let front = row.Front || row.front || row.Question || row.question || '';
-            let back = row.Back || row.back || row.Answer || row.answer || '';
+            let front = (row.Front || row.front || row.Question || row.question || '').trim();
+            let back = (row.Back || row.back || row.Answer || row.answer || '').trim();
 
             // Si aucun nom standard trouvé, utiliser les 2 premières colonnes
             if (!front && !back && fields.length >= 2) {
-              front = row[fields[0]] || '';
-              back = row[fields[1]] || '';
+              front = (row[fields[0]] || '').trim();
+              back = (row[fields[1]] || '').trim();
             }
 
-            if (front || back) {
+            // Validation stricte : front ET back requis
+            if (front && back) {
               cards.push({ front, back });
+            } else if (front || back) {
+              console.warn(`Ligne ${index + 2} ignorée : front ou back manquant`);
             }
           });
 

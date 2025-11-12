@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { getCurrentUser } from '@/lib/auth';
 import { parseXML, parseCSV } from '@/lib/parsers';
 import { createNewCard } from '@/lib/fsrs';
@@ -48,43 +49,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create deck in database
-    const deck = await prisma.deck.create({
-      data: {
-        name: parsedDeck.name,
-        userId: user.id,
-        cards: {
-          create: parsedDeck.cards.map((card, index) => ({
-            front: card.front,
-            back: card.back,
-            order: index,
-          })),
+    // Create deck and reviews in a transaction
+    const deck = await prisma.$transaction(async (tx) => {
+      // Create the deck with cards
+      const createdDeck = await tx.deck.create({
+        data: {
+          name: parsedDeck.name,
+          userId: user.id,
+          cards: {
+            create: parsedDeck.cards.map((card, index) => ({
+              front: card.front,
+              back: card.back,
+              order: index,
+            })),
+          },
         },
-      },
-      include: {
-        cards: true,
-      },
-    });
+        include: {
+          cards: true,
+        },
+      });
 
-    // Create initial reviews for all cards
-    const newCardData = createNewCard();
-    const reviewsData = deck.cards.map(card => ({
-      cardId: card.id,
-      userId: user.id,
-      due: newCardData.due,
-      stability: newCardData.stability,
-      difficulty: newCardData.difficulty,
-      elapsedDays: newCardData.elapsedDays,
-      scheduledDays: newCardData.scheduledDays,
-      learningSteps: newCardData.learningSteps,
-      reps: newCardData.reps,
-      lapses: newCardData.lapses,
-      state: newCardData.state,
-      lastReview: newCardData.lastReview,
-    }));
+      // Create initial reviews for all cards
+      const newCardData = createNewCard();
+      const reviewsData = createdDeck.cards.map(card => ({
+        cardId: card.id,
+        userId: user.id,
+        due: newCardData.due,
+        stability: newCardData.stability,
+        difficulty: newCardData.difficulty,
+        elapsedDays: newCardData.elapsedDays,
+        scheduledDays: newCardData.scheduledDays,
+        learningSteps: newCardData.learningSteps,
+        reps: newCardData.reps,
+        lapses: newCardData.lapses,
+        state: newCardData.state,
+        lastReview: newCardData.lastReview ?? undefined,
+      }));
 
-    await prisma.review.createMany({
-      data: reviewsData,
+      await tx.review.createMany({
+        data: reviewsData,
+      });
+
+      return createdDeck;
     });
 
     return NextResponse.json({
@@ -97,8 +103,24 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Import error:', error);
+
+    // Identifier le type d'erreur pour donner un message plus précis
+    let errorMessage = 'Erreur lors de l\'importation du deck';
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        errorMessage = 'Ce deck contient des cartes déjà importées';
+      } else if (error.code === 'P2003') {
+        errorMessage = 'Erreur de référence dans la base de données';
+      } else {
+        errorMessage = `Erreur de base de données : ${error.message}`;
+      }
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+
     return NextResponse.json(
-      { error: 'Erreur lors de l\'importation du deck' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
