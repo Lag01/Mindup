@@ -127,7 +127,7 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
         <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
           <div className="text-zinc-400 text-sm mb-1">Maîtrisées</div>
           <div className="text-2xl font-bold text-green-400">{stats.masteredCards}</div>
-          <div className="text-zinc-500 text-xs mt-1">stabilité > 100</div>
+          <div className="text-zinc-500 text-xs mt-1">stabilité &gt; 100</div>
         </div>
 
         <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
