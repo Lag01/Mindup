@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
 interface RouteContext {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(
@@ -20,7 +20,7 @@ export async function GET(
       );
     }
 
-    const { id: deckId } = context.params;
+    const { id: deckId } = await context.params;
 
     // Verify deck belongs to user
     const deck = await prisma.deck.findFirst({

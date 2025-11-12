@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
 interface RouteContext {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function PATCH(
@@ -20,7 +20,7 @@ export async function PATCH(
       );
     }
 
-    const { id: cardId } = context.params;
+    const { id: cardId } = await context.params;
     const body = await request.json();
     const { front, back, frontType, backType } = body;
 
