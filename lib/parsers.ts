@@ -55,13 +55,20 @@ export function parseXML(content: string): ParsedDeck {
   const deck = result.deck;
   const deckName = deck['@_name'] || 'Deck sans nom';
 
-  if (!deck.cards || !deck.cards.card) {
+  // Extraire manuellement toutes les balises <card> avec regex
+  // pour contourner le bug de fast-xml-parser qui ne groupe pas
+  // les éléments avec des structures différentes (ordre des enfants)
+  const cardMatches = content.match(/<card>.*?<\/card>/g);
+
+  if (!cardMatches || cardMatches.length === 0) {
     throw new Error('Format XML invalide : aucune carte trouvée');
   }
 
-  const cardsArray = Array.isArray(deck.cards.card)
-    ? deck.cards.card
-    : [deck.cards.card];
+  // Parser chaque carte individuellement
+  const cardsArray = cardMatches.map((cardXml) => {
+    const cardResult = parser.parse(cardXml);
+    return cardResult.card;
+  });
 
   const cards: ParsedCard[] = cardsArray.map((card: any, index: number) => {
     let front = '';
