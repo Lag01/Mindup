@@ -61,13 +61,17 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: {
-        order: 'asc',
-      },
+    });
+
+    // Sort cards by due date (most urgent first)
+    const sortedCards = cards.sort((a, b) => {
+      const dueA = a.reviews[0]?.due?.getTime() || 0;
+      const dueB = b.reviews[0]?.due?.getTime() || 0;
+      return dueA - dueB;
     });
 
     return NextResponse.json({
-      cards: cards.map(card => ({
+      cards: sortedCards.map(card => ({
         id: card.id,
         front: card.front,
         back: card.back,
