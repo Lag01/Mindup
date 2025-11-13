@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { createNewCard } from '@/lib/fsrs';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -55,6 +56,114 @@ export async function GET(
     console.error('Get deck cards error:', error);
     return NextResponse.json(
       { error: 'Erreur lors de la récupération des cartes' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  context: RouteContext
+) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
+
+    const { id: deckId } = await context.params;
+    const body = await request.json();
+    const { front, back, frontType, backType } = body;
+
+    // Validation
+    if (!front || !back) {
+      return NextResponse.json(
+        { error: 'Le recto et le verso sont requis' },
+        { status: 400 }
+      );
+    }
+
+    if (!['TEXT', 'LATEX'].includes(frontType) || !['TEXT', 'LATEX'].includes(backType)) {
+      return NextResponse.json(
+        { error: 'Type de contenu invalide' },
+        { status: 400 }
+      );
+    }
+
+    // Verify deck belongs to user
+    const deck = await prisma.deck.findFirst({
+      where: {
+        id: deckId,
+        userId: user.id,
+      },
+      include: {
+        cards: {
+          orderBy: {
+            order: 'desc',
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!deck) {
+      return NextResponse.json(
+        { error: 'Deck non trouvé' },
+        { status: 404 }
+      );
+    }
+
+    // Calculate next order number
+    const nextOrder = deck.cards.length > 0 ? deck.cards[0].order + 1 : 0;
+
+    // Create card and review in a transaction
+    const card = await prisma.$transaction(async (tx) => {
+      // Create the card
+      const createdCard = await tx.card.create({
+        data: {
+          deckId: deckId,
+          front,
+          back,
+          frontType,
+          backType,
+          order: nextOrder,
+        },
+      });
+
+      // Create initial review for the card
+      const newCardData = createNewCard();
+      await tx.review.create({
+        data: {
+          cardId: createdCard.id,
+          userId: user.id,
+          due: newCardData.due,
+          stability: newCardData.stability,
+          difficulty: newCardData.difficulty,
+          elapsedDays: newCardData.elapsedDays,
+          scheduledDays: newCardData.scheduledDays,
+          learningSteps: newCardData.learningSteps,
+          reps: newCardData.reps,
+          lapses: newCardData.lapses,
+          state: newCardData.state,
+          lastReview: newCardData.lastReview ?? undefined,
+        },
+      });
+
+      return createdCard;
+    });
+
+    return NextResponse.json({
+      success: true,
+      card,
+    });
+  } catch (error) {
+    console.error('Create card error:', error);
+    return NextResponse.json(
+      { error: 'Erreur lors de la création de la carte' },
       { status: 500 }
     );
   }
