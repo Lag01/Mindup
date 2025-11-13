@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingDeck, setEditingDeck] = useState<{ id: string; name: string } | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -123,12 +124,16 @@ export default function Dashboard() {
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {decks.map(deck => (
-              <div key={deck.id} className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
+              <div
+                key={deck.id}
+                className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 hover:border-zinc-700 transition-all shadow-lg hover:shadow-xl"
+              >
+                {/* En-tête avec titre et menu dropdown */}
                 <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h2 className="text-xl font-semibold text-foreground mb-2">
+                  <div className="flex-1">
+                    <h2 className="text-xl font-semibold text-foreground mb-2 line-clamp-2">
                       {deck.name}
                     </h2>
                     <div className="space-y-1">
@@ -140,44 +145,94 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Menu dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setOpenDropdown(openDropdown === deck.id ? null : deck.id)}
+                      className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+                      aria-label="Menu d'actions"
+                    >
+                      <svg
+                        className="w-5 h-5 text-zinc-400"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                      </svg>
+                    </button>
+
+                    {/* Dropdown menu */}
+                    {openDropdown === deck.id && (
+                      <>
+                        {/* Overlay pour fermer le dropdown */}
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setOpenDropdown(null)}
+                        />
+                        <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl z-20 overflow-hidden">
+                          <button
+                            onClick={() => {
+                              router.push(`/deck/${deck.id}/stats`);
+                              setOpenDropdown(null);
+                            }}
+                            className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-zinc-700 transition-colors flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Statistiques
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingDeck({ id: deck.id, name: deck.name });
+                              setOpenDropdown(null);
+                            }}
+                            className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-zinc-700 transition-colors flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Renommer
+                          </button>
+                          <div className="border-t border-zinc-700"></div>
+                          <button
+                            onClick={() => {
+                              handleDelete(deck.id);
+                              setOpenDropdown(null);
+                            }}
+                            disabled={deleting === deck.id}
+                            className="w-full text-left px-4 py-3 text-red-400 hover:bg-red-900/30 transition-colors disabled:opacity-50 flex items-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            {deleting === deck.id ? 'Suppression...' : 'Supprimer'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                {/* Boutons principaux */}
+                <div className="flex gap-2 mt-4">
                   <button
                     onClick={() => router.push(`/deck/${deck.id}/review`)}
                     disabled={deck.dueCards === 0}
-                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
                   >
-                    {deck.dueCards > 0 ? 'Réviser' : 'Aucune carte'}
+                    {deck.dueCards > 0 ? `Réviser (${deck.dueCards})` : 'Aucune carte'}
                   </button>
 
                   <button
                     onClick={() => router.push(`/deck/${deck.id}/edit`)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
                     Éditer
-                  </button>
-
-                  <button
-                    onClick={() => router.push(`/deck/${deck.id}/stats`)}
-                    className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-                  >
-                    Statistiques
-                  </button>
-
-                  <button
-                    onClick={() => setEditingDeck({ id: deck.id, name: deck.name })}
-                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium py-2 px-4 rounded-lg transition-colors"
-                  >
-                    Renommer
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(deck.id)}
-                    disabled={deleting === deck.id}
-                    className="bg-red-900/30 hover:bg-red-900/50 text-red-400 font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {deleting === deck.id ? '...' : 'Supprimer'}
                   </button>
                 </div>
               </div>

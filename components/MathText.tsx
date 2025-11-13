@@ -20,6 +20,7 @@ export default function MathText({
 }: MathTextProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [fontSize, setFontSize] = useState(16);
+  const [needsScroll, setNeedsScroll] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -95,6 +96,11 @@ export default function MathText({
 
       setFontSize(bestSize);
       containerRef.current.style.fontSize = `${bestSize}px`;
+
+      // Check if content still overflows even at minimum size
+      renderContent();
+      const finalScrollHeight = containerRef.current.scrollHeight;
+      setNeedsScroll(finalScrollHeight > maxHeight);
     };
 
     if (autoResize) {
@@ -111,7 +117,7 @@ export default function MathText({
       style={{
         fontSize: autoResize ? `${fontSize}px` : undefined,
         maxHeight: autoResize ? `${maxHeight}px` : undefined,
-        overflow: autoResize ? 'hidden' : 'auto',
+        overflow: autoResize ? (needsScroll ? 'auto' : 'hidden') : 'auto',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
