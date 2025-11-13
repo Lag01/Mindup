@@ -24,6 +24,21 @@ export async function PATCH(
     const body = await request.json();
     const { front, back, frontType, backType } = body;
 
+    // Validation
+    if (frontType !== undefined && !['TEXT', 'LATEX'].includes(frontType)) {
+      return NextResponse.json(
+        { error: 'Type de contenu invalide pour le recto' },
+        { status: 400 }
+      );
+    }
+
+    if (backType !== undefined && !['TEXT', 'LATEX'].includes(backType)) {
+      return NextResponse.json(
+        { error: 'Type de contenu invalide pour le verso' },
+        { status: 400 }
+      );
+    }
+
     // Verify card belongs to user's deck
     const card = await prisma.card.findUnique({
       where: { id: cardId },

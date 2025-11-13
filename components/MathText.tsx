@@ -119,10 +119,12 @@ export default function MathText({
         maxHeight: autoResize ? `${maxHeight}px` : undefined,
         overflow: autoResize ? (needsScroll ? 'auto' : 'hidden') : 'auto',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: needsScroll ? 'flex-start' : 'center',
         wordBreak: 'break-word',
-        lineHeight: '1.5'
+        lineHeight: '1.5',
+        padding: needsScroll ? '8px' : '0'
       }}
     />
   );
