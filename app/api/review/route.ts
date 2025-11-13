@@ -59,16 +59,19 @@ export async function GET(request: NextRequest) {
           where: {
             userId: user.id,
           },
+          take: 1, // Only one review per user/card thanks to unique constraint
         },
       },
     });
 
-    // Sort cards by due date (most urgent first)
-    const sortedCards = cards.sort((a, b) => {
-      const dueA = a.reviews[0]?.due?.getTime() || 0;
-      const dueB = b.reviews[0]?.due?.getTime() || 0;
-      return dueA - dueB;
-    });
+    // Filter out cards without reviews (safety check) and sort by due date (most urgent first)
+    const sortedCards = cards
+      .filter(card => card.reviews.length > 0 && card.reviews[0].due)
+      .sort((a, b) => {
+        const dueA = a.reviews[0].due.getTime();
+        const dueB = b.reviews[0].due.getTime();
+        return dueA - dueB;
+      });
 
     return NextResponse.json({
       cards: sortedCards.map(card => ({
