@@ -50,25 +50,26 @@ model Card {
 }
 
 model Review {
-  id            String   @id @default(cuid())
-  cardId        String
-  userId        String
-  // FSRS data stored as JSON
-  due           DateTime
-  stability     Float
-  difficulty    Float
-  elapsedDays   Int
-  scheduledDays Int
-  learningSteps Int
-  reps          Int
-  lapses        Int
-  state         Int      // 0: New, 1: Learning, 2: Review, 3: Relearning
-  lastReview    DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  card          Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  cardId      String
+  userId      String
+
+  // Statistics
+  reps        Int       @default(0)        // Total number of reviews
+  againCount  Int       @default(0)        // Number of "Again" responses
+  hardCount   Int       @default(0)        // Number of "Hard" responses
+  goodCount   Int       @default(0)        // Number of "Good" responses
+  easyCount   Int       @default(0)        // Number of "Easy" responses
+  lastReview  DateTime?                    // Last review timestamp
+
+  // Metadata
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  card        Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([cardId, userId])
-  @@index([userId, due])
+  @@index([userId])
 }

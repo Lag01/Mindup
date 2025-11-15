@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
-import { reviewCard } from '@/lib/fsrs';
+import { updateReviewStats, Rating } from '@/lib/revision';
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,48 +39,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const now = new Date();
-
-    // Get due cards
+    // Get ALL cards from the deck (not filtered by due date)
     const cards = await prisma.card.findMany({
       where: {
         deckId: deckId,
-        reviews: {
-          some: {
-            userId: user.id,
-            due: {
-              lte: now,
-            },
-          },
-        },
       },
       include: {
         reviews: {
           where: {
             userId: user.id,
           },
-          take: 1, // Only one review per user/card thanks to unique constraint
+          take: 1,
         },
+      },
+      orderBy: {
+        order: 'asc', // Keep the original card order
       },
     });
 
-    // Filter out cards without reviews (safety check) and sort by due date (most urgent first)
-    const sortedCards = cards
-      .filter(card => card.reviews.length > 0 && card.reviews[0].due)
-      .sort((a, b) => {
-        const dueA = a.reviews[0].due.getTime();
-        const dueB = b.reviews[0].due.getTime();
-        return dueA - dueB;
-      });
-
     return NextResponse.json({
-      cards: sortedCards.map(card => ({
+      cards: cards.map(card => ({
         id: card.id,
         front: card.front,
         back: card.back,
         frontType: card.frontType,
         backType: card.backType,
-        review: card.reviews[0],
+        review: card.reviews[0] || null,
       })),
     });
   } catch (error) {
@@ -120,8 +104,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get current review
-    const currentReview = await prisma.review.findUnique({
+    // Get or create review
+    let currentReview = await prisma.review.findUnique({
       where: {
         cardId_userId: {
           cardId,
@@ -137,11 +121,39 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // If no review exists, create one
     if (!currentReview) {
-      return NextResponse.json(
-        { error: 'Révision non trouvée' },
-        { status: 404 }
-      );
+      // Verify card exists and belongs to user's deck
+      const card = await prisma.card.findUnique({
+        where: { id: cardId },
+        include: { deck: true },
+      });
+
+      if (!card || card.deck.userId !== user.id) {
+        return NextResponse.json(
+          { error: 'Carte non trouvée ou accès non autorisé' },
+          { status: 404 }
+        );
+      }
+
+      currentReview = await prisma.review.create({
+        data: {
+          cardId,
+          userId: user.id,
+          reps: 0,
+          againCount: 0,
+          hardCount: 0,
+          goodCount: 0,
+          easyCount: 0,
+        },
+        include: {
+          card: {
+            include: {
+              deck: true,
+            },
+          },
+        },
+      });
     }
 
     // Verify deck belongs to user
@@ -152,21 +164,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate new review data using FSRS
-    const reviewData = {
-      due: currentReview.due,
-      stability: currentReview.stability,
-      difficulty: currentReview.difficulty,
-      elapsedDays: currentReview.elapsedDays,
-      scheduledDays: currentReview.scheduledDays,
-      learningSteps: currentReview.learningSteps,
-      reps: currentReview.reps,
-      lapses: currentReview.lapses,
-      state: currentReview.state,
-      lastReview: currentReview.lastReview,
-    };
-
-    const newReviewData = reviewCard(reviewData, rating as any);
+    // Calculate new review stats
+    const newStats = updateReviewStats(
+      {
+        reps: currentReview.reps,
+        againCount: currentReview.againCount,
+        hardCount: currentReview.hardCount,
+        goodCount: currentReview.goodCount,
+        easyCount: currentReview.easyCount,
+        lastReview: currentReview.lastReview,
+      },
+      rating as Rating
+    );
 
     // Update review in database
     await prisma.review.update({
@@ -177,16 +186,12 @@ export async function POST(request: NextRequest) {
         },
       },
       data: {
-        due: newReviewData.due,
-        stability: newReviewData.stability,
-        difficulty: newReviewData.difficulty,
-        elapsedDays: newReviewData.elapsedDays,
-        scheduledDays: newReviewData.scheduledDays,
-        learningSteps: newReviewData.learningSteps,
-        reps: newReviewData.reps,
-        lapses: newReviewData.lapses,
-        state: newReviewData.state,
-        lastReview: newReviewData.lastReview,
+        reps: newStats.reps,
+        againCount: newStats.againCount,
+        hardCount: newStats.hardCount,
+        goodCount: newStats.goodCount,
+        easyCount: newStats.easyCount,
+        lastReview: newStats.lastReview,
       },
     });
 

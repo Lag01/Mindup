@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
-import { createNewCard } from '@/lib/fsrs';
+import { createNewReviewStats } from '@/lib/revision';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -135,21 +135,17 @@ export async function POST(
       });
 
       // Create initial review for the card
-      const newCardData = createNewCard();
+      const newStats = createNewReviewStats();
       await tx.review.create({
         data: {
           cardId: createdCard.id,
           userId: user.id,
-          due: newCardData.due,
-          stability: newCardData.stability,
-          difficulty: newCardData.difficulty,
-          elapsedDays: newCardData.elapsedDays,
-          scheduledDays: newCardData.scheduledDays,
-          learningSteps: newCardData.learningSteps,
-          reps: newCardData.reps,
-          lapses: newCardData.lapses,
-          state: newCardData.state,
-          lastReview: newCardData.lastReview ?? undefined,
+          reps: newStats.reps,
+          againCount: newStats.againCount,
+          hardCount: newStats.hardCount,
+          goodCount: newStats.goodCount,
+          easyCount: newStats.easyCount,
+          lastReview: newStats.lastReview ?? undefined,
         },
       });
 

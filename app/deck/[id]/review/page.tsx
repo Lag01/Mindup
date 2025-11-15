@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import MathText from '@/components/MathText';
+import { insertCardInQueue, Rating } from '@/lib/revision';
 
 interface Card {
   id: string;
@@ -36,11 +37,13 @@ function useIsMobile() {
 export default function Review() {
   const params = useParams();
   const deckId = params.id as string;
-  const [cards, setCards] = useState<Card[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [allCards, setAllCards] = useState<Card[]>([]); // All cards from the deck
+  const [cardQueue, setCardQueue] = useState<Card[]>([]); // Dynamic queue of cards
+  const [currentCard, setCurrentCard] = useState<Card | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [sessionStats, setSessionStats] = useState({ total: 0, again: 0, hard: 0, good: 0, easy: 0 });
   const router = useRouter();
   const isMobile = useIsMobile();
 
@@ -59,7 +62,15 @@ export default function Review() {
         throw new Error('Failed to fetch cards');
       }
       const data = await response.json();
-      setCards(data.cards);
+
+      // Initialize the queue with all cards
+      setAllCards(data.cards);
+      setCardQueue(data.cards);
+
+      // Set the first card as current
+      if (data.cards.length > 0) {
+        setCurrentCard(data.cards[0]);
+      }
     } catch (error) {
       console.error('Error fetching cards:', error);
     } finally {
@@ -72,18 +83,19 @@ export default function Review() {
   };
 
   const handleRating = async (rating: 'again' | 'hard' | 'good' | 'easy') => {
-    if (submitting) return;
+    if (submitting || !currentCard) return;
 
     setSubmitting(true);
 
     try {
+      // Submit review to API
       const response = await fetch('/api/review', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          cardId: cards[currentIndex].id,
+          cardId: currentCard.id,
           rating,
         }),
       });
@@ -92,14 +104,32 @@ export default function Review() {
         throw new Error('Failed to submit review');
       }
 
-      // Move to next card
-      if (currentIndex < cards.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-        setIsFlipped(false);
+      // Update session stats
+      setSessionStats(prev => ({
+        total: prev.total + 1,
+        again: prev.again + (rating === 'again' ? 1 : 0),
+        hard: prev.hard + (rating === 'hard' ? 1 : 0),
+        good: prev.good + (rating === 'good' ? 1 : 0),
+        easy: prev.easy + (rating === 'easy' ? 1 : 0),
+      }));
+
+      // Remove current card from queue
+      const remainingQueue = cardQueue.slice(1);
+
+      // Reinsert the card at the appropriate position based on rating
+      const newQueue = insertCardInQueue(remainingQueue, currentCard, rating as Rating);
+
+      // If queue becomes empty, restart with all cards
+      if (newQueue.length === 0) {
+        setCardQueue(allCards);
+        setCurrentCard(allCards[0]);
       } else {
-        // All cards reviewed
-        router.push('/dashboard');
+        setCardQueue(newQueue);
+        setCurrentCard(newQueue[0]);
       }
+
+      // Reset flip state for next card
+      setIsFlipped(false);
     } catch (error) {
       console.error('Error submitting review:', error);
       alert('Erreur lors de la soumission de la révision');
@@ -116,12 +146,12 @@ export default function Review() {
     );
   }
 
-  if (cards.length === 0) {
+  if (allCards.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <p className="text-foreground text-lg mb-4">
-            Aucune carte à réviser pour le moment
+            Aucune carte dans ce deck
           </p>
           <button
             onClick={() => router.push('/dashboard')}
@@ -134,22 +164,34 @@ export default function Review() {
     );
   }
 
-  const currentCard = cards[currentIndex];
+  if (!currentCard) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="bg-zinc-900 border-b border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-zinc-400 text-sm">
-            Carte {currentIndex + 1} / {cards.length}
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex justify-between items-center mb-2">
+            <div className="text-zinc-400 text-sm">
+              Session continue • {sessionStats.total} cartes révisées
+            </div>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              Quitter
+            </button>
           </div>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors text-sm"
-          >
-            Quitter
-          </button>
+          {sessionStats.total > 0 && (
+            <div className="flex gap-3 text-xs">
+              <span className="text-red-400">Échec: {sessionStats.again}</span>
+              <span className="text-orange-400">Difficile: {sessionStats.hard}</span>
+              <span className="text-green-400">Bien: {sessionStats.good}</span>
+              <span className="text-blue-400">Facile: {sessionStats.easy}</span>
+            </div>
+          )}
         </div>
       </header>
 
