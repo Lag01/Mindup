@@ -184,14 +184,6 @@ export default function Review() {
               Quitter
             </button>
           </div>
-          {sessionStats.total > 0 && (
-            <div className="flex gap-3 text-xs">
-              <span className="text-red-400">Échec: {sessionStats.again}</span>
-              <span className="text-orange-400">Difficile: {sessionStats.hard}</span>
-              <span className="text-green-400">Bien: {sessionStats.good}</span>
-              <span className="text-blue-400">Facile: {sessionStats.easy}</span>
-            </div>
-          )}
         </div>
       </header>
 
