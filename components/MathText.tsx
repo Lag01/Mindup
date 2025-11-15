@@ -39,6 +39,8 @@ export default function MathText({
               displayMode: true,
               throwOnError: false,
               trust: true,
+              fleqn: true, // Left-align equations to prevent overflow on mobile
+              maxSize: 500, // Allow larger sizes but prevent excessive scaling
             });
           } catch (e) {
             // If display mode fails, try inline
@@ -47,6 +49,8 @@ export default function MathText({
                 displayMode: false,
                 throwOnError: false,
                 trust: true,
+                fleqn: true,
+                maxSize: 500,
               });
             } catch (e2) {
               // If both fail, display as text
@@ -73,25 +77,35 @@ export default function MathText({
       const minSize = 8;
       const maxSize = 24;
 
-      // Binary search for optimal font size
+      // Binary search for optimal font size with more iterations for precision
       let low = minSize;
       let high = maxSize;
       let bestSize = currentSize;
+      const maxIterations = 20; // Increase iterations for better accuracy
+      let iteration = 0;
 
-      while (low <= high) {
+      while (low <= high && iteration < maxIterations) {
         currentSize = Math.floor((low + high) / 2);
         containerRef.current.style.fontSize = `${currentSize}px`;
 
         renderContent();
 
+        // Wait a tick for KaTeX to fully render before measuring
         const scrollHeight = containerRef.current.scrollHeight;
+        const scrollWidth = containerRef.current.scrollWidth;
+        const clientWidth = containerRef.current.clientWidth;
 
-        if (scrollHeight <= maxHeight) {
+        // Check both height and width overflow
+        const hasOverflow = scrollHeight > maxHeight || scrollWidth > clientWidth;
+
+        if (!hasOverflow) {
           bestSize = currentSize;
           low = currentSize + 1;
         } else {
           high = currentSize - 1;
         }
+
+        iteration++;
       }
 
       setFontSize(bestSize);
@@ -100,7 +114,9 @@ export default function MathText({
       // Check if content still overflows even at minimum size
       renderContent();
       const finalScrollHeight = containerRef.current.scrollHeight;
-      setNeedsScroll(finalScrollHeight > maxHeight);
+      const finalScrollWidth = containerRef.current.scrollWidth;
+      const finalClientWidth = containerRef.current.clientWidth;
+      setNeedsScroll(finalScrollHeight > maxHeight || finalScrollWidth > finalClientWidth);
     };
 
     if (autoResize) {
@@ -123,8 +139,13 @@ export default function MathText({
         alignItems: 'center',
         justifyContent: needsScroll ? 'flex-start' : 'center',
         wordBreak: 'break-word',
+        overflowWrap: 'anywhere',
+        wordWrap: 'break-word',
+        hyphens: 'auto',
         lineHeight: '1.5',
-        padding: needsScroll ? '8px' : '0'
+        padding: needsScroll ? '8px' : '0',
+        width: '100%',
+        boxSizing: 'border-box'
       }}
     />
   );

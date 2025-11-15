@@ -16,3 +16,56 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Styles pour améliorer le rendu KaTeX sur mobile */
+@layer base {
+  /* Force le wrapping du contenu LaTeX */
+  .katex-html,
+  .katex-display,
+  .katex {
+    overflow-wrap: anywhere !important;
+    word-wrap: break-word !important;
+    word-break: break-word !important;
+    max-width: 100% !important;
+  }
+
+  /* Empêche le débordement horizontal des formules LaTeX */
+  .katex-display {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    text-align: left !important;
+    margin: 0 !important;
+  }
+
+  /* Styles spécifiques pour mobile */
+  @media (max-width: 768px) {
+    .katex,
+    .katex-html {
+      font-size: 0.95em !important;
+    }
+
+    /* Permet au texte dans les formules LaTeX de wrapper */
+    .katex .mord.text,
+    .katex .text {
+      white-space: normal !important;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
+    }
+
+    /* Ajuste l'espacement pour mobile */
+    .katex-display > .katex {
+      padding: 0.25rem 0 !important;
+    }
+  }
+
+  /* Force le wrapping des longues équations */
+  .katex .base {
+    display: inline-block !important;
+    max-width: 100% !important;
+  }
+
+  /* Améliore la lisibilité du texte dans LaTeX */
+  .katex .mord.text {
+    font-family: Arial, Helvetica, sans-serif !important;
+  }
+}
