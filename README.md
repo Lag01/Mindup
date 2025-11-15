@@ -1,26 +1,28 @@
-# Application de Flashcards avec FSRS
+# Application de Flashcards - Mindup
 
-Application web de révision par flashcards utilisant l'algorithme FSRS (Free Spaced Repetition Scheduler) pour optimiser la mémorisation. Conçue pour mobile-first avec un thème sombre.
+Application web de révision par flashcards avec **système de révision immédiate** permettant des sessions infinies et un apprentissage intensif. Conçue pour mobile-first avec un thème sombre.
 
 ## Fonctionnalités
 
-- Authentification par email/mot de passe
-- Import de decks de flashcards (XML et CSV)
-- Système de révision espacée avec algorithme FSRS
-- Rendu LaTeX pour les formules mathématiques
-- Interface mobile-first avec thème sombre
-- Statistiques de révision par deck
+- 🔐 Authentification par email/mot de passe
+- 📥 Import de decks de flashcards (XML et CSV)
+- ♾️ **Système de révision immédiate** : sessions infinies sans limitation
+- 🎯 **File dynamique** : les cartes reviennent selon votre performance
+- 📐 Rendu LaTeX pour les formules mathématiques
+- 📱 Interface mobile-first optimisée avec thème sombre
+- 📊 Statistiques de révision par deck et par session
 
 ## Technologies
 
 - **Framework**: Next.js 15+ (App Router)
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS v4
 - **Base de données**: PostgreSQL (Neon)
 - **ORM**: Prisma
-- **Authentification**: bcrypt + sessions
-- **Algorithme**: ts-fsrs
+- **Authentification**: bcrypt + sessions HTTP-only
+- **Algorithme**: Révision immédiate avec file dynamique
 - **LaTeX**: KaTeX
+- **PWA**: Service Worker pour utilisation offline
 - **Déploiement**: Vercel
 
 ## Installation
@@ -95,16 +97,30 @@ Question 2,Réponse 2
 
 ## Utilisation
 
+### Démarrage
+
 1. **Inscription/Connexion** : Créer un compte ou se connecter
 2. **Importer un deck** : Uploader un fichier XML ou CSV
 3. **Réviser** : Sélectionner un deck et commencer la révision
-4. **Évaluer** : Pour chaque carte, choisir entre :
-   - **Échec** : Carte à revoir bientôt
-   - **Difficile** : Intervalle de révision court
-   - **Bon** : Intervalle de révision moyen
-   - **Facile** : Intervalle de révision long
 
-L'algorithme FSRS ajuste automatiquement les intervalles de révision en fonction de vos performances.
+### Système de révision immédiate
+
+Notre système fonctionne avec une **file dynamique** qui s'adapte en temps réel à vos réponses :
+
+4. **Évaluer** : Pour chaque carte, choisir entre :
+   - 🔴 **Échec** : La carte revient dans **3 cartes**
+   - 🟠 **Difficile** : La carte revient dans **8 cartes**
+   - 🟢 **Bien** : La carte revient dans **15 cartes**
+   - 🔵 **Facile** : La carte revient dans **30 cartes**
+
+### Avantages
+
+- ♾️ **Sessions infinies** : Révisez aussi longtemps que vous voulez
+- 🎯 **Feedback immédiat** : Les cartes difficiles reviennent rapidement
+- 📈 **Statistiques en temps réel** : Suivez votre progression pendant la session
+- 🔄 **Rotation automatique** : Quand toutes les cartes sont révisées, la file recommence
+
+Pour plus de détails, consultez [REVISION_ALGORITHM.md](REVISION_ALGORITHM.md).
 
 ## Structure du projet
 

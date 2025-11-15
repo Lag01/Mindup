@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { getCurrentUser } from '@/lib/auth';
 import { parseXML, parseCSV } from '@/lib/parsers';
-import { createNewCard } from '@/lib/fsrs';
+import { createNewReviewStats } from '@/lib/revision';
 
 export async function POST(request: NextRequest) {
   try {
@@ -72,20 +72,16 @@ export async function POST(request: NextRequest) {
       });
 
       // Create initial reviews for all cards
-      const newCardData = createNewCard();
+      const newStats = createNewReviewStats();
       const reviewsData = createdDeck.cards.map(card => ({
         cardId: card.id,
         userId: user.id,
-        due: newCardData.due,
-        stability: newCardData.stability,
-        difficulty: newCardData.difficulty,
-        elapsedDays: newCardData.elapsedDays,
-        scheduledDays: newCardData.scheduledDays,
-        learningSteps: newCardData.learningSteps,
-        reps: newCardData.reps,
-        lapses: newCardData.lapses,
-        state: newCardData.state,
-        lastReview: newCardData.lastReview ?? undefined,
+        reps: newStats.reps,
+        againCount: newStats.againCount,
+        hardCount: newStats.hardCount,
+        goodCount: newStats.goodCount,
+        easyCount: newStats.easyCount,
+        lastReview: newStats.lastReview ?? undefined,
       }));
 
       await tx.review.createMany({
