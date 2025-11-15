@@ -137,11 +137,8 @@ export default function Dashboard() {
                       {deck.name}
                     </h2>
                     <div className="space-y-1">
-                      <p className="text-zinc-400 text-sm">
-                        {deck.totalCards} carte{deck.totalCards > 1 ? 's' : ''}
-                      </p>
                       <p className="text-blue-400 text-sm font-medium">
-                        {deck.dueCards} à réviser
+                        {deck.totalCards} carte{deck.totalCards > 1 ? 's' : ''}
                       </p>
                     </div>
                   </div>
@@ -219,10 +216,9 @@ export default function Dashboard() {
                 <div className="flex gap-2 mt-4">
                   <button
                     onClick={() => router.push(`/deck/${deck.id}/review`)}
-                    disabled={deck.dueCards === 0}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
-                    {deck.dueCards > 0 ? `Réviser (${deck.dueCards})` : 'Aucune carte'}
+                    Réviser
                   </button>
 
                   <button

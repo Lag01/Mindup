@@ -23,9 +23,9 @@ body {
   .katex-html,
   .katex-display,
   .katex {
-    overflow-wrap: anywhere !important;
+    overflow-wrap: break-word !important;
     word-wrap: break-word !important;
-    word-break: break-word !important;
+    word-break: normal !important;
     max-width: 100% !important;
   }
 
@@ -48,8 +48,8 @@ body {
     .katex .mord.text,
     .katex .text {
       white-space: normal !important;
-      word-break: break-word !important;
-      overflow-wrap: anywhere !important;
+      word-break: normal !important;
+      overflow-wrap: break-word !important;
     }
 
     /* Ajuste l'espacement pour mobile */
