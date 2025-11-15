@@ -60,100 +60,91 @@ export async function GET(
     const stats = {
       totalCards: cards.length,
 
-      // États des cartes
-      cardsByState: {
-        new: 0,
-        learning: 0,
-        review: 0,
-        relearning: 0,
+      // Cartes par statut
+      cardsByStatus: {
+        notStarted: 0,  // Jamais révisées (reps = 0)
+        inProgress: 0,  // En cours (reps > 0)
+        reviewed: 0,    // Total avec reviews
       },
 
-      // Cartes dues
-      dueCards: 0,
-
-      // Performance
+      // Performance globale
       totalReviews: 0,
-      averageDifficulty: 0,
-      masteredCards: 0, // stability > 100
-      difficultCards: 0, // difficulty > 8
+      successRate: 0,   // % de "good" et "easy"
+
+      // Répartition des ratings
+      ratingDistribution: {
+        again: 0,
+        hard: 0,
+        good: 0,
+        easy: 0,
+      },
+
+      // Cartes difficiles et faciles
+      difficultCards: 0,  // Plus de 50% de "again" ou "hard"
+      masteredCards: 0,   // Plus de 70% de "easy"
 
       // Activité récente
       reviewsToday: 0,
       reviewsThisWeek: 0,
 
-      // Taux de réussite (basé sur les lapses)
-      successRate: 0,
-
       // Historique des révisions par jour (7 derniers jours)
       reviewHistory: [] as { date: string; count: number }[],
     };
 
-    let totalDifficulty = 0;
     let cardsWithReviews = 0;
 
     cards.forEach(card => {
       const review = card.reviews[0];
 
-      if (review) {
-        // États des cartes
-        switch (review.state) {
-          case 0:
-            stats.cardsByState.new++;
-            break;
-          case 1:
-            stats.cardsByState.learning++;
-            break;
-          case 2:
-            stats.cardsByState.review++;
-            break;
-          case 3:
-            stats.cardsByState.relearning++;
-            break;
+      if (!review || review.reps === 0) {
+        stats.cardsByStatus.notStarted++;
+        return;
+      }
+
+      cardsWithReviews++;
+      stats.cardsByStatus.reviewed++;
+      stats.cardsByStatus.inProgress++;
+
+      // Performance
+      stats.totalReviews += review.reps;
+      stats.ratingDistribution.again += review.againCount;
+      stats.ratingDistribution.hard += review.hardCount;
+      stats.ratingDistribution.good += review.goodCount;
+      stats.ratingDistribution.easy += review.easyCount;
+
+      // Calculer le taux de réussite de cette carte
+      const successCount = review.goodCount + review.easyCount;
+      const cardSuccessRate = review.reps > 0 ? (successCount / review.reps) * 100 : 0;
+
+      // Cartes difficiles (plus de 50% d'échecs ou difficultés)
+      const failureCount = review.againCount + review.hardCount;
+      const failureRate = review.reps > 0 ? (failureCount / review.reps) * 100 : 0;
+      if (failureRate > 50) {
+        stats.difficultCards++;
+      }
+
+      // Cartes maîtrisées (plus de 70% de "easy")
+      const easyRate = review.reps > 0 ? (review.easyCount / review.reps) * 100 : 0;
+      if (easyRate > 70) {
+        stats.masteredCards++;
+      }
+
+      // Activité récente
+      if (review.lastReview) {
+        const lastReviewDate = new Date(review.lastReview);
+        if (lastReviewDate >= today) {
+          stats.reviewsToday++;
         }
-
-        // Cartes dues
-        if (review.due <= now) {
-          stats.dueCards++;
-        }
-
-        // Performance
-        stats.totalReviews += review.reps;
-        totalDifficulty += review.difficulty;
-        cardsWithReviews++;
-
-        if (review.stability > 100) {
-          stats.masteredCards++;
-        }
-
-        if (review.difficulty > 8) {
-          stats.difficultCards++;
-        }
-
-        // Activité récente
-        if (review.lastReview) {
-          const lastReviewDate = new Date(review.lastReview);
-          if (lastReviewDate >= today) {
-            stats.reviewsToday++;
-          }
-          if (lastReviewDate >= weekAgo) {
-            stats.reviewsThisWeek++;
-          }
+        if (lastReviewDate >= weekAgo) {
+          stats.reviewsThisWeek++;
         }
       }
     });
 
-    // Calculate average difficulty
-    if (cardsWithReviews > 0) {
-      stats.averageDifficulty = totalDifficulty / cardsWithReviews;
-    }
-
-    // Calculate success rate
-    const totalLapses = cards.reduce((sum, card) => {
-      return sum + (card.reviews[0]?.lapses || 0);
-    }, 0);
-
+    // Calculate global success rate
+    const totalSuccesses = stats.ratingDistribution.good + stats.ratingDistribution.easy;
     if (stats.totalReviews > 0) {
-      stats.successRate = ((stats.totalReviews - totalLapses) / stats.totalReviews) * 100;
+      stats.successRate = (totalSuccesses / stats.totalReviews) * 100;
     }
 
     // Build review history for the last 7 days

@@ -36,20 +36,27 @@ export async function GET() {
     // Calculate statistics for each deck
     const decksWithStats = decks.map(deck => {
       const totalCards = deck.cards.length;
-      const now = new Date();
 
-      const dueCards = deck.cards.filter(card => {
+      // Dans le système de révision immédiate, toutes les cartes sont disponibles
+      // On compte les cartes jamais révisées pour donner une indication de progression
+      const notStarted = deck.cards.filter(card => {
         const review = card.reviews[0];
-        if (!review) return true; // New cards are due
-        return review.due <= now;
+        return !review || review.reps === 0;
       }).length;
+
+      // Calculer le taux de révision
+      const totalReviews = deck.cards.reduce((sum, card) => {
+        const review = card.reviews[0];
+        return sum + (review?.reps || 0);
+      }, 0);
 
       return {
         id: deck.id,
         name: deck.name,
         createdAt: deck.createdAt,
         totalCards,
-        dueCards,
+        notStarted,
+        totalReviews,
       };
     });
 

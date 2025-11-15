@@ -38,72 +38,68 @@ export async function GET(request: NextRequest) {
     const stats = {
       totalDecks: decks.length,
       totalCards: 0,
-      dueCards: 0,
+      notStarted: 0,      // Cartes jamais révisées
+      inProgress: 0,      // Cartes en cours
       totalReviews: 0,
       reviewsToday: 0,
-      masteredCards: 0,
-      cardsByState: {
-        new: 0,
-        learning: 0,
-        review: 0,
-        relearning: 0,
+      masteredCards: 0,   // Plus de 70% de "easy"
+      difficultCards: 0,  // Plus de 50% de "again" ou "hard"
+      ratingDistribution: {
+        again: 0,
+        hard: 0,
+        good: 0,
+        easy: 0,
       },
       successRate: 0,
       streak: 0, // Days of consecutive reviews
     };
-
-    let totalLapses = 0;
 
     decks.forEach(deck => {
       deck.cards.forEach(card => {
         stats.totalCards++;
 
         const review = card.reviews[0];
-        if (review) {
-          // Card states
-          switch (review.state) {
-            case 0:
-              stats.cardsByState.new++;
-              break;
-            case 1:
-              stats.cardsByState.learning++;
-              break;
-            case 2:
-              stats.cardsByState.review++;
-              break;
-            case 3:
-              stats.cardsByState.relearning++;
-              break;
-          }
+        if (!review || review.reps === 0) {
+          stats.notStarted++;
+          return;
+        }
 
-          // Due cards
-          if (review.due <= now) {
-            stats.dueCards++;
-          }
+        stats.inProgress++;
 
-          // Total reviews
-          stats.totalReviews += review.reps;
-          totalLapses += review.lapses;
+        // Total reviews et distribution
+        stats.totalReviews += review.reps;
+        stats.ratingDistribution.again += review.againCount;
+        stats.ratingDistribution.hard += review.hardCount;
+        stats.ratingDistribution.good += review.goodCount;
+        stats.ratingDistribution.easy += review.easyCount;
 
-          // Mastered cards
-          if (review.stability > 100) {
-            stats.masteredCards++;
-          }
+        // Cartes maîtrisées (plus de 70% de "easy")
+        const easyRate = review.reps > 0 ? (review.easyCount / review.reps) * 100 : 0;
+        if (easyRate > 70) {
+          stats.masteredCards++;
+        }
 
-          // Reviews today
-          if (review.lastReview) {
-            const lastReviewDate = new Date(review.lastReview);
-            if (lastReviewDate >= today) {
-              stats.reviewsToday++;
-            }
+        // Cartes difficiles (plus de 50% d'échecs)
+        const failureCount = review.againCount + review.hardCount;
+        const failureRate = review.reps > 0 ? (failureCount / review.reps) * 100 : 0;
+        if (failureRate > 50) {
+          stats.difficultCards++;
+        }
+
+        // Reviews today
+        if (review.lastReview) {
+          const lastReviewDate = new Date(review.lastReview);
+          if (lastReviewDate >= today) {
+            stats.reviewsToday++;
           }
         }
       });
     });
 
-    // Calculate success rate
+    // Calculate success rate (% de "good" et "easy")
+    const totalSuccesses = stats.ratingDistribution.good + stats.ratingDistribution.easy;
     if (stats.totalReviews > 0) {
-      stats.successRate = ((stats.totalReviews - totalLapses) / stats.totalReviews) * 100;
+      stats.successRate = (totalSuccesses / stats.totalReviews) * 100;
     }
 
     // Calculate streak
