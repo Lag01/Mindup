@@ -13,6 +13,26 @@ interface Card {
   review: any;
 }
 
+// Hook to detect mobile screen size
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    // Check on mount
+    checkMobile();
+
+    // Add event listener for window resize
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+}
+
 export default function Review() {
   const params = useParams();
   const deckId = params.id as string;
@@ -22,6 +42,7 @@ export default function Review() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchCards();
@@ -135,28 +156,28 @@ export default function Review() {
       {/* Card Display Area */}
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-2xl">
-          <div className="bg-zinc-900 rounded-lg p-8 border border-zinc-800 min-h-[400px] flex flex-col justify-center">
+          <div className="bg-zinc-900 rounded-lg p-6 md:p-8 border border-zinc-800 min-h-[300px] md:min-h-[400px] flex flex-col justify-center">
             {!isFlipped ? (
               // Front of card
               <div className="text-center">
                 <MathText
                   text={currentCard.front}
                   contentType={currentCard.frontType}
-                  className="text-2xl text-foreground"
+                  className="text-xl md:text-2xl text-foreground"
                   autoResize={true}
-                  maxHeight={350}
+                  maxHeight={isMobile ? 250 : 350}
                 />
               </div>
             ) : (
               // Both sides of card
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 <div className="text-center">
                   <MathText
                     text={currentCard.front}
                     contentType={currentCard.frontType}
-                    className="text-xl text-zinc-400"
+                    className="text-lg md:text-xl text-zinc-400"
                     autoResize={true}
-                    maxHeight={150}
+                    maxHeight={isMobile ? 100 : 150}
                   />
                 </div>
                 <div className="border-t border-zinc-700"></div>
@@ -164,9 +185,9 @@ export default function Review() {
                   <MathText
                     text={currentCard.back}
                     contentType={currentCard.backType}
-                    className="text-2xl text-foreground"
+                    className="text-xl md:text-2xl text-foreground"
                     autoResize={true}
-                    maxHeight={200}
+                    maxHeight={isMobile ? 150 : 200}
                   />
                 </div>
               </div>
