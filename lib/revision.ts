@@ -21,7 +21,7 @@ export interface ReviewStats {
 export const REVISION_INTERVALS: Record<Rating, number> = {
   again: 3,    // Carte échouée : revient très vite
   hard: 8,     // Carte difficile : revient assez vite
-  good: 15,    // Carte réussie : revient modérément vite
+  good: 20,    // Carte réussie : revient modérément vite
   easy: 30,    // Carte facile : revient beaucoup plus tard
 };
 
