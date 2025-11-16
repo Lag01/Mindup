@@ -199,7 +199,7 @@ export default function Review() {
                   contentType={currentCard.frontType}
                   className="text-xl md:text-2xl text-foreground"
                   autoResize={true}
-                  maxHeight={isMobile ? 250 : 350}
+                  maxHeight={isMobile ? 450 : 600}
                 />
               </div>
             ) : (
@@ -211,7 +211,7 @@ export default function Review() {
                     contentType={currentCard.frontType}
                     className="text-lg md:text-xl text-zinc-400"
                     autoResize={true}
-                    maxHeight={isMobile ? 100 : 150}
+                    maxHeight={isMobile ? 180 : 250}
                   />
                 </div>
                 <div className="border-t border-zinc-700"></div>
@@ -221,7 +221,7 @@ export default function Review() {
                     contentType={currentCard.backType}
                     className="text-xl md:text-2xl text-foreground"
                     autoResize={true}
-                    maxHeight={isMobile ? 150 : 200}
+                    maxHeight={isMobile ? 280 : 350}
                   />
                 </div>
               </div>

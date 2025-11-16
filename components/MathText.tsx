@@ -73,9 +73,9 @@ export default function MathText({
       if (!containerRef.current || !autoResize) return;
 
       // Start with a reasonable font size
-      let currentSize = 16;
-      const minSize = 8;
-      const maxSize = 24;
+      let currentSize = 14;
+      const minSize = 11;
+      const maxSize = 20;
 
       // Binary search for optimal font size with more iterations for precision
       let low = minSize;
@@ -133,17 +133,17 @@ export default function MathText({
       style={{
         fontSize: autoResize ? `${fontSize}px` : undefined,
         maxHeight: autoResize ? `${maxHeight}px` : undefined,
-        overflow: autoResize ? (needsScroll ? 'auto' : 'hidden') : 'auto',
+        overflow: 'auto',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: needsScroll ? 'flex-start' : 'center',
+        justifyContent: 'flex-start',
         wordBreak: 'normal',
         overflowWrap: 'break-word',
         wordWrap: 'break-word',
         hyphens: 'auto',
         lineHeight: '1.5',
-        padding: needsScroll ? '8px' : '0',
+        padding: '8px',
         width: '100%',
         boxSizing: 'border-box'
       }}
