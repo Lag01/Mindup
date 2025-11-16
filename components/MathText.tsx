@@ -39,7 +39,7 @@ export default function MathText({
               displayMode: true,
               throwOnError: false,
               trust: true,
-              fleqn: true, // Left-align equations to prevent overflow on mobile
+              fleqn: false, // Center equations for better visual alignment
               maxSize: 500, // Allow larger sizes but prevent excessive scaling
             });
           } catch (e) {
@@ -49,7 +49,7 @@ export default function MathText({
                 displayMode: false,
                 throwOnError: false,
                 trust: true,
-                fleqn: true,
+                fleqn: false,
                 maxSize: 500,
               });
             } catch (e2) {
@@ -140,7 +140,7 @@ export default function MathText({
         justifyContent: 'flex-start',
         whiteSpace: 'pre-wrap',
         lineHeight: '1.5',
-        padding: '8px',
+        padding: '8px 8px 8px 16px',
         width: '100%',
         boxSizing: 'border-box'
       }}

@@ -23,7 +23,7 @@ body {
   .katex-display {
     overflow-x: auto !important;
     overflow-y: hidden !important;
-    text-align: left !important;
+    text-align: center !important;
     margin: 0 !important;
   }
 }
