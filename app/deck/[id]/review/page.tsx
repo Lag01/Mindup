@@ -14,6 +14,18 @@ interface Card {
   review: any;
 }
 
+interface SessionState {
+  cardQueue: Card[];
+  currentCardId: string | null;
+  sessionStats: {
+    total: number;
+    again: number;
+    hard: number;
+    good: number;
+    easy: number;
+  };
+}
+
 // Hook to detect mobile screen size
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -32,6 +44,39 @@ function useIsMobile() {
   }, []);
 
   return isMobile;
+}
+
+// Functions to manage session state in localStorage
+function getSessionKey(deckId: string): string {
+  return `review-session-${deckId}`;
+}
+
+function saveSessionState(deckId: string, state: SessionState): void {
+  try {
+    localStorage.setItem(getSessionKey(deckId), JSON.stringify(state));
+  } catch (error) {
+    console.error('Error saving session state:', error);
+  }
+}
+
+function loadSessionState(deckId: string): SessionState | null {
+  try {
+    const saved = localStorage.getItem(getSessionKey(deckId));
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('Error loading session state:', error);
+  }
+  return null;
+}
+
+function clearSessionState(deckId: string): void {
+  try {
+    localStorage.removeItem(getSessionKey(deckId));
+  } catch (error) {
+    console.error('Error clearing session state:', error);
+  }
 }
 
 export default function Review() {
@@ -53,6 +98,9 @@ export default function Review() {
 
   const fetchCards = async () => {
     try {
+      // Check if there's a saved session
+      const savedSession = loadSessionState(deckId);
+
       const response = await fetch(`/api/review?deckId=${deckId}`);
       if (!response.ok) {
         if (response.status === 401) {
@@ -62,14 +110,27 @@ export default function Review() {
         throw new Error('Failed to fetch cards');
       }
       const data = await response.json();
-
-      // Initialize the queue with all cards
       setAllCards(data.cards);
-      setCardQueue(data.cards);
 
-      // Set the first card as current
-      if (data.cards.length > 0) {
-        setCurrentCard(data.cards[0]);
+      // Restore session if it exists, otherwise start fresh
+      if (savedSession && savedSession.cardQueue.length > 0) {
+        // Restore the saved queue and stats
+        setCardQueue(savedSession.cardQueue);
+        setSessionStats(savedSession.sessionStats);
+
+        // Find the current card from the saved queue
+        const currentCardFromSaved = savedSession.cardQueue.find(
+          card => card.id === savedSession.currentCardId
+        );
+        setCurrentCard(currentCardFromSaved || savedSession.cardQueue[0]);
+      } else {
+        // Initialize the queue with all cards
+        setCardQueue(data.cards);
+
+        // Set the first card as current
+        if (data.cards.length > 0) {
+          setCurrentCard(data.cards[0]);
+        }
       }
     } catch (error) {
       console.error('Error fetching cards:', error);
@@ -105,13 +166,14 @@ export default function Review() {
       }
 
       // Update session stats
-      setSessionStats(prev => ({
-        total: prev.total + 1,
-        again: prev.again + (rating === 'again' ? 1 : 0),
-        hard: prev.hard + (rating === 'hard' ? 1 : 0),
-        good: prev.good + (rating === 'good' ? 1 : 0),
-        easy: prev.easy + (rating === 'easy' ? 1 : 0),
-      }));
+      const updatedStats = {
+        total: sessionStats.total + 1,
+        again: sessionStats.again + (rating === 'again' ? 1 : 0),
+        hard: sessionStats.hard + (rating === 'hard' ? 1 : 0),
+        good: sessionStats.good + (rating === 'good' ? 1 : 0),
+        easy: sessionStats.easy + (rating === 'easy' ? 1 : 0),
+      };
+      setSessionStats(updatedStats);
 
       // Remove current card from queue
       const remainingQueue = cardQueue.slice(1);
@@ -119,13 +181,22 @@ export default function Review() {
       // Reinsert the card at the appropriate position based on rating
       const newQueue = insertCardInQueue(remainingQueue, currentCard, rating as Rating);
 
-      // If queue becomes empty, restart with all cards
+      // If queue becomes empty, restart with all cards and clear session
       if (newQueue.length === 0) {
         setCardQueue(allCards);
         setCurrentCard(allCards[0]);
+        // Clear saved session when all cards are done
+        clearSessionState(deckId);
       } else {
         setCardQueue(newQueue);
         setCurrentCard(newQueue[0]);
+
+        // Save session state after each card
+        saveSessionState(deckId, {
+          cardQueue: newQueue,
+          currentCardId: newQueue[0].id,
+          sessionStats: updatedStats,
+        });
       }
 
       // Reset flip state for next card
