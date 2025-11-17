@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import MathText from '@/components/MathText';
 import { insertCardInQueue, Rating } from '@/lib/revision';
 
@@ -81,7 +81,9 @@ function clearSessionState(deckId: string): void {
 
 export default function Review() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const deckId = params.id as string;
+  const isStudyMode = searchParams.get('mode') === 'study';
   const [allCards, setAllCards] = useState<Card[]>([]); // All cards from the deck
   const [cardQueue, setCardQueue] = useState<Card[]>([]); // Dynamic queue of cards
   const [currentCard, setCurrentCard] = useState<Card | null>(null);
@@ -95,6 +97,61 @@ export default function Review() {
   useEffect(() => {
     fetchCards();
   }, [deckId]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input or textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Prevent action if submitting
+      if (submitting) return;
+
+      // Flip card with Space (only when card is not flipped)
+      if (!isFlipped && e.code === 'Space') {
+        e.preventDefault();
+        handleFlip();
+        return;
+      }
+
+      // Rating shortcuts (only when card is flipped)
+      if (isFlipped) {
+        switch (e.code) {
+          case 'Digit1':
+          case 'Numpad1':
+            e.preventDefault();
+            handleRating('again');
+            break;
+          case 'Digit2':
+          case 'Numpad2':
+            e.preventDefault();
+            handleRating('hard');
+            break;
+          case 'Digit3':
+          case 'Numpad3':
+            e.preventDefault();
+            handleRating('good');
+            break;
+          case 'Digit4':
+          case 'Numpad4':
+            e.preventDefault();
+            handleRating('easy');
+            break;
+        }
+      }
+
+      // Quit with Escape
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        router.push('/dashboard');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [isFlipped, submitting, currentCard, router]);
 
   const fetchCards = async () => {
     try {
@@ -149,6 +206,27 @@ export default function Review() {
     setSubmitting(true);
 
     try {
+      // Mode étude : pas de sauvegarde des stats, juste passer à la carte suivante
+      if (isStudyMode) {
+        // Remove current card from queue
+        const remainingQueue = cardQueue.slice(1);
+
+        // If queue becomes empty, restart with all cards
+        if (remainingQueue.length === 0) {
+          setCardQueue(allCards);
+          setCurrentCard(allCards[0]);
+        } else {
+          setCardQueue(remainingQueue);
+          setCurrentCard(remainingQueue[0]);
+        }
+
+        // Reset flip state for next card
+        setIsFlipped(false);
+        setSubmitting(false);
+        return;
+      }
+
+      // Mode révision normal : sauvegarder les stats
       // Submit review to API
       const response = await fetch('/api/review', {
         method: 'POST',
@@ -245,8 +323,15 @@ export default function Review() {
       <header className="bg-zinc-900 border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center mb-2">
-            <div className="text-zinc-400 text-sm">
-              Session continue • {sessionStats.total} cartes révisées
+            <div className="flex items-center gap-3">
+              {isStudyMode && (
+                <span className="bg-purple-900/30 text-purple-400 px-3 py-1 rounded-full text-xs font-medium border border-purple-800/50">
+                  Mode Étude
+                </span>
+              )}
+              <div className="text-zinc-400 text-sm">
+                {isStudyMode ? 'Navigation libre' : `Session continue • ${sessionStats.total} cartes révisées`}
+              </div>
             </div>
             <button
               onClick={() => router.push('/dashboard')}
@@ -306,43 +391,71 @@ export default function Review() {
         <div className="max-w-2xl mx-auto">
           {!isFlipped ? (
             // Flip button
-            <button
-              onClick={handleFlip}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-4 rounded-lg transition-colors text-lg"
-            >
-              Retourner
-            </button>
-          ) : (
-            // Rating buttons
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="space-y-3">
               <button
-                onClick={() => handleRating('again')}
-                disabled={submitting}
-                className="bg-red-900/30 hover:bg-red-900/50 text-red-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleFlip}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-4 rounded-lg transition-colors text-lg"
               >
-                Échec
+                Retourner
               </button>
-              <button
-                onClick={() => handleRating('hard')}
-                disabled={submitting}
-                className="bg-orange-900/30 hover:bg-orange-900/50 text-orange-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Difficile
-              </button>
+              <div className="text-center text-zinc-500 text-sm">
+                Appuyez sur <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Espace</kbd> pour retourner
+              </div>
+            </div>
+          ) : isStudyMode ? (
+            // Study mode: single "Next card" button
+            <div className="space-y-3">
               <button
                 onClick={() => handleRating('good')}
                 disabled={submitting}
-                className="bg-green-900/30 hover:bg-green-900/50 text-green-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-4 px-4 rounded-lg transition-colors text-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Bon
+                Carte suivante
               </button>
-              <button
-                onClick={() => handleRating('easy')}
-                disabled={submitting}
-                className="bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Facile
-              </button>
+              <div className="text-center text-zinc-500 text-sm">
+                Appuyez sur <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">1-4</kbd> pour continuer ou <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> pour quitter
+              </div>
+            </div>
+          ) : (
+            // Rating buttons (revision mode)
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <button
+                  onClick={() => handleRating('again')}
+                  disabled={submitting}
+                  className="bg-red-900/30 hover:bg-red-900/50 text-red-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center gap-1"
+                >
+                  <span>Échec</span>
+                  <kbd className="text-xs px-1.5 py-0.5 bg-red-950/50 rounded border border-red-900/50">1</kbd>
+                </button>
+                <button
+                  onClick={() => handleRating('hard')}
+                  disabled={submitting}
+                  className="bg-orange-900/30 hover:bg-orange-900/50 text-orange-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center gap-1"
+                >
+                  <span>Difficile</span>
+                  <kbd className="text-xs px-1.5 py-0.5 bg-orange-950/50 rounded border border-orange-900/50">2</kbd>
+                </button>
+                <button
+                  onClick={() => handleRating('good')}
+                  disabled={submitting}
+                  className="bg-green-900/30 hover:bg-green-900/50 text-green-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center gap-1"
+                >
+                  <span>Bon</span>
+                  <kbd className="text-xs px-1.5 py-0.5 bg-green-950/50 rounded border border-green-900/50">3</kbd>
+                </button>
+                <button
+                  onClick={() => handleRating('easy')}
+                  disabled={submitting}
+                  className="bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center gap-1"
+                >
+                  <span>Facile</span>
+                  <kbd className="text-xs px-1.5 py-0.5 bg-blue-950/50 rounded border border-blue-900/50">4</kbd>
+                </button>
+              </div>
+              <div className="text-center text-zinc-500 text-sm">
+                Utilisez les touches <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">1-4</kbd> ou <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> pour quitter
+              </div>
             </div>
           )}
         </div>

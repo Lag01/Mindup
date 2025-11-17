@@ -1,9 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, createSession } from '@/lib/auth';
+import rateLimiter, { RATE_LIMITS, getClientIp } from '@/lib/rate-limiter';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientIp = getClientIp(request);
+    const rateLimit = rateLimiter.check(
+      `signup:${clientIp}`,
+      RATE_LIMITS.SIGNUP.maxRequests,
+      RATE_LIMITS.SIGNUP.windowMs
+    );
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: `Trop de créations de compte. Réessayez dans ${Math.ceil(rateLimit.retryAfter! / 60)} minutes.`,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': rateLimit.retryAfter?.toString() || '3600',
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const { email, password } = body;
 
