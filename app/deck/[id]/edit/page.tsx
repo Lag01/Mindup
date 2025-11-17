@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import MathText from '@/components/MathText';
 
@@ -37,7 +37,9 @@ export default function EditDeck() {
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'detailed' | 'table'>('detailed');
   const router = useRouter();
+  const frontInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     fetchDeck();
@@ -51,6 +53,44 @@ export default function EditDeck() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Raccourcis clavier
+  useEffect(() => {
+    const handleKeyboard = (e: KeyboardEvent) => {
+      // Ignorer si on est dans un input/textarea autre que les champs du formulaire
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' && !target.closest('[data-card-form]')) {
+        return;
+      }
+
+      // Pas de raccourcis si on n'est ni en création ni en édition
+      if (!creatingCard && !editingCard) return;
+
+      // Échap : Annuler
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (creatingCard) cancelCreate();
+        if (editingCard) cancelEdit();
+      }
+
+      // Ctrl+Enter : Sauvegarder
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        if (creatingCard) {
+          // Shift+Ctrl+Enter : Créer et continuer
+          if (e.shiftKey) {
+            createCardAndContinue();
+          } else {
+            createCard();
+          }
+        }
+        if (editingCard) saveCard();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyboard);
+    return () => window.removeEventListener('keydown', handleKeyboard);
+  }, [creatingCard, editingCard, editForm, saving]);
 
   const fetchDeck = async () => {
     try {
@@ -169,6 +209,8 @@ export default function EditDeck() {
       frontType: 'TEXT',
       backType: 'TEXT',
     });
+    // Focus automatique sur le champ recto
+    setTimeout(() => frontInputRef.current?.focus(), 100);
   };
 
   const cancelCreate = () => {
@@ -204,6 +246,47 @@ export default function EditDeck() {
       // Refresh the deck data
       await fetchDeck();
       cancelCreate();
+    } catch (error) {
+      console.error('Error creating card:', error);
+      alert('Erreur lors de la création de la carte');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const createCardAndContinue = async () => {
+    if (!editForm.front.trim() || !editForm.back.trim()) {
+      alert('Le recto et le verso sont requis');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/decks/${deckId}/cards`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create card');
+      }
+
+      // Refresh the deck data
+      await fetchDeck();
+
+      // Réinitialiser le formulaire mais garder le mode création actif
+      setEditForm({
+        front: '',
+        back: '',
+        frontType: 'TEXT',
+        backType: 'TEXT',
+      });
+
+      // Focus automatique sur le champ recto
+      setTimeout(() => frontInputRef.current?.focus(), 100);
     } catch (error) {
       console.error('Error creating card:', error);
       alert('Erreur lors de la création de la carte');
@@ -437,18 +520,18 @@ export default function EditDeck() {
 
         {/* Create Card Form */}
         {creatingCard && (
-          <div className="bg-zinc-900 rounded-lg p-6 border-2 border-blue-600 mb-4">
-            <div className="flex justify-between items-start mb-4">
+          <div className="bg-zinc-900 rounded-lg p-4 border-2 border-blue-600 mb-4" data-card-form>
+            <div className="flex justify-between items-start mb-3">
               <h3 className="text-lg font-semibold text-foreground">
                 Nouvelle carte
               </h3>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Front */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-zinc-300 font-medium">Recto</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-zinc-300 font-medium text-sm">Recto</label>
                   <div className="flex gap-2">
                     <button
                       onClick={() =>
@@ -457,7 +540,7 @@ export default function EditDeck() {
                           frontType: 'TEXT',
                         }))
                       }
-                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                      className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
                         editForm.frontType === 'TEXT'
                           ? 'bg-blue-600 text-white'
                           : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -472,7 +555,7 @@ export default function EditDeck() {
                           frontType: 'LATEX',
                         }))
                       }
-                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                      className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
                         editForm.frontType === 'LATEX'
                           ? 'bg-blue-600 text-white'
                           : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -483,6 +566,7 @@ export default function EditDeck() {
                   </div>
                 </div>
                 <textarea
+                  ref={frontInputRef}
                   value={editForm.front}
                   onChange={e =>
                     setEditForm(prev => ({ ...prev, front: e.target.value }))
@@ -490,9 +574,9 @@ export default function EditDeck() {
                   placeholder="Entrez le recto de la carte..."
                   className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
-                {editForm.front && (
-                  <div className="mt-2 p-4 bg-zinc-800 rounded-lg border border-zinc-700">
-                    <div className="text-zinc-400 text-xs mb-2">Aperçu :</div>
+                {editForm.front && editForm.frontType === 'LATEX' && (
+                  <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+                    <div className="text-zinc-400 text-xs mb-1">Aperçu LaTeX :</div>
                     <MathText
                       text={editForm.front}
                       contentType={editForm.frontType}
@@ -505,8 +589,8 @@ export default function EditDeck() {
 
               {/* Back */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-zinc-300 font-medium">Verso</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-zinc-300 font-medium text-sm">Verso</label>
                   <div className="flex gap-2">
                     <button
                       onClick={() =>
@@ -515,7 +599,7 @@ export default function EditDeck() {
                           backType: 'TEXT',
                         }))
                       }
-                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                      className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
                         editForm.backType === 'TEXT'
                           ? 'bg-blue-600 text-white'
                           : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -530,7 +614,7 @@ export default function EditDeck() {
                           backType: 'LATEX',
                         }))
                       }
-                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                      className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
                         editForm.backType === 'LATEX'
                           ? 'bg-blue-600 text-white'
                           : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -548,9 +632,9 @@ export default function EditDeck() {
                   placeholder="Entrez le verso de la carte..."
                   className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
-                {editForm.back && (
-                  <div className="mt-2 p-4 bg-zinc-800 rounded-lg border border-zinc-700">
-                    <div className="text-zinc-400 text-xs mb-2">Aperçu :</div>
+                {editForm.back && editForm.backType === 'LATEX' && (
+                  <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+                    <div className="text-zinc-400 text-xs mb-1">Aperçu LaTeX :</div>
                     <MathText
                       text={editForm.back}
                       contentType={editForm.backType}
@@ -562,21 +646,38 @@ export default function EditDeck() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={cancelCreate}
-                  disabled={saving}
-                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={createCard}
-                  disabled={saving}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  {saving ? 'Création...' : 'Créer la carte'}
-                </button>
+              <div className="space-y-2">
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={cancelCreate}
+                    disabled={saving}
+                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={createCardAndContinue}
+                    disabled={saving}
+                    className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm flex items-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    {saving ? 'Création...' : 'Ajouter et continuer'}
+                  </button>
+                  <button
+                    onClick={createCard}
+                    disabled={saving}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm"
+                  >
+                    {saving ? 'Création...' : 'Ajouter'}
+                  </button>
+                </div>
+                <div className="text-center text-zinc-500 text-xs">
+                  <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Ctrl+Shift+Enter</kbd> Ajouter et continuer •{' '}
+                  <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Ctrl+Enter</kbd> Ajouter •{' '}
+                  <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> Annuler
+                </div>
               </div>
             </div>
           </div>
@@ -596,11 +697,11 @@ export default function EditDeck() {
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredCards.map((card, index) => (
             <div
               key={card.id}
-              className="bg-zinc-900 rounded-lg p-6 border border-zinc-800"
+              className="bg-zinc-900 rounded-lg p-4 border border-zinc-800"
             >
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-lg font-semibold text-foreground">
@@ -627,11 +728,11 @@ export default function EditDeck() {
 
               {editingCard === card.id ? (
                 // Edit mode
-                <div className="space-y-4">
+                <div className="space-y-3" data-card-form>
                   {/* Front */}
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-zinc-300 font-medium">Recto</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-zinc-300 font-medium text-sm">Recto</label>
                       <div className="flex gap-2">
                         <button
                           onClick={() =>
@@ -640,7 +741,7 @@ export default function EditDeck() {
                               frontType: 'TEXT',
                             }))
                           }
-                          className={`px-3 py-1 rounded text-sm transition-colors ${
+                          className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
                             editForm.frontType === 'TEXT'
                               ? 'bg-blue-600 text-white'
                               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -655,7 +756,7 @@ export default function EditDeck() {
                               frontType: 'LATEX',
                             }))
                           }
-                          className={`px-3 py-1 rounded text-sm transition-colors ${
+                          className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
                             editForm.frontType === 'LATEX'
                               ? 'bg-blue-600 text-white'
                               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -672,21 +773,23 @@ export default function EditDeck() {
                       }
                       className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
-                    <div className="mt-2 p-4 bg-zinc-800 rounded-lg border border-zinc-700">
-                      <div className="text-zinc-400 text-xs mb-2">Aperçu :</div>
-                      <MathText
-                        text={editForm.front}
-                        contentType={editForm.frontType}
-                        autoResize={false}
-                        className="text-foreground"
-                      />
-                    </div>
+                    {editForm.front && editForm.frontType === 'LATEX' && (
+                      <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+                        <div className="text-zinc-400 text-xs mb-1">Aperçu LaTeX :</div>
+                        <MathText
+                          text={editForm.front}
+                          contentType={editForm.frontType}
+                          autoResize={false}
+                          className="text-foreground"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Back */}
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-zinc-300 font-medium">Verso</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-zinc-300 font-medium text-sm">Verso</label>
                       <div className="flex gap-2">
                         <button
                           onClick={() =>
@@ -695,7 +798,7 @@ export default function EditDeck() {
                               backType: 'TEXT',
                             }))
                           }
-                          className={`px-3 py-1 rounded text-sm transition-colors ${
+                          className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
                             editForm.backType === 'TEXT'
                               ? 'bg-blue-600 text-white'
                               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -710,7 +813,7 @@ export default function EditDeck() {
                               backType: 'LATEX',
                             }))
                           }
-                          className={`px-3 py-1 rounded text-sm transition-colors ${
+                          className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
                             editForm.backType === 'LATEX'
                               ? 'bg-blue-600 text-white'
                               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -727,33 +830,41 @@ export default function EditDeck() {
                       }
                       className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
-                    <div className="mt-2 p-4 bg-zinc-800 rounded-lg border border-zinc-700">
-                      <div className="text-zinc-400 text-xs mb-2">Aperçu :</div>
-                      <MathText
-                        text={editForm.back}
-                        contentType={editForm.backType}
-                        autoResize={false}
-                        className="text-foreground"
-                      />
-                    </div>
+                    {editForm.back && editForm.backType === 'LATEX' && (
+                      <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
+                        <div className="text-zinc-400 text-xs mb-1">Aperçu LaTeX :</div>
+                        <MathText
+                          text={editForm.back}
+                          contentType={editForm.backType}
+                          autoResize={false}
+                          className="text-foreground"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={cancelEdit}
-                      disabled={saving}
-                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      onClick={saveCard}
-                      disabled={saving}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      {saving ? 'Enregistrement...' : 'Enregistrer'}
-                    </button>
+                  <div className="space-y-2">
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={cancelEdit}
+                        disabled={saving}
+                        className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        onClick={saveCard}
+                        disabled={saving}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm"
+                      >
+                        {saving ? 'Enregistrement...' : 'Enregistrer'}
+                      </button>
+                    </div>
+                    <div className="text-center text-zinc-500 text-xs">
+                      <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Ctrl+Enter</kbd> Enregistrer •{' '}
+                      <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> Annuler
+                    </div>
                   </div>
                 </div>
               ) : (
