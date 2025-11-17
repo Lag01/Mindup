@@ -132,18 +132,19 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <header className="bg-zinc-900 border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-2xl font-bold text-foreground">Mes Decks</h1>
-            <div className="flex gap-3">
+          <div className="flex justify-between items-center mb-4 gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Mes Decks</h1>
+            <div className="flex gap-2">
               <button
                 onClick={() => router.push('/import')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base"
               >
-                Importer un deck
+                <span className="hidden sm:inline">Importer un deck</span>
+                <span className="sm:hidden">Importer</span>
               </button>
               <button
                 onClick={handleLogout}
-                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors"
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
               >
                 Déconnexion
               </button>
@@ -335,14 +336,14 @@ export default function Dashboard() {
                 <div className="flex gap-2 mt-4">
                   <button
                     onClick={() => router.push(`/deck/${deck.id}/review`)}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                    className="flex-[3] bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
                     Réviser
                   </button>
 
                   <button
                     onClick={() => router.push(`/deck/${deck.id}/edit`)}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    className="flex-[1] bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

@@ -386,36 +386,17 @@ export default function EditDeck() {
     <div className="min-h-screen bg-background">
       <header className="bg-zinc-900 border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-2xl font-bold text-foreground">
+          <div className="flex justify-between items-center mb-4 gap-2">
+            <h1 className="text-lg sm:text-2xl font-bold text-foreground truncate">
               Éditer : {deck.name}
             </h1>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleExport('xml')}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                XML
-              </button>
-              <button
-                onClick={() => handleExport('csv')}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                CSV
-              </button>
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors"
-              >
-                Retour au dashboard
-              </button>
-            </div>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
+            >
+              <span className="hidden sm:inline">Retour au dashboard</span>
+              <span className="sm:hidden">Retour</span>
+            </button>
           </div>
 
           {/* Barre de recherche */}
@@ -572,7 +553,7 @@ export default function EditDeck() {
                     setEditForm(prev => ({ ...prev, front: e.target.value }))
                   }
                   placeholder="Entrez le recto de la carte..."
-                  className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[80px] sm:min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
                 {editForm.front && editForm.frontType === 'LATEX' && (
                   <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
@@ -630,7 +611,7 @@ export default function EditDeck() {
                     setEditForm(prev => ({ ...prev, back: e.target.value }))
                   }
                   placeholder="Entrez le verso de la carte..."
-                  className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[80px] sm:min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
                 {editForm.back && editForm.backType === 'LATEX' && (
                   <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
@@ -647,36 +628,32 @@ export default function EditDeck() {
 
               {/* Actions */}
               <div className="space-y-2">
-                <div className="flex gap-2 justify-end">
+                <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
                   <button
                     onClick={cancelCreate}
                     disabled={saving}
-                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm"
+                    className="w-full sm:w-auto bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm order-3 sm:order-1"
                   >
                     Annuler
                   </button>
                   <button
                     onClick={createCardAndContinue}
                     disabled={saving}
-                    className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm flex items-center gap-1.5"
+                    className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm flex items-center justify-center gap-1.5 order-1 sm:order-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
-                    {saving ? 'Création...' : 'Ajouter et continuer'}
+                    <span className="hidden sm:inline">{saving ? 'Création...' : 'Ajouter et continuer'}</span>
+                    <span className="sm:hidden">{saving ? 'Création...' : 'Ajouter + continuer'}</span>
                   </button>
                   <button
                     onClick={createCard}
                     disabled={saving}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm"
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm order-2 sm:order-3"
                   >
                     {saving ? 'Création...' : 'Ajouter'}
                   </button>
-                </div>
-                <div className="text-center text-zinc-500 text-xs">
-                  <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Ctrl+Shift+Enter</kbd> Ajouter et continuer •{' '}
-                  <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Ctrl+Enter</kbd> Ajouter •{' '}
-                  <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> Annuler
                 </div>
               </div>
             </div>
@@ -703,22 +680,22 @@ export default function EditDeck() {
               key={card.id}
               className="bg-zinc-900 rounded-lg p-4 border border-zinc-800"
             >
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg font-semibold text-foreground">
+              <div className="flex justify-between items-start mb-4 gap-2">
+                <h3 className="text-base sm:text-lg font-semibold text-foreground">
                   Carte {index + 1}
                 </h3>
                 {editingCard !== card.id && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
                     <button
                       onClick={() => startEdit(card)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap"
                     >
                       Modifier
                     </button>
                     <button
                       onClick={() => deleteCard(card.id)}
                       disabled={deleting === card.id}
-                      className="bg-red-900/30 hover:bg-red-900/50 text-red-400 font-medium px-4 py-2 rounded-lg transition-colors text-sm disabled:opacity-50"
+                      className="bg-red-900/30 hover:bg-red-900/50 text-red-400 font-medium px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors text-xs sm:text-sm disabled:opacity-50 whitespace-nowrap"
                     >
                       {deleting === card.id ? 'Suppression...' : 'Supprimer'}
                     </button>
@@ -771,7 +748,7 @@ export default function EditDeck() {
                       onChange={e =>
                         setEditForm(prev => ({ ...prev, front: e.target.value }))
                       }
-                      className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[80px] sm:min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                     {editForm.front && editForm.frontType === 'LATEX' && (
                       <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
@@ -828,7 +805,7 @@ export default function EditDeck() {
                       onChange={e =>
                         setEditForm(prev => ({ ...prev, back: e.target.value }))
                       }
-                      className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[80px] sm:min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                     {editForm.back && editForm.backType === 'LATEX' && (
                       <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
@@ -845,25 +822,21 @@ export default function EditDeck() {
 
                   {/* Actions */}
                   <div className="space-y-2">
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
                       <button
                         onClick={cancelEdit}
                         disabled={saving}
-                        className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm"
+                        className="w-full sm:w-auto bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm order-2 sm:order-1"
                       >
                         Annuler
                       </button>
                       <button
                         onClick={saveCard}
                         disabled={saving}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm"
+                        className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm order-1 sm:order-2"
                       >
                         {saving ? 'Enregistrement...' : 'Enregistrer'}
                       </button>
-                    </div>
-                    <div className="text-center text-zinc-500 text-xs">
-                      <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Ctrl+Enter</kbd> Enregistrer •{' '}
-                      <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> Annuler
                     </div>
                   </div>
                 </div>
@@ -915,11 +888,11 @@ export default function EditDeck() {
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-lg transition-all duration-300 z-50 flex items-center justify-center"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 rounded-full shadow-lg transition-all duration-300 z-50 flex items-center justify-center"
           aria-label="Retour en haut"
         >
           <svg
-            className="w-6 h-6"
+            className="w-5 h-5 sm:w-6 sm:h-6"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
