@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingDeck, setEditingDeck] = useState<{ id: string; name: string } | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -122,25 +123,60 @@ export default function Dashboard() {
     );
   }
 
+  // Filtrer les decks selon la recherche
+  const filteredDecks = decks.filter(deck =>
+    deck.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-zinc-900 border-b border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-foreground">Mes Decks</h1>
-          <div className="flex gap-3">
-            <button
-              onClick={() => router.push('/import')}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
-            >
-              Importer un deck
-            </button>
-            <button
-              onClick={handleLogout}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors"
-            >
-              Déconnexion
-            </button>
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold text-foreground">Mes Decks</h1>
+            <div className="flex gap-3">
+              <button
+                onClick={() => router.push('/import')}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                Importer un deck
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                Déconnexion
+              </button>
+            </div>
           </div>
+
+          {/* Barre de recherche */}
+          {decks.length > 0 && (
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Rechercher un deck..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-300 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-300"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -157,9 +193,21 @@ export default function Dashboard() {
               Importer votre premier deck
             </button>
           </div>
+        ) : filteredDecks.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-zinc-400 text-lg mb-4">
+              Aucun deck trouvé pour "{searchQuery}"
+            </p>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-6 py-3 rounded-lg transition-colors"
+            >
+              Effacer la recherche
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {decks.map(deck => (
+            {filteredDecks.map(deck => (
               <div
                 key={deck.id}
                 className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 hover:border-zinc-700 transition-all shadow-lg hover:shadow-xl"
@@ -278,6 +326,13 @@ export default function Dashboard() {
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
                   >
                     Réviser
+                  </button>
+
+                  <button
+                    onClick={() => router.push(`/deck/${deck.id}/review?mode=study`)}
+                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                  >
+                    Étudier
                   </button>
 
                   <button

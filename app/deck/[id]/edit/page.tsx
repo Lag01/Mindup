@@ -36,6 +36,7 @@ export default function EditDeck() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -292,39 +293,75 @@ export default function EditDeck() {
     );
   }
 
+  // Filtrer les cartes selon la recherche (recto ou verso)
+  const filteredCards = deck.cards.filter(card =>
+    card.front.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    card.back.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-zinc-900 border-b border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-foreground">
-            Éditer : {deck.name}
-          </h1>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleExport('xml')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              XML
-            </button>
-            <button
-              onClick={() => handleExport('csv')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              CSV
-            </button>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors"
-            >
-              Retour au dashboard
-            </button>
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold text-foreground">
+              Éditer : {deck.name}
+            </h1>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleExport('xml')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                XML
+              </button>
+              <button
+                onClick={() => handleExport('csv')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                CSV
+              </button>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                Retour au dashboard
+              </button>
+            </div>
           </div>
+
+          {/* Barre de recherche */}
+          {deck.cards.length > 0 && (
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Rechercher une carte (recto ou verso)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-300 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-300"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -546,8 +583,21 @@ export default function EditDeck() {
         )}
 
         {/* Cards List */}
-        <div className="space-y-4">
-          {deck.cards.map((card, index) => (
+        {filteredCards.length === 0 && deck.cards.length > 0 ? (
+          <div className="text-center py-12">
+            <p className="text-zinc-400 text-lg mb-4">
+              Aucune carte trouvée pour "{searchQuery}"
+            </p>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-6 py-3 rounded-lg transition-colors"
+            >
+              Effacer la recherche
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredCards.map((card, index) => (
             <div
               key={card.id}
               className="bg-zinc-900 rounded-lg p-6 border border-zinc-800"
@@ -745,8 +795,9 @@ export default function EditDeck() {
                 </div>
               )}
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* Bouton retour en haut */}
