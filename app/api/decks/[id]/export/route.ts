@@ -4,9 +4,13 @@ import { getCurrentUser } from '@/lib/auth';
 import { XMLBuilder } from 'fast-xml-parser';
 import Papa from 'papaparse';
 
+interface RouteContext {
+  params: Promise<{ id: string }>;
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext
 ) {
   try {
     const user = await getCurrentUser();
@@ -18,7 +22,7 @@ export async function GET(
       );
     }
 
-    const deckId = params.id;
+    const { id: deckId } = await context.params;
     const { searchParams } = new URL(request.url);
     const format = searchParams.get('format');
 
