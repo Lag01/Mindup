@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import MathText from '@/components/MathText';
 
 interface Card {
@@ -25,7 +26,6 @@ export default function EditDeck() {
   const [deck, setDeck] = useState<Deck | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingCard, setEditingCard] = useState<string | null>(null);
-  const [creatingCard, setCreatingCard] = useState(false);
   const [editForm, setEditForm] = useState({
     front: '',
     back: '',
@@ -39,7 +39,6 @@ export default function EditDeck() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'detailed' | 'table'>('detailed');
   const router = useRouter();
-  const frontInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     fetchDeck();
@@ -54,7 +53,7 @@ export default function EditDeck() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Raccourcis clavier
+  // Raccourcis clavier pour l'édition
   useEffect(() => {
     const handleKeyboard = (e: KeyboardEvent) => {
       // Ignorer si on est dans un input/textarea autre que les champs du formulaire
@@ -63,34 +62,25 @@ export default function EditDeck() {
         return;
       }
 
-      // Pas de raccourcis si on n'est ni en création ni en édition
-      if (!creatingCard && !editingCard) return;
+      // Pas de raccourcis si on n'est pas en édition
+      if (!editingCard) return;
 
       // Échap : Annuler
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (creatingCard) cancelCreate();
-        if (editingCard) cancelEdit();
+        cancelEdit();
       }
 
       // Ctrl+Enter : Sauvegarder
       if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
-        if (creatingCard) {
-          // Shift+Ctrl+Enter : Créer et continuer
-          if (e.shiftKey) {
-            createCardAndContinue();
-          } else {
-            createCard();
-          }
-        }
-        if (editingCard) saveCard();
+        saveCard();
       }
     };
 
     window.addEventListener('keydown', handleKeyboard);
     return () => window.removeEventListener('keydown', handleKeyboard);
-  }, [creatingCard, editingCard, editForm, saving]);
+  }, [editingCard, editForm, saving]);
 
   const fetchDeck = async () => {
     try {
@@ -238,100 +228,6 @@ export default function EditDeck() {
       frontType: prev.backType,
       backType: prev.frontType,
     }));
-  };
-
-  const startCreate = () => {
-    setCreatingCard(true);
-    setEditForm({
-      front: '',
-      back: '',
-      frontType: 'TEXT',
-      backType: 'TEXT',
-    });
-    // Focus automatique sur le champ recto
-    setTimeout(() => frontInputRef.current?.focus(), 100);
-  };
-
-  const cancelCreate = () => {
-    setCreatingCard(false);
-    setEditForm({
-      front: '',
-      back: '',
-      frontType: 'TEXT',
-      backType: 'TEXT',
-    });
-  };
-
-  const createCard = async () => {
-    if (!editForm.front.trim() || !editForm.back.trim()) {
-      alert('Le recto et le verso sont requis');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const response = await fetch(`/api/decks/${deckId}/cards`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(editForm),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create card');
-      }
-
-      // Refresh the deck data
-      await fetchDeck();
-      cancelCreate();
-    } catch (error) {
-      console.error('Error creating card:', error);
-      alert('Erreur lors de la création de la carte');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const createCardAndContinue = async () => {
-    if (!editForm.front.trim() || !editForm.back.trim()) {
-      alert('Le recto et le verso sont requis');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const response = await fetch(`/api/decks/${deckId}/cards`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(editForm),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create card');
-      }
-
-      // Refresh the deck data
-      await fetchDeck();
-
-      // Réinitialiser le formulaire mais garder le mode création actif
-      setEditForm({
-        front: '',
-        back: '',
-        frontType: 'TEXT',
-        backType: 'TEXT',
-      });
-
-      // Focus automatique sur le champ recto
-      setTimeout(() => frontInputRef.current?.focus(), 100);
-    } catch (error) {
-      console.error('Error creating card:', error);
-      alert('Erreur lors de la création de la carte');
-    } finally {
-      setSaving(false);
-    }
   };
 
   const deleteCard = async (cardId: string) => {
@@ -541,181 +437,18 @@ export default function EditDeck() {
           </div>
         </div>
 
-        {/* Add Card Button */}
+        {/* Add Card Button - Redirige vers la page d'ajout rapide */}
         <div className="mb-6">
-          {!creatingCard && (
-            <button
-              onClick={startCreate}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Ajouter une carte
-            </button>
-          )}
+          <Link
+            href={`/deck/${deckId}/add`}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Ajouter une carte
+          </Link>
         </div>
-
-        {/* Create Card Form */}
-        {creatingCard && (
-          <div className="bg-zinc-900 rounded-lg p-4 border-2 border-blue-600 mb-4" data-card-form>
-            <div className="flex justify-between items-start mb-3">
-              <h3 className="text-lg font-semibold text-foreground">
-                Nouvelle carte
-              </h3>
-            </div>
-
-            <div className="space-y-3">
-              {/* Front */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-zinc-300 font-medium text-sm">Recto</label>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() =>
-                        setEditForm(prev => ({
-                          ...prev,
-                          frontType: 'TEXT',
-                        }))
-                      }
-                      className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                        editForm.frontType === 'TEXT'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                      }`}
-                    >
-                      Texte
-                    </button>
-                    <button
-                      onClick={() =>
-                        setEditForm(prev => ({
-                          ...prev,
-                          frontType: 'LATEX',
-                        }))
-                      }
-                      className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                        editForm.frontType === 'LATEX'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                      }`}
-                    >
-                      LaTeX
-                    </button>
-                  </div>
-                </div>
-                <textarea
-                  ref={frontInputRef}
-                  value={editForm.front}
-                  onChange={e =>
-                    setEditForm(prev => ({ ...prev, front: e.target.value }))
-                  }
-                  placeholder="Entrez le recto de la carte..."
-                  className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[80px] sm:min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-                {editForm.front && editForm.frontType === 'LATEX' && (
-                  <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
-                    <div className="text-zinc-400 text-xs mb-1">Aperçu LaTeX :</div>
-                    <MathText
-                      text={editForm.front}
-                      contentType={editForm.frontType}
-                      autoResize={false}
-                      className="text-foreground"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Back */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-zinc-300 font-medium text-sm">Verso</label>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() =>
-                        setEditForm(prev => ({
-                          ...prev,
-                          backType: 'TEXT',
-                        }))
-                      }
-                      className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                        editForm.backType === 'TEXT'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                      }`}
-                    >
-                      Texte
-                    </button>
-                    <button
-                      onClick={() =>
-                        setEditForm(prev => ({
-                          ...prev,
-                          backType: 'LATEX',
-                        }))
-                      }
-                      className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                        editForm.backType === 'LATEX'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                      }`}
-                    >
-                      LaTeX
-                    </button>
-                  </div>
-                </div>
-                <textarea
-                  value={editForm.back}
-                  onChange={e =>
-                    setEditForm(prev => ({ ...prev, back: e.target.value }))
-                  }
-                  placeholder="Entrez le verso de la carte..."
-                  className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[80px] sm:min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-                {editForm.back && editForm.backType === 'LATEX' && (
-                  <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
-                    <div className="text-zinc-400 text-xs mb-1">Aperçu LaTeX :</div>
-                    <MathText
-                      text={editForm.back}
-                      contentType={editForm.backType}
-                      autoResize={false}
-                      className="text-foreground"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-                  <button
-                    onClick={cancelCreate}
-                    disabled={saving}
-                    className="w-full sm:w-auto bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm order-3 sm:order-1"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={createCardAndContinue}
-                    disabled={saving}
-                    className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm flex items-center justify-center gap-1.5 order-1 sm:order-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    <span className="hidden sm:inline">{saving ? 'Création...' : 'Ajouter et continuer'}</span>
-                    <span className="sm:hidden">{saving ? 'Création...' : 'Ajouter + continuer'}</span>
-                  </button>
-                  <button
-                    onClick={createCard}
-                    disabled={saving}
-                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm order-2 sm:order-3"
-                  >
-                    {saving ? 'Création...' : 'Ajouter'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Cards List */}
         {filteredCards.length === 0 && deck.cards.length > 0 ? (

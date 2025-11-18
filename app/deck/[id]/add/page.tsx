@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import MathText from '@/components/MathText';
 
@@ -24,6 +24,8 @@ export default function AddCards() {
   });
   const [saving, setSaving] = useState(false);
   const [cardsCreated, setCardsCreated] = useState(0);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const frontInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Charger les infos du deck
@@ -70,51 +72,67 @@ export default function AddCards() {
     return () => window.removeEventListener('keydown', handleKeyboard);
   }, [cardForm, saving]);
 
-  const resetForm = () => {
+  // Afficher un toast temporaire
+  const showToastMessage = useCallback((message: string) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  }, []);
+
+  const resetForm = useCallback(() => {
     setCardForm({
       front: '',
       back: '',
       frontType: 'TEXT',
       backType: 'TEXT',
     });
-    setTimeout(() => frontInputRef.current?.focus(), 100);
-  };
+    requestAnimationFrame(() => {
+      frontInputRef.current?.focus();
+    });
+  }, []);
 
-  const swapFrontBack = () => {
+  const swapFrontBack = useCallback(() => {
     setCardForm(prev => ({
       front: prev.back,
       back: prev.front,
       frontType: prev.backType,
       backType: prev.frontType,
     }));
-  };
+  }, []);
 
-  const createAndContinue = async () => {
+  const createAndContinue = useCallback(async () => {
     if (!cardForm.front.trim() || !cardForm.back.trim()) {
-      alert('Le recto et le verso sont requis');
+      showToastMessage('⚠️ Le recto et le verso sont requis');
       return;
     }
 
-    setSaving(true);
+    // OPTIMISTIC UPDATE - Mettre à jour l'UI immédiatement
+    const oldCardsCreated = cardsCreated;
+    const oldCardForm = cardForm;
+
+    // Incrémenter le compteur et réinitialiser immédiatement
+    setCardsCreated(prev => prev + 1);
+    showToastMessage('✓ Carte ajoutée');
+    resetForm();
+
+    // Envoyer à l'API en arrière-plan
     try {
       const response = await fetch(`/api/decks/${deckId}/cards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cardForm),
+        body: JSON.stringify(oldCardForm),
       });
 
       if (!response.ok) throw new Error('Failed to create card');
-
-      // Succès : incrémenter le compteur et réinitialiser
-      setCardsCreated(prev => prev + 1);
-      resetForm();
     } catch (error) {
       console.error('Error creating card:', error);
-      alert('Erreur lors de la création de la carte');
-    } finally {
-      setSaving(false);
+
+      // Rollback en cas d'erreur
+      setCardsCreated(oldCardsCreated);
+      setCardForm(oldCardForm);
+      showToastMessage('❌ Erreur lors de la création');
     }
-  };
+  }, [cardForm, cardsCreated, deckId, resetForm, showToastMessage]);
 
   if (loading) {
     return (
@@ -224,8 +242,7 @@ export default function AddCards() {
               <button
                 type="button"
                 onClick={swapFrontBack}
-                disabled={saving}
-                className="bg-zinc-700 hover:bg-zinc-600 text-zinc-300 p-2 rounded-lg transition-colors disabled:opacity-50 group"
+                className="bg-zinc-700 hover:bg-zinc-600 text-zinc-300 p-2 rounded-lg transition-colors group"
                 title="Inverser le recto et le verso"
               >
                 <svg className="w-5 h-5 transform group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -296,20 +313,19 @@ export default function AddCards() {
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               onClick={resetForm}
-              disabled={saving}
-              className="w-full sm:w-auto bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-3 rounded-lg transition-colors disabled:opacity-50 text-sm order-2 sm:order-1"
+              className="w-full sm:w-auto bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-3 rounded-lg transition-colors text-sm order-2 sm:order-1"
             >
               Réinitialiser
             </button>
             <button
               onClick={createAndContinue}
-              disabled={saving || !cardForm.front.trim() || !cardForm.back.trim()}
+              disabled={!cardForm.front.trim() || !cardForm.back.trim()}
               className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-3 rounded-lg transition-colors disabled:opacity-50 text-sm flex items-center justify-center gap-2 order-1 sm:order-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              {saving ? 'Création...' : 'Ajouter et continuer'}
+              Ajouter et continuer
             </button>
           </div>
           <div className="text-center mt-2 text-zinc-500 text-xs">
@@ -318,6 +334,13 @@ export default function AddCards() {
           </div>
         </div>
       </footer>
+
+      {/* Toast notification */}
+      {showToast && (
+        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-zinc-800 text-white px-6 py-3 rounded-lg shadow-lg border border-zinc-700 z-50 animate-fade-in">
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }

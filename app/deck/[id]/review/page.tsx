@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import MathText from '@/components/MathText';
 import { insertCardInQueue, Rating } from '@/lib/revision';
@@ -45,6 +45,73 @@ function useIsMobile() {
 
   return isMobile;
 }
+
+// Composant pour afficher une carte (mémorisé pour éviter re-renders)
+const CardDisplay = memo(({
+  card,
+  isFlipped,
+  isMobile
+}: {
+  card: Card;
+  isFlipped: boolean;
+  isMobile: boolean;
+}) => {
+  return (
+    <div className="bg-zinc-900 rounded-lg p-6 md:p-8 border border-zinc-800 min-h-[300px] md:min-h-[400px] flex flex-col justify-center">
+      {!isFlipped ? (
+        // Front of card
+        <div className="text-center">
+          <MathText
+            text={card.front}
+            contentType={card.frontType}
+            className="text-xl md:text-2xl text-foreground"
+            autoResize={true}
+            maxHeight={isMobile ? 450 : 600}
+          />
+        </div>
+      ) : (
+        // Both sides of card
+        <div className="space-y-4 md:space-y-6">
+          <div className="text-center">
+            <MathText
+              text={card.front}
+              contentType={card.frontType}
+              className="text-lg md:text-xl text-zinc-400"
+              autoResize={true}
+              maxHeight={isMobile ? 180 : 250}
+            />
+          </div>
+          <div className="border-t border-zinc-700"></div>
+          <div className="text-center">
+            <MathText
+              text={card.back}
+              contentType={card.backType}
+              className="text-xl md:text-2xl text-foreground"
+              autoResize={true}
+              maxHeight={isMobile ? 280 : 350}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+CardDisplay.displayName = 'CardDisplay';
+
+// Composant pour précharger la carte suivante (invisible)
+const CardPreloader = memo(({ card }: { card: Card | null }) => {
+  if (!card) return null;
+
+  return (
+    <div className="hidden" aria-hidden="true">
+      <MathText text={card.front} contentType={card.frontType} className="" />
+      <MathText text={card.back} contentType={card.backType} className="" />
+    </div>
+  );
+});
+
+CardPreloader.displayName = 'CardPreloader';
 
 // Functions to manage session state in localStorage
 function getSessionKey(deckId: string): string {
@@ -93,6 +160,14 @@ export default function Review() {
   const [sessionStats, setSessionStats] = useState({ total: 0, again: 0, hard: 0, good: 0, easy: 0 });
   const router = useRouter();
   const isMobile = useIsMobile();
+
+  // Calculer la prochaine carte à précharger (optimisation)
+  const nextCard = useMemo(() => {
+    if (cardQueue.length > 1) {
+      return cardQueue[1]; // La carte suivante dans la file
+    }
+    return null;
+  }, [cardQueue]);
 
   useEffect(() => {
     fetchCards();
@@ -196,11 +271,11 @@ export default function Review() {
     }
   };
 
-  const handleFlip = () => {
+  const handleFlip = useCallback(() => {
     setIsFlipped(true);
-  };
+  }, []);
 
-  const handleRating = async (rating: 'again' | 'hard' | 'good' | 'easy') => {
+  const handleRating = useCallback(async (rating: 'again' | 'hard' | 'good' | 'easy') => {
     if (submitting || !currentCard) return;
 
     setSubmitting(true);
@@ -226,24 +301,14 @@ export default function Review() {
         return;
       }
 
-      // Mode révision normal : sauvegarder les stats
-      // Submit review to API
-      const response = await fetch('/api/review', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          cardId: currentCard.id,
-          rating,
-        }),
-      });
+      // Mode révision normal : OPTIMISTIC UPDATE
+      // Sauvegarder l'ancien état pour rollback en cas d'erreur
+      const oldCardQueue = cardQueue;
+      const oldCurrentCard = currentCard;
+      const oldStats = sessionStats;
+      const oldIsFlipped = isFlipped;
 
-      if (!response.ok) {
-        throw new Error('Failed to submit review');
-      }
-
-      // Update session stats
+      // Calculer les nouvelles stats immédiatement
       const updatedStats = {
         total: sessionStats.total + 1,
         again: sessionStats.again + (rating === 'again' ? 1 : 0),
@@ -251,7 +316,6 @@ export default function Review() {
         good: sessionStats.good + (rating === 'good' ? 1 : 0),
         easy: sessionStats.easy + (rating === 'easy' ? 1 : 0),
       };
-      setSessionStats(updatedStats);
 
       // Remove current card from queue
       const remainingQueue = cardQueue.slice(1);
@@ -259,17 +323,18 @@ export default function Review() {
       // Reinsert the card at the appropriate position based on rating
       const newQueue = insertCardInQueue(remainingQueue, currentCard, rating as Rating);
 
-      // If queue becomes empty, restart with all cards and clear session
+      // Mettre à jour l'UI IMMÉDIATEMENT (avant l'appel API)
+      setSessionStats(updatedStats);
+
       if (newQueue.length === 0) {
         setCardQueue(allCards);
         setCurrentCard(allCards[0]);
-        // Clear saved session when all cards are done
         clearSessionState(deckId);
       } else {
         setCardQueue(newQueue);
         setCurrentCard(newQueue[0]);
 
-        // Save session state after each card
+        // Save session state
         saveSessionState(deckId, {
           cardQueue: newQueue,
           currentCardId: newQueue[0].id,
@@ -277,15 +342,39 @@ export default function Review() {
         });
       }
 
-      // Reset flip state for next card
+      // Reset flip state immédiatement
       setIsFlipped(false);
+      setSubmitting(false);
+
+      // Envoyer à l'API en arrière-plan (sans bloquer l'UI)
+      fetch('/api/review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cardId: oldCurrentCard.id,
+          rating,
+        }),
+      }).catch(error => {
+        console.error('Error submitting review:', error);
+
+        // Rollback en cas d'erreur réseau
+        setCardQueue(oldCardQueue);
+        setCurrentCard(oldCurrentCard);
+        setSessionStats(oldStats);
+        setIsFlipped(oldIsFlipped);
+        setSubmitting(false);
+
+        alert('Erreur lors de la sauvegarde. Veuillez réessayer.');
+      });
+
     } catch (error) {
-      console.error('Error submitting review:', error);
-      alert('Erreur lors de la soumission de la révision');
-    } finally {
+      console.error('Error in handleRating:', error);
+      alert('Erreur lors du traitement de la révision');
       setSubmitting(false);
     }
-  };
+  }, [submitting, currentCard, isStudyMode, sessionStats, cardQueue, allCards, deckId, isFlipped]);
 
   if (loading) {
     return (
@@ -346,43 +435,7 @@ export default function Review() {
       {/* Card Display Area */}
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-2xl">
-          <div className="bg-zinc-900 rounded-lg p-6 md:p-8 border border-zinc-800 min-h-[300px] md:min-h-[400px] flex flex-col justify-center">
-            {!isFlipped ? (
-              // Front of card
-              <div className="text-center">
-                <MathText
-                  text={currentCard.front}
-                  contentType={currentCard.frontType}
-                  className="text-xl md:text-2xl text-foreground"
-                  autoResize={true}
-                  maxHeight={isMobile ? 450 : 600}
-                />
-              </div>
-            ) : (
-              // Both sides of card
-              <div className="space-y-4 md:space-y-6">
-                <div className="text-center">
-                  <MathText
-                    text={currentCard.front}
-                    contentType={currentCard.frontType}
-                    className="text-lg md:text-xl text-zinc-400"
-                    autoResize={true}
-                    maxHeight={isMobile ? 180 : 250}
-                  />
-                </div>
-                <div className="border-t border-zinc-700"></div>
-                <div className="text-center">
-                  <MathText
-                    text={currentCard.back}
-                    contentType={currentCard.backType}
-                    className="text-xl md:text-2xl text-foreground"
-                    autoResize={true}
-                    maxHeight={isMobile ? 280 : 350}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
+          <CardDisplay card={currentCard} isFlipped={isFlipped} isMobile={isMobile} />
         </div>
       </div>
 
@@ -460,6 +513,9 @@ export default function Review() {
           )}
         </div>
       </div>
+
+      {/* Précharger la carte suivante en arrière-plan */}
+      <CardPreloader card={nextCard} />
     </div>
   );
 }
