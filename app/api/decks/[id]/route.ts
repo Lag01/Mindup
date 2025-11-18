@@ -6,6 +6,47 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+export async function GET(
+  request: NextRequest,
+  context: RouteContext
+) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
+
+    const { id: deckId } = await context.params;
+
+    // Récupérer le deck et vérifier qu'il appartient à l'utilisateur
+    const deck = await prisma.deck.findFirst({
+      where: {
+        id: deckId,
+        userId: user.id,
+      },
+    });
+
+    if (!deck) {
+      return NextResponse.json(
+        { error: 'Deck non trouvé' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ deck });
+  } catch (error) {
+    console.error('Get deck error:', error);
+    return NextResponse.json(
+      { error: 'Erreur lors de la récupération du deck' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   context: RouteContext
