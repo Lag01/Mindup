@@ -80,6 +80,15 @@ export default function AddCards() {
     setTimeout(() => frontInputRef.current?.focus(), 100);
   };
 
+  const swapFrontBack = () => {
+    setCardForm(prev => ({
+      front: prev.back,
+      back: prev.front,
+      frontType: prev.backType,
+      backType: prev.frontType,
+    }));
+  };
+
   const createAndContinue = async () => {
     if (!cardForm.front.trim() || !cardForm.back.trim()) {
       alert('Le recto et le verso sont requis');
@@ -208,6 +217,21 @@ export default function AddCards() {
                   />
                 </div>
               )}
+            </div>
+
+            {/* Bouton d'inversion */}
+            <div className="flex justify-center -my-2">
+              <button
+                type="button"
+                onClick={swapFrontBack}
+                disabled={saving}
+                className="bg-zinc-700 hover:bg-zinc-600 text-zinc-300 p-2 rounded-lg transition-colors disabled:opacity-50 group"
+                title="Inverser le recto et le verso"
+              >
+                <svg className="w-5 h-5 transform group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+              </button>
             </div>
 
             {/* Formulaire Verso */}

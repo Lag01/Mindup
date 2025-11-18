@@ -201,6 +201,36 @@ export default function EditDeck() {
     }
   };
 
+  const handleSwapAll = async () => {
+    const cardCount = deck?.cards.length || 0;
+    if (!confirm(`Voulez-vous inverser le recto et le verso de toutes les cartes (${cardCount} carte${cardCount > 1 ? 's' : ''}) ?\n\nCette action est réversible en cliquant à nouveau sur ce bouton.`)) {
+      return;
+    }
+
+    setBulkUpdating(true);
+    try {
+      const response = await fetch(`/api/decks/${deckId}/swap-all`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to swap cards');
+      }
+
+      // Refresh the deck data
+      await fetchDeck();
+      alert('Inversion effectuée avec succès !');
+    } catch (error) {
+      console.error('Error swapping cards:', error);
+      alert('Erreur lors de l\'inversion des cartes');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
   const startCreate = () => {
     setCreatingCard(true);
     setEditForm({
@@ -481,6 +511,24 @@ export default function EditDeck() {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Swap all cards */}
+          <div className="mt-4 bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+            <h3 className="text-zinc-300 font-medium mb-3">Inverser toutes les cartes</h3>
+            <p className="text-zinc-400 text-sm mb-3">
+              Échange le recto et le verso de toutes les cartes du deck (les types de formatage sont également inversés).
+            </p>
+            <button
+              onClick={handleSwapAll}
+              disabled={bulkUpdating || !deck || deck.cards.length === 0}
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+              </svg>
+              Inverser recto ↔ verso
+            </button>
           </div>
         </div>
 
