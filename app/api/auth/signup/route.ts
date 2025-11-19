@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, createSession } from '@/lib/auth';
 import rateLimiter, { RATE_LIMITS, getClientIp } from '@/lib/rate-limiter';
+import { getAppSettings } from '@/lib/settings';
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,6 +54,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Un compte existe déjà avec cet email' },
         { status: 400 }
+      );
+    }
+
+    // Vérifier la limite du nombre total d'utilisateurs
+    const settings = await getAppSettings();
+    const totalUsers = await prisma.user.count();
+
+    if (totalUsers >= settings.maxTotalUsers) {
+      return NextResponse.json(
+        { error: `Les inscriptions sont fermées. Le nombre maximum de ${settings.maxTotalUsers} comptes a été atteint.` },
+        { status: 403 }
       );
     }
 

@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "make-admin": "tsx scripts/make-admin.ts",
+    "migrate": "prisma migrate deploy"
   },
   "keywords": [],
   "author": "",

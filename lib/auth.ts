@@ -50,3 +50,33 @@ export async function getCurrentUser() {
     return null;
   }
 }
+
+export async function getCurrentUserWithAdmin() {
+  const userId = await getSession();
+  if (!userId) return null;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, createdAt: true, isAdmin: true },
+    });
+    return user;
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    return null;
+  }
+}
+
+export async function requireAdmin() {
+  const user = await getCurrentUserWithAdmin();
+
+  if (!user) {
+    throw new Error('Non authentifié');
+  }
+
+  if (!user.isAdmin) {
+    throw new Error('Accès refusé : droits administrateur requis');
+  }
+
+  return user;
+}
