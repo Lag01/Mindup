@@ -17,12 +17,13 @@ export interface ReviewStats {
 /**
  * Intervalles de réinsertion (en nombre de cartes)
  * Détermine combien de cartes plus tard une carte reviendra dans la file
+ * Note: "easy" ne réinsère pas la carte, elle continue simplement dans la file principale
  */
 export const REVISION_INTERVALS: Record<Rating, number> = {
-  again: 3,    // Carte échouée : revient très vite
-  hard: 8,     // Carte difficile : revient assez vite
-  good: 20,    // Carte réussie : revient modérément vite
-  easy: 30,    // Carte facile : revient beaucoup plus tard
+  again: 3,    // Carte échouée : revient après 3 cartes
+  hard: 5,     // Carte difficile : revient après 5 cartes
+  good: 8,     // Carte réussie : revient après 8 cartes
+  easy: 0,     // Carte facile : pas de réinsertion (continue dans la file principale)
 };
 
 /**
@@ -91,13 +92,19 @@ export function calculateInsertPosition(
  * @param queue - File actuelle de cartes
  * @param card - Carte à insérer
  * @param rating - Évaluation de la carte
- * @returns Nouvelle file avec la carte insérée
+ * @returns Nouvelle file avec la carte insérée (ou sans modification si "easy")
  */
 export function insertCardInQueue<T>(
   queue: T[],
   card: T,
   rating: Rating
 ): T[] {
+  // Si la carte est marquée "easy", elle ne se réinsère pas dans la file
+  // Elle continue simplement dans la rotation principale
+  if (rating === 'easy') {
+    return queue;
+  }
+
   const newQueue = [...queue];
   const position = calculateInsertPosition(rating, newQueue.length);
 

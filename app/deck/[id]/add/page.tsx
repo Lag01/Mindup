@@ -328,7 +328,7 @@ export default function AddCards() {
               Ajouter et continuer
             </button>
           </div>
-          <div className="text-center mt-2 text-zinc-500 text-xs">
+          <div className="hidden sm:block text-center mt-2 text-zinc-500 text-xs">
             <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Ctrl+Enter</kbd> pour créer •{' '}
             <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> pour réinitialiser
           </div>
