@@ -9,7 +9,11 @@ self.addEventListener('install', (event) => {
       return cache.addAll([
         OFFLINE_URL,
         '/manifest.json',
-        '/icon.svg',
+        '/favicon.ico',
+        '/icon-192.png',
+        '/icon-512.png',
+        '/apple-touch-icon.png',
+        '/icon-maskable.png',
       ]);
     })
   );
