@@ -20,10 +20,12 @@ export default function Dashboard() {
   const [editingDeck, setEditingDeck] = useState<{ id: string; name: string } | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     fetchDecks();
+    fetchUser();
   }, []);
 
   const fetchDecks = async () => {
@@ -42,6 +44,18 @@ export default function Dashboard() {
       console.error('Error fetching decks:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me');
+      if (response.ok) {
+        const data = await response.json();
+        setIsAdmin(data.user?.isAdmin || false);
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
     }
   };
 
@@ -167,6 +181,15 @@ export default function Dashboard() {
                 <span className="hidden sm:inline">Importer un deck</span>
                 <span className="sm:hidden">Importer</span>
               </button>
+              {isAdmin && (
+                <button
+                  onClick={() => router.push('/admin')}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
+                >
+                  <span className="hidden sm:inline">Administration</span>
+                  <span className="sm:hidden">Admin</span>
+                </button>
+              )}
               <button
                 onClick={handleLogout}
                 className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"

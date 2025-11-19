@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { getCurrentUser } from '@/lib/auth';
 import { parseXML, parseCSV } from '@/lib/parsers';
 import { createNewReviewStats } from '@/lib/revision';
+import { getAppSettings } from '@/lib/settings';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +14,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Non authentifié' },
         { status: 401 }
+      );
+    }
+
+    // Vérifier la limite de decks
+    const settings = await getAppSettings();
+    const userDecksCount = await prisma.deck.count({
+      where: { userId: user.id },
+    });
+
+    if (userDecksCount >= settings.maxDecksPerUser) {
+      return NextResponse.json(
+        { error: `Vous avez atteint la limite de ${settings.maxDecksPerUser} decks par compte. Supprimez un deck avant d'en importer un nouveau.` },
+        { status: 403 }
       );
     }
 

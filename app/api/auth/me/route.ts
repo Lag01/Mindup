@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUserWithAdmin } from '@/lib/auth';
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUserWithAdmin();
 
     if (!user) {
       return NextResponse.json(

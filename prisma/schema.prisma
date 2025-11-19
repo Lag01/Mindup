@@ -19,6 +19,7 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   password  String
+  isAdmin   Boolean  @default(false)
   createdAt DateTime @default(now())
   decks     Deck[]
   reviews   Review[]
@@ -72,4 +73,11 @@ model Review {
 
   @@unique([cardId, userId])
   @@index([userId])
+}
+
+model AppSettings {
+  id              String @id @default(cuid())
+  maxDecksPerUser Int    @default(10)
+  maxTotalUsers   Int    @default(5)
+  updatedAt       DateTime @updatedAt
 }
