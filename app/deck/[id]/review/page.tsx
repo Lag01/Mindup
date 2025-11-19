@@ -451,9 +451,11 @@ export default function Review() {
               >
                 Retourner
               </button>
-              <div className="text-center text-zinc-500 text-sm">
-                Appuyez sur <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Espace</kbd> pour retourner
-              </div>
+              {!isMobile && (
+                <div className="text-center text-zinc-500 text-sm">
+                  Appuyez sur <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Espace</kbd> pour retourner
+                </div>
+              )}
             </div>
           ) : isStudyMode ? (
             // Study mode: single "Next card" button
@@ -465,9 +467,11 @@ export default function Review() {
               >
                 Carte suivante
               </button>
-              <div className="text-center text-zinc-500 text-sm">
-                Appuyez sur <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">1-4</kbd> pour continuer ou <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> pour quitter
-              </div>
+              {!isMobile && (
+                <div className="text-center text-zinc-500 text-sm">
+                  Appuyez sur <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">1-4</kbd> pour continuer ou <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> pour quitter
+                </div>
+              )}
             </div>
           ) : (
             // Rating buttons (revision mode)
@@ -479,7 +483,9 @@ export default function Review() {
                   className="bg-red-900/30 hover:bg-red-900/50 text-red-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center gap-1"
                 >
                   <span>Échec</span>
-                  <kbd className="text-xs px-1.5 py-0.5 bg-red-950/50 rounded border border-red-900/50">1</kbd>
+                  {!isMobile && (
+                    <kbd className="text-xs px-1.5 py-0.5 bg-red-950/50 rounded border border-red-900/50">1</kbd>
+                  )}
                 </button>
                 <button
                   onClick={() => handleRating('hard')}
@@ -487,7 +493,9 @@ export default function Review() {
                   className="bg-orange-900/30 hover:bg-orange-900/50 text-orange-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center gap-1"
                 >
                   <span>Difficile</span>
-                  <kbd className="text-xs px-1.5 py-0.5 bg-orange-950/50 rounded border border-orange-900/50">2</kbd>
+                  {!isMobile && (
+                    <kbd className="text-xs px-1.5 py-0.5 bg-orange-950/50 rounded border border-orange-900/50">2</kbd>
+                  )}
                 </button>
                 <button
                   onClick={() => handleRating('good')}
@@ -495,7 +503,9 @@ export default function Review() {
                   className="bg-green-900/30 hover:bg-green-900/50 text-green-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center gap-1"
                 >
                   <span>Bon</span>
-                  <kbd className="text-xs px-1.5 py-0.5 bg-green-950/50 rounded border border-green-900/50">3</kbd>
+                  {!isMobile && (
+                    <kbd className="text-xs px-1.5 py-0.5 bg-green-950/50 rounded border border-green-900/50">3</kbd>
+                  )}
                 </button>
                 <button
                   onClick={() => handleRating('easy')}
@@ -503,12 +513,16 @@ export default function Review() {
                   className="bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 font-medium py-4 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center gap-1"
                 >
                   <span>Facile</span>
-                  <kbd className="text-xs px-1.5 py-0.5 bg-blue-950/50 rounded border border-blue-900/50">4</kbd>
+                  {!isMobile && (
+                    <kbd className="text-xs px-1.5 py-0.5 bg-blue-950/50 rounded border border-blue-900/50">4</kbd>
+                  )}
                 </button>
               </div>
-              <div className="text-center text-zinc-500 text-sm">
-                Utilisez les touches <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">1-4</kbd> ou <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> pour quitter
-              </div>
+              {!isMobile && (
+                <div className="text-center text-zinc-500 text-sm">
+                  Utilisez les touches <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">1-4</kbd> ou <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> pour quitter
+                </div>
+              )}
             </div>
           )}
         </div>
