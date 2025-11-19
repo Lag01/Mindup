@@ -46,6 +46,16 @@ function useIsMobile() {
   return isMobile;
 }
 
+// Fonction pour mélanger aléatoirement un tableau (Fisher-Yates shuffle)
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 // Composant pour afficher une carte (mémorisé pour éviter re-renders)
 const CardDisplay = memo(({
   card,
@@ -256,12 +266,13 @@ export default function Review() {
         );
         setCurrentCard(currentCardFromSaved || savedSession.cardQueue[0]);
       } else {
-        // Initialize the queue with all cards
-        setCardQueue(data.cards);
+        // Initialize the queue with all cards shuffled randomly
+        const shuffledCards = shuffleArray<Card>(data.cards);
+        setCardQueue(shuffledCards);
 
         // Set the first card as current
-        if (data.cards.length > 0) {
-          setCurrentCard(data.cards[0]);
+        if (shuffledCards.length > 0) {
+          setCurrentCard(shuffledCards[0]);
         }
       }
     } catch (error) {
@@ -286,10 +297,11 @@ export default function Review() {
         // Remove current card from queue
         const remainingQueue = cardQueue.slice(1);
 
-        // If queue becomes empty, restart with all cards
+        // If queue becomes empty, restart with all cards shuffled
         if (remainingQueue.length === 0) {
-          setCardQueue(allCards);
-          setCurrentCard(allCards[0]);
+          const shuffledCards = shuffleArray<Card>(allCards);
+          setCardQueue(shuffledCards);
+          setCurrentCard(shuffledCards[0]);
         } else {
           setCardQueue(remainingQueue);
           setCurrentCard(remainingQueue[0]);
@@ -321,15 +333,24 @@ export default function Review() {
       const remainingQueue = cardQueue.slice(1);
 
       // Reinsert the card at the appropriate position based on rating
+      // Note: if rating is "easy", insertCardInQueue returns the queue without reinsertion
       const newQueue = insertCardInQueue(remainingQueue, currentCard, rating as Rating);
 
       // Mettre à jour l'UI IMMÉDIATEMENT (avant l'appel API)
       setSessionStats(updatedStats);
 
+      // Si la file est vide, recommencer avec toutes les cartes mélangées (rotation infinie)
       if (newQueue.length === 0) {
-        setCardQueue(allCards);
-        setCurrentCard(allCards[0]);
-        clearSessionState(deckId);
+        const shuffledCards = shuffleArray<Card>(allCards);
+        setCardQueue(shuffledCards);
+        setCurrentCard(shuffledCards[0]);
+
+        // Save session state with new shuffled queue
+        saveSessionState(deckId, {
+          cardQueue: shuffledCards,
+          currentCardId: shuffledCards[0].id,
+          sessionStats: updatedStats,
+        });
       } else {
         setCardQueue(newQueue);
         setCurrentCard(newQueue[0]);
