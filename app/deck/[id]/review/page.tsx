@@ -259,7 +259,7 @@ export default function Review() {
         // Synchronize saved queue with fresh data from API
         // This ensures any edits made to cards are reflected in the review session
         const syncedQueue = savedSession.cardQueue.map(savedCard => {
-          const freshCard = data.cards.find(c => c.id === savedCard.id);
+          const freshCard = data.cards.find((c: Card) => c.id === savedCard.id);
           if (!freshCard) return savedCard; // Card was deleted, keep saved version
 
           // Update card content with fresh data while preserving session state
@@ -272,7 +272,7 @@ export default function Review() {
           };
         }).filter(card => {
           // Remove cards that no longer exist in the deck
-          return data.cards.some(c => c.id === card.id);
+          return data.cards.some((c: Card) => c.id === card.id);
         });
 
         setCardQueue(syncedQueue);
