@@ -256,15 +256,33 @@ export default function Review() {
 
       // Restore session if it exists, otherwise start fresh
       if (savedSession && savedSession.cardQueue.length > 0) {
-        // Restore the saved queue and stats
-        setCardQueue(savedSession.cardQueue);
+        // Synchronize saved queue with fresh data from API
+        // This ensures any edits made to cards are reflected in the review session
+        const syncedQueue = savedSession.cardQueue.map(savedCard => {
+          const freshCard = data.cards.find(c => c.id === savedCard.id);
+          if (!freshCard) return savedCard; // Card was deleted, keep saved version
+
+          // Update card content with fresh data while preserving session state
+          return {
+            ...savedCard,
+            front: freshCard.front,
+            back: freshCard.back,
+            frontType: freshCard.frontType,
+            backType: freshCard.backType,
+          };
+        }).filter(card => {
+          // Remove cards that no longer exist in the deck
+          return data.cards.some(c => c.id === card.id);
+        });
+
+        setCardQueue(syncedQueue);
         setSessionStats(savedSession.sessionStats);
 
-        // Find the current card from the saved queue
-        const currentCardFromSaved = savedSession.cardQueue.find(
+        // Find the current card from the synced queue
+        const currentCardFromSaved = syncedQueue.find(
           card => card.id === savedSession.currentCardId
         );
-        setCurrentCard(currentCardFromSaved || savedSession.cardQueue[0]);
+        setCurrentCard(currentCardFromSaved || syncedQueue[0]);
       } else {
         // Initialize the queue with all cards shuffled randomly
         const shuffledCards = shuffleArray<Card>(data.cards);
