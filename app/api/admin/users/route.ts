@@ -13,6 +13,7 @@ export async function GET() {
         id: true,
         email: true,
         isAdmin: true,
+        reviewedCardsCount: true,
         createdAt: true,
         _count: {
           select: {
@@ -34,6 +35,7 @@ export async function GET() {
       createdAt: user.createdAt,
       decksCount: user._count.decks,
       reviewsCount: user._count.reviews,
+      reviewedCardsCount: user.reviewedCardsCount,
     }));
 
     return NextResponse.json({ users: formattedUsers });

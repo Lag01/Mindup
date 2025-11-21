@@ -10,6 +10,7 @@ interface User {
   createdAt: string;
   decksCount: number;
   reviewsCount: number;
+  reviewedCardsCount: number;
 }
 
 interface AppSettings {
@@ -141,7 +142,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Statistiques globales */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-gray-900 p-6 rounded-lg border border-gray-800">
             <div className="text-gray-400 text-sm mb-1">Utilisateurs inscrits</div>
             <div className="text-3xl font-bold">
@@ -158,6 +159,12 @@ export default function AdminDashboard() {
             <div className="text-gray-400 text-sm mb-1">Total de révisions</div>
             <div className="text-3xl font-bold">
               {users.reduce((sum, u) => sum + u.reviewsCount, 0)}
+            </div>
+          </div>
+          <div className="bg-gray-900 p-6 rounded-lg border border-gray-800">
+            <div className="text-gray-400 text-sm mb-1">Cartes révisées (total)</div>
+            <div className="text-3xl font-bold">
+              {users.reduce((sum, u) => sum + u.reviewedCardsCount, 0)}
             </div>
           </div>
         </div>
@@ -218,6 +225,7 @@ export default function AdminDashboard() {
                   <th className="text-left py-3 px-4 text-gray-400 font-medium">Inscrit le</th>
                   <th className="text-left py-3 px-4 text-gray-400 font-medium">Decks</th>
                   <th className="text-left py-3 px-4 text-gray-400 font-medium">Révisions</th>
+                  <th className="text-left py-3 px-4 text-gray-400 font-medium">Cartes révisées</th>
                   <th className="text-left py-3 px-4 text-gray-400 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -239,6 +247,7 @@ export default function AdminDashboard() {
                     <td className="py-3 px-4 text-gray-400">{formatDate(user.createdAt)}</td>
                     <td className="py-3 px-4">{user.decksCount}</td>
                     <td className="py-3 px-4">{user.reviewsCount}</td>
+                    <td className="py-3 px-4">{user.reviewedCardsCount}</td>
                     <td className="py-3 px-4">
                       <button
                         onClick={() => handleDeleteUser(user.id, user.email)}
