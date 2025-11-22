@@ -12,8 +12,13 @@ export async function GET() {
 
     return NextResponse.json({ settings });
   } catch (error) {
-    if (error instanceof Error && error.message.includes('admin')) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
+    if (error instanceof Error) {
+      if (error.message.includes('Non authentifié')) {
+        return NextResponse.json({ error: error.message }, { status: 401 });
+      }
+      if (error.message.includes('admin') || error.message.includes('Accès refusé')) {
+        return NextResponse.json({ error: error.message }, { status: 403 });
+      }
     }
     console.error('Error fetching settings:', error);
     return NextResponse.json(
@@ -58,8 +63,13 @@ export async function PATCH(request: Request) {
       settings,
     });
   } catch (error) {
-    if (error instanceof Error && error.message.includes('admin')) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
+    if (error instanceof Error) {
+      if (error.message.includes('Non authentifié')) {
+        return NextResponse.json({ error: error.message }, { status: 401 });
+      }
+      if (error.message.includes('admin') || error.message.includes('Accès refusé')) {
+        return NextResponse.json({ error: error.message }, { status: 403 });
+      }
     }
     console.error('Error updating settings:', error);
     return NextResponse.json(
