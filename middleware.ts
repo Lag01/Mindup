@@ -9,8 +9,11 @@ export function middleware(request: NextRequest) {
   const publicPaths = ['/', '/api/auth/login', '/api/auth/signup'];
   const isPublicPath = publicPaths.includes(pathname);
 
-  // If user is not logged in and trying to access protected route
-  if (!session && !isPublicPath) {
+  // Les routes API gèrent leur propre authentification
+  const isApiRoute = pathname.startsWith('/api/');
+
+  // If user is not logged in and trying to access protected route (but not API routes)
+  if (!session && !isPublicPath && !isApiRoute) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 

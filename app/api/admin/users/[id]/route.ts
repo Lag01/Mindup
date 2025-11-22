@@ -44,8 +44,13 @@ export async function DELETE(
       },
     });
   } catch (error) {
-    if (error instanceof Error && error.message.includes('admin')) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
+    if (error instanceof Error) {
+      if (error.message.includes('Non authentifié')) {
+        return NextResponse.json({ error: error.message }, { status: 401 });
+      }
+      if (error.message.includes('admin') || error.message.includes('Accès refusé')) {
+        return NextResponse.json({ error: error.message }, { status: 403 });
+      }
     }
     console.error('Error deleting user:', error);
     return NextResponse.json(
