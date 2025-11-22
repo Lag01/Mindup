@@ -195,6 +195,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Increment user's reviewed cards counter
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        reviewedCardsCount: {
+          increment: 1,
+        },
+      },
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Submit review error:', error);
