@@ -16,13 +16,14 @@ enum ContentType {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  isAdmin   Boolean  @default(false)
-  createdAt DateTime @default(now())
-  decks     Deck[]
-  reviews   Review[]
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  password           String
+  isAdmin            Boolean  @default(false)
+  reviewedCardsCount Int      @default(0)  // Total number of cards reviewed (increments on each review)
+  createdAt          DateTime @default(now())
+  decks              Deck[]
+  reviews            Review[]
 }
 
 model Deck {
