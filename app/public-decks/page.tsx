@@ -7,6 +7,7 @@ interface PublicDeck {
   id: string;
   name: string;
   authorEmail: string;
+  authorName: string;
   cardCount: number;
   importCount: number;
   isImported: boolean;
@@ -68,7 +69,7 @@ export default function PublicDecksPage() {
 
   const filteredDecks = publicDecks.filter(deck =>
     deck.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    deck.authorEmail.toLowerCase().includes(searchQuery.toLowerCase())
+    deck.authorName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
@@ -153,7 +154,7 @@ export default function PublicDecksPage() {
 
                 {/* Author */}
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Par : {deck.authorEmail}
+                  Par : {deck.authorName}
                 </p>
 
                 {/* Stats */}

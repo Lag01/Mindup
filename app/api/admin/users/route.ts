@@ -12,6 +12,7 @@ export async function GET() {
       select: {
         id: true,
         email: true,
+        displayName: true,
         isAdmin: true,
         reviewedCardsCount: true,
         createdAt: true,
@@ -31,6 +32,7 @@ export async function GET() {
     const formattedUsers = users.map((user) => ({
       id: user.id,
       email: user.email,
+      displayName: user.displayName,
       isAdmin: user.isAdmin,
       createdAt: user.createdAt,
       decksCount: user._count.decks,

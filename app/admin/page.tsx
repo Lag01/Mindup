@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 interface User {
   id: string;
   email: string;
+  displayName: string;
   isAdmin: boolean;
   createdAt: string;
   decksCount: number;
@@ -35,6 +36,9 @@ export default function AdminDashboard() {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState<string | null>(null);
   const [editedSettings, setEditedSettings] = useState<AppSettings>({ maxDecksPerUser: 10, maxTotalUsers: 5 });
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editedDisplayName, setEditedDisplayName] = useState<string>('');
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -177,6 +181,51 @@ export default function AdminDashboard() {
     } finally {
       setPublishing(null);
     }
+  };
+
+  const handleUpdateDisplayName = async (userId: string, currentDisplayName: string) => {
+    if (editedDisplayName.trim() === currentDisplayName) {
+      setEditingUserId(null);
+      return;
+    }
+
+    setSavingDisplayName(true);
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/display-name`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: editedDisplayName.trim() }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erreur lors de la mise à jour du pseudo');
+      }
+
+      setUsers(users.map(u =>
+        u.id === userId
+          ? { ...u, displayName: editedDisplayName.trim() }
+          : u
+      ));
+
+      setEditingUserId(null);
+      alert('Pseudo mis à jour avec succès');
+    } catch (error) {
+      console.error('Error updating display name:', error);
+      alert(error instanceof Error ? error.message : 'Erreur lors de la mise à jour du pseudo');
+    } finally {
+      setSavingDisplayName(false);
+    }
+  };
+
+  const handleStartEditDisplayName = (userId: string, currentDisplayName: string) => {
+    setEditingUserId(userId);
+    setEditedDisplayName(currentDisplayName);
+  };
+
+  const handleCancelEditDisplayName = () => {
+    setEditingUserId(null);
+    setEditedDisplayName('');
   };
 
   const formatDate = (dateString: string) => {
@@ -351,6 +400,7 @@ export default function AdminDashboard() {
               <thead>
                 <tr className="border-b border-gray-800">
                   <th className="text-left py-3 px-4 text-gray-400 font-medium">Email</th>
+                  <th className="text-left py-3 px-4 text-gray-400 font-medium">Pseudo</th>
                   <th className="text-left py-3 px-4 text-gray-400 font-medium">Rôle</th>
                   <th className="text-left py-3 px-4 text-gray-400 font-medium">Inscrit le</th>
                   <th className="text-left py-3 px-4 text-gray-400 font-medium">Decks</th>
@@ -363,6 +413,45 @@ export default function AdminDashboard() {
                 {users.map((user) => (
                   <tr key={user.id} className="border-b border-gray-800 hover:bg-gray-800/50">
                     <td className="py-3 px-4">{user.email}</td>
+                    <td className="py-3 px-4">
+                      {editingUserId === user.id ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editedDisplayName}
+                            onChange={(e) => setEditedDisplayName(e.target.value)}
+                            maxLength={50}
+                            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleUpdateDisplayName(user.id, user.displayName)}
+                            disabled={savingDisplayName}
+                            className="px-2 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded text-xs"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={handleCancelEditDisplayName}
+                            disabled={savingDisplayName}
+                            className="px-2 py-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 rounded text-xs"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span>{user.displayName}</span>
+                          <button
+                            onClick={() => handleStartEditDisplayName(user.id, user.displayName)}
+                            className="text-gray-400 hover:text-blue-400 text-xs"
+                            title="Modifier le pseudo"
+                          >
+                            ✏️
+                          </button>
+                        </div>
+                      )}
+                    </td>
                     <td className="py-3 px-4">
                       {user.isAdmin ? (
                         <span className="inline-block px-2 py-1 bg-purple-900 text-purple-200 rounded text-xs">
