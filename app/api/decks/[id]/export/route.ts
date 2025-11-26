@@ -91,11 +91,26 @@ export async function GET(
       const builder = new XMLBuilder({
         ignoreAttributes: false,
         attributeNamePrefix: '@_',
-        format: true,
-        indentBy: '  ',
+        format: false,
+        suppressEmptyNode: true,
       });
 
-      content = builder.build(xmlData);
+      let xmlContent = builder.build(xmlData);
+
+      // Formater manuellement pour améliorer la lisibilité
+      // tout en gardant chaque <card> sur une seule ligne (requis pour l'import)
+      xmlContent = xmlContent
+        .replace(/<deck /, '\n<deck ')
+        .replace(/<cards>/, '<cards>\n    ')
+        .replace(/<\/cards>/, '\n  </cards>')
+        .replace(/<\/deck>/, '\n</deck>')
+        .replace(/<card>/g, '<card>')
+        .replace(/<\/card>/g, '</card>\n    ');
+
+      // Nettoyer les espaces en trop à la fin
+      xmlContent = xmlContent.trim() + '\n';
+
+      content = xmlContent;
       filename = `${deck.name}.xml`;
       contentType = 'application/xml';
     } else {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { syncImportedDecks } from '@/lib/sync-decks';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -61,6 +62,14 @@ export async function PATCH(
       );
     }
 
+    // Bloquer la modification des cartes de decks importés
+    if (card.deck.originalDeckId) {
+      return NextResponse.json(
+        { error: 'Vous ne pouvez pas modifier les cartes d\'un deck importé. Il est synchronisé avec le deck public.' },
+        { status: 403 }
+      );
+    }
+
     // Update card
     const updatedCard = await prisma.card.update({
       where: { id: cardId },
@@ -71,6 +80,11 @@ export async function PATCH(
         backType: backType !== undefined ? backType : card.backType,
       },
     });
+
+    // Si le deck est public, synchroniser tous les decks importés
+    if (card.deck.isPublic) {
+      await syncImportedDecks(card.deck.id);
+    }
 
     return NextResponse.json({
       success: true,
@@ -123,10 +137,27 @@ export async function DELETE(
       );
     }
 
+    // Bloquer la suppression des cartes de decks importés
+    if (card.deck.originalDeckId) {
+      return NextResponse.json(
+        { error: 'Vous ne pouvez pas supprimer les cartes d\'un deck importé. Il est synchronisé avec le deck public.' },
+        { status: 403 }
+      );
+    }
+
+    // Sauvegarder l'ID du deck avant de supprimer la carte
+    const deckId = card.deck.id;
+    const isDeckPublic = card.deck.isPublic;
+
     // Delete card (reviews will be deleted automatically due to cascade)
     await prisma.card.delete({
       where: { id: cardId },
     });
+
+    // Si le deck est public, synchroniser tous les decks importés
+    if (isDeckPublic) {
+      await syncImportedDecks(deckId);
+    }
 
     return NextResponse.json({
       success: true,

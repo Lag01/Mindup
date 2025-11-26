@@ -18,12 +18,22 @@ interface AppSettings {
   maxTotalUsers: number;
 }
 
+interface AdminDeck {
+  id: string;
+  name: string;
+  totalCards: number;
+  isPublic: boolean;
+  importCount: number;
+}
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [settings, setSettings] = useState<AppSettings>({ maxDecksPerUser: 10, maxTotalUsers: 5 });
+  const [adminDecks, setAdminDecks] = useState<AdminDeck[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState<string | null>(null);
   const [editedSettings, setEditedSettings] = useState<AppSettings>({ maxDecksPerUser: 10, maxTotalUsers: 5 });
   const router = useRouter();
 
@@ -54,6 +64,13 @@ export default function AdminDashboard() {
       const settingsData = await settingsResponse.json();
       setSettings(settingsData.settings);
       setEditedSettings(settingsData.settings);
+
+      // Récupérer les decks de l'admin
+      const decksResponse = await fetch('/api/decks');
+      if (decksResponse.ok) {
+        const decksData = await decksResponse.json();
+        setAdminDecks(decksData.decks);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -109,6 +126,56 @@ export default function AdminDashboard() {
       alert(error instanceof Error ? error.message : 'Erreur lors de la sauvegarde des paramètres');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePublishDeck = async (deckId: string) => {
+    setPublishing(deckId);
+    try {
+      const response = await fetch(`/api/admin/decks/${deckId}/publish`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erreur lors de la publication du deck');
+      }
+
+      // Rafraîchir la liste des decks
+      await fetchData();
+      alert('Deck publié avec succès !');
+    } catch (error: any) {
+      console.error('Erreur lors de la publication:', error);
+      alert(error.message || 'Erreur lors de la publication du deck');
+    } finally {
+      setPublishing(null);
+    }
+  };
+
+  const handleUnpublishDeck = async (deckId: string, importCount: number) => {
+    if (!confirm(`Êtes-vous sûr de vouloir dépublier ce deck ? ${importCount} utilisateur(s) ont importé ce deck et il sera supprimé de leur profil.`)) {
+      return;
+    }
+
+    setPublishing(deckId);
+    try {
+      const response = await fetch(`/api/admin/decks/${deckId}/unpublish`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erreur lors de la dépublication du deck');
+      }
+
+      // Rafraîchir la liste des decks
+      await fetchData();
+      alert('Deck dépublié avec succès et retiré de tous les profils !');
+    } catch (error: any) {
+      console.error('Erreur lors de la dépublication:', error);
+      alert(error.message || 'Erreur lors de la dépublication du deck');
+    } finally {
+      setPublishing(null);
     }
   };
 
@@ -211,6 +278,69 @@ export default function AdminDashboard() {
           >
             {saving ? 'Sauvegarde...' : 'Sauvegarder les paramètres'}
           </button>
+        </div>
+
+        {/* Gestion des Decks Publics */}
+        <div className="bg-gray-900 p-6 rounded-lg border border-gray-800 mb-8">
+          <h2 className="text-xl font-bold mb-4">Gestion des Decks Publics</h2>
+          {adminDecks.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              Vous n'avez pas encore de decks
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-800">
+                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Nom du deck</th>
+                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Cartes</th>
+                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Statut</th>
+                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Importations</th>
+                    <th className="text-left py-3 px-4 text-gray-400 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminDecks.map((deck) => (
+                    <tr key={deck.id} className="border-b border-gray-800 hover:bg-gray-800/50">
+                      <td className="py-3 px-4">{deck.name}</td>
+                      <td className="py-3 px-4">{deck.totalCards}</td>
+                      <td className="py-3 px-4">
+                        {deck.isPublic ? (
+                          <span className="inline-block px-2 py-1 bg-green-900 text-green-200 rounded text-xs">
+                            Public
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">
+                            Privé
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">{deck.importCount}</td>
+                      <td className="py-3 px-4">
+                        {deck.isPublic ? (
+                          <button
+                            onClick={() => handleUnpublishDeck(deck.id, deck.importCount)}
+                            disabled={publishing === deck.id}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                          >
+                            {publishing === deck.id ? 'Dépublication...' : 'Dépublier'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handlePublishDeck(deck.id)}
+                            disabled={publishing === deck.id}
+                            className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-sm transition-colors"
+                          >
+                            {publishing === deck.id ? 'Publication...' : 'Publier'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Liste des utilisateurs */}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { createNewReviewStats } from '@/lib/revision';
+import { syncImportedDecks } from '@/lib/sync-decks';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -50,6 +51,7 @@ export async function GET(
         id: deck.id,
         name: deck.name,
         cards: deck.cards,
+        originalDeckId: deck.originalDeckId,
       },
     });
   } catch (error) {
@@ -117,6 +119,14 @@ export async function POST(
       );
     }
 
+    // Bloquer l'ajout de cartes aux decks importés
+    if (deck.originalDeckId) {
+      return NextResponse.json(
+        { error: 'Vous ne pouvez pas ajouter de cartes à un deck importé. Il est synchronisé avec le deck public.' },
+        { status: 403 }
+      );
+    }
+
     // Calculate next order number
     const nextOrder = deck.cards.length > 0 ? deck.cards[0].order + 1 : 0;
 
@@ -151,6 +161,11 @@ export async function POST(
 
       return createdCard;
     });
+
+    // Si le deck est public, synchroniser tous les decks importés
+    if (deck.isPublic) {
+      await syncImportedDecks(deckId);
+    }
 
     return NextResponse.json({
       success: true,

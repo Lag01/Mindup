@@ -37,7 +37,16 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ deck });
+    return NextResponse.json({
+      deck: {
+        id: deck.id,
+        name: deck.name,
+        userId: deck.userId,
+        createdAt: deck.createdAt,
+        isPublic: deck.isPublic,
+        originalDeckId: deck.originalDeckId,
+      }
+    });
   } catch (error) {
     console.error('Get deck error:', error);
     return NextResponse.json(
@@ -84,6 +93,14 @@ export async function PATCH(
       return NextResponse.json(
         { error: 'Deck non trouvé' },
         { status: 404 }
+      );
+    }
+
+    // Bloquer la modification des decks importés
+    if (deck.originalDeckId) {
+      return NextResponse.json(
+        { error: 'Vous ne pouvez pas modifier un deck importé. Il est synchronisé avec le deck public.' },
+        { status: 403 }
       );
     }
 
