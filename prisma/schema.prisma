@@ -27,14 +27,25 @@ model User {
 }
 
 model Deck {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cards     Card[]
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  createdAt      DateTime @default(now())
+
+  // Champs pour les decks publics
+  isPublic       Boolean  @default(false)     // Indique si le deck est public
+  originalDeckId String?                      // R\u00e9f\u00e9rence au deck source (si import\u00e9)
+  importCount    Int      @default(0)         // Nombre d'importations
+
+  // Relations
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cards          Card[]
+  originalDeck   Deck?    @relation("DeckImports", fields: [originalDeckId], references: [id], onDelete: Cascade)
+  importedBy     Deck[]   @relation("DeckImports")
 
   @@index([userId])
+  @@index([originalDeckId])
+  @@index([isPublic])
 }
 
 model Card {

@@ -18,6 +18,7 @@ interface Deck {
   id: string;
   name: string;
   cards: Card[];
+  originalDeckId?: string | null;
 }
 
 export default function EditDeck() {
@@ -93,6 +94,14 @@ export default function EditDeck() {
         throw new Error('Failed to fetch deck');
       }
       const data = await response.json();
+
+      // Bloquer l'accès si le deck est importé
+      if (data.deck.originalDeckId) {
+        alert('Vous ne pouvez pas éditer un deck importé. Il est synchronisé avec le deck public.');
+        router.push('/dashboard');
+        return;
+      }
+
       setDeck(data.deck);
     } catch (error) {
       console.error('Error fetching deck:', error);

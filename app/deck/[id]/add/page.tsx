@@ -7,6 +7,7 @@ import MathText from '@/components/MathText';
 interface Deck {
   id: string;
   name: string;
+  originalDeckId?: string | null;
 }
 
 export default function AddCards() {
@@ -35,6 +36,14 @@ export default function AddCards() {
         const response = await fetch(`/api/decks/${deckId}`);
         if (!response.ok) throw new Error('Failed to fetch deck');
         const data = await response.json();
+
+        // Bloquer l'accès si le deck est importé
+        if (data.deck.originalDeckId) {
+          alert('Vous ne pouvez pas ajouter de cartes à un deck importé. Il est synchronisé avec le deck public.');
+          router.push('/dashboard');
+          return;
+        }
+
         setDeck(data.deck);
       } catch (error) {
         console.error('Error fetching deck:', error);

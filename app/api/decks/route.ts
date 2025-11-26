@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { unimportPublicDeck } from '@/lib/sync-decks';
 
 export async function GET() {
   try {
@@ -57,6 +58,9 @@ export async function GET() {
         totalCards,
         notStarted,
         totalReviews,
+        isPublic: deck.isPublic,
+        originalDeckId: deck.originalDeckId,
+        isImported: !!deck.originalDeckId,
       };
     });
 
@@ -103,6 +107,20 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         { error: 'Deck non trouvé' },
         { status: 404 }
+      );
+    }
+
+    // Si c'est un deck importé, utiliser unimportPublicDeck pour décrémenter le compteur
+    if (deck.originalDeckId) {
+      await unimportPublicDeck(user.id, deckId);
+      return NextResponse.json({ success: true });
+    }
+
+    // Bloquer la suppression des decks publics (utiliser unpublish d'abord)
+    if (deck.isPublic) {
+      return NextResponse.json(
+        { error: 'Vous ne pouvez pas supprimer un deck public. Veuillez d\'abord le dépublier depuis le panel admin.' },
+        { status: 403 }
       );
     }
 
