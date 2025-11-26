@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword, createSession } from '@/lib/auth';
 import rateLimiter, { RATE_LIMITS, getClientIp } from '@/lib/rate-limiter';
 import { getAppSettings } from '@/lib/settings';
+import { generateDisplayNameFromEmail } from '@/lib/utils/display-name';
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,14 +71,17 @@ export async function POST(request: NextRequest) {
 
     // Create user
     const hashedPassword = await hashPassword(password);
+    const displayName = generateDisplayNameFromEmail(email);
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
+        displayName,
       },
       select: {
         id: true,
         email: true,
+        displayName: true,
         createdAt: true,
       },
     });

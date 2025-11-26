@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
       include: {
         user: {
           select: {
-            email: true
+            email: true,
+            displayName: true
           }
         },
         cards: {
@@ -64,6 +65,7 @@ export async function GET(request: NextRequest) {
       name: deck.name,
       createdAt: deck.createdAt,
       authorEmail: deck.user.email,
+      authorName: deck.user.displayName,
       cardCount: deck.cards.length,
       importCount: deck.importCount,
       isImported: importedDeckIds.has(deck.id)
