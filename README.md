@@ -9,6 +9,8 @@ Application web de révision par flashcards avec **système de révision immédi
 - ♾️ **Système de révision immédiate** : sessions infinies sans limitation
 - 🎯 **File dynamique** : les cartes reviennent selon votre performance
 - 📐 Rendu LaTeX pour les formules mathématiques
+- 🖼️ **Support des images** : ajoutez des images sur le recto et/ou le verso des cartes
+- 🖱️ **Retournement au clic** : cliquez sur la carte pour la retourner (PC et mobile)
 - 📱 Interface mobile-first optimisée avec thème sombre
 - 📊 Statistiques de révision par deck et par session
 
@@ -122,18 +124,53 @@ Notre système fonctionne avec une **file dynamique** qui s'adapte en temps rée
 
 Pour plus de détails, consultez [REVISION_ALGORITHM.md](REVISION_ALGORITHM.md).
 
+### Images dans les cartes
+
+Vous pouvez désormais enrichir vos cartes avec des images :
+
+- **Upload local** : Téléchargez des images depuis votre ordinateur (PNG, JPG, GIF, WEBP)
+- **Taille maximale** : 5MB par image
+- **Contenu mixte** : Combinez texte/LaTeX et image sur le même côté
+- **Gestion flexible** : Ajoutez, remplacez ou supprimez des images à tout moment
+
+Les images sont stockées localement dans `/public/uploads/cards/` et sont automatiquement nettoyées lors de la suppression des cartes.
+
+### Retournement des cartes
+
+Deux méthodes pour retourner une carte en mode révision :
+
+- **Bouton "Retourner"** : Méthode classique toujours disponible
+- **Clic sur la carte** : Cliquez directement sur la carte (PC et mobile)
+- **Support clavier** : Appuyez sur `Espace` ou `Enter` pour retourner
+
+Le retournement au clic est désactivé une fois la carte retournée pour éviter les clics accidentels pendant la notation.
+
 ## Structure du projet
 
 ```
 flashcards-app/
 ├── app/
-│   ├── api/           # Routes API
-│   ├── dashboard/     # Page du dashboard
-│   ├── deck/          # Pages de révision
-│   ├── import/        # Page d'import
-│   └── page.tsx       # Page de connexion
-├── components/        # Composants réutilisables
-├── lib/              # Utilitaires et logique métier
-├── prisma/           # Schéma de base de données
-└── public/           # Assets statiques
+│   ├── api/
+│   │   ├── auth/           # Authentification
+│   │   ├── cards/          # Gestion des cartes
+│   │   ├── decks/          # Gestion des decks
+│   │   ├── review/         # Système de révision
+│   │   └── upload/         # Upload d'images
+│   ├── dashboard/          # Page du dashboard
+│   ├── deck/
+│   │   └── [id]/
+│   │       ├── add/        # Ajout rapide de cartes
+│   │       ├── edit/       # Édition de deck
+│   │       ├── review/     # Révision
+│   │       └── stats/      # Statistiques
+│   ├── import/             # Import de decks
+│   └── page.tsx            # Page de connexion
+├── components/
+│   ├── CardContentDisplay.tsx  # Affichage mixte texte+image
+│   ├── ImageUploader.tsx       # Upload d'images
+│   └── MathText.tsx            # Rendu LaTeX
+├── lib/                    # Utilitaires et logique métier
+├── prisma/                 # Schéma de base de données
+└── public/
+    └── uploads/cards/      # Images uploadées
 ```
