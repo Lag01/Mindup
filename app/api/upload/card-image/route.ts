@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir, access, constants } from 'fs/promises';
-import { existsSync } from 'fs';
-import { join, resolve } from 'path';
-import { getCurrentUser } from '@/lib/auth';
+import { put } from '@vercel/blob';
+import { requireAdmin } from '@/lib/auth';
 
-const UPLOAD_DIR = resolve(process.cwd(), 'public', 'uploads', 'cards');
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
 
 export async function POST(request: NextRequest) {
   try {
-    // Vérifier l'authentification
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    // Vérifier que l'utilisateur est admin
+    try {
+      await requireAdmin();
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Accès refusé' },
+        { status: 403 }
+      );
     }
 
     // Récupérer le fichier depuis le formulaire
@@ -40,68 +41,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Créer le dossier s'il n'existe pas et vérifier les permissions
-    console.log('[Upload] Vérification du dossier:', UPLOAD_DIR);
-    console.log('[Upload] process.cwd():', process.cwd());
-
-    if (!existsSync(UPLOAD_DIR)) {
-      console.log('[Upload] Création du dossier:', UPLOAD_DIR);
-      try {
-        await mkdir(UPLOAD_DIR, { recursive: true, mode: 0o777 });
-        console.log('[Upload] Dossier créé avec succès');
-      } catch (mkdirError) {
-        console.error('[Upload] Erreur lors de la création du dossier:', mkdirError);
-        const errorMsg = mkdirError instanceof Error ? mkdirError.message : 'Erreur inconnue';
-        return NextResponse.json(
-          {
-            error: 'Impossible de créer le dossier de destination',
-            details: process.env.NODE_ENV === 'development' ? errorMsg : undefined
-          },
-          { status: 500 }
-        );
-      }
-    } else {
-      console.log('[Upload] Dossier existant:', UPLOAD_DIR);
-    }
-
-    // Vérifier les permissions d'écriture avec access
-    try {
-      await access(UPLOAD_DIR, constants.W_OK);
-      console.log('[Upload] Permissions d\'écriture vérifiées');
-    } catch (permError) {
-      console.error('[Upload] Pas de permission d\'écriture dans:', UPLOAD_DIR, permError);
-      return NextResponse.json(
-        {
-          error: 'Pas de permission d\'écriture dans le dossier de destination',
-          details: process.env.NODE_ENV === 'development'
-            ? `Vérifiez les permissions du dossier ${UPLOAD_DIR}`
-            : undefined
-        },
-        { status: 500 }
-      );
-    }
-
     // Générer un nom de fichier unique
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 8);
     const extension = file.name.split('.').pop()?.toLowerCase() || 'png';
-    const filename = `${timestamp}_${randomId}.${extension}`;
-    const filepath = resolve(UPLOAD_DIR, filename);
+    const filename = `cards/${timestamp}_${randomId}.${extension}`;
 
-    console.log('[Upload] Tentative de sauvegarde:', filepath);
+    console.log('[Upload] Upload vers Vercel Blob:', filename);
 
-    // Sauvegarder le fichier
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filepath, buffer);
+    // Upload vers Vercel Blob Storage
+    const blob = await put(filename, file, {
+      access: 'public',
+      addRandomSuffix: false,
+    });
 
-    console.log('[Upload] Fichier sauvegardé avec succès:', filename);
+    console.log('[Upload] Fichier uploadé avec succès:', blob.url);
 
-    // Retourner le chemin relatif
+    // Retourner l'URL publique du blob
     return NextResponse.json({
       success: true,
-      path: `/uploads/cards/${filename}`,
+      path: blob.url,
       filename: filename,
+      url: blob.url,
     });
   } catch (error) {
     console.error('[Upload] Erreur lors de l\'upload:', error);
