@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import EditDeckNameModal from '@/components/EditDeckNameModal';
+import CreateDeckModal from '@/components/CreateDeckModal';
 
 interface Deck {
   id: string;
@@ -24,6 +25,7 @@ export default function Dashboard() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isCreatingDeck, setIsCreatingDeck] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -97,6 +99,13 @@ export default function Dashboard() {
 
   const handleRenameSuccess = (deckId: string, newName: string) => {
     setDecks(decks.map(d => d.id === deckId ? { ...d, name: newName } : d));
+  };
+
+  const handleCreateSuccess = async (deck: { id: string; name: string }) => {
+    // Rafraîchir la liste des decks pour obtenir les stats complètes
+    await fetchDecks();
+    // Rediriger vers la page d'ajout de cartes
+    router.push(`/deck/${deck.id}/add`);
   };
 
   const handleExport = async (deckId: string, format: 'xml' | 'csv') => {
@@ -185,6 +194,13 @@ export default function Dashboard() {
                 <span className="sm:hidden">Publics</span>
               </button>
               <button
+                onClick={() => setIsCreatingDeck(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
+              >
+                <span className="hidden sm:inline">Créer un deck</span>
+                <span className="sm:hidden">Créer</span>
+              </button>
+              <button
                 onClick={() => router.push('/import')}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base"
               >
@@ -245,12 +261,20 @@ export default function Dashboard() {
             <p className="text-zinc-400 text-lg mb-4">
               Vous n'avez pas encore de decks
             </p>
-            <button
-              onClick={() => router.push('/import')}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
-            >
-              Importer votre premier deck
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setIsCreatingDeck(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
+              >
+                Créer un deck vide
+              </button>
+              <button
+                onClick={() => router.push('/import')}
+                className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
+              >
+                Importer un deck
+              </button>
+            </div>
           </div>
         ) : filteredDecks.length === 0 ? (
           <div className="text-center py-12">
@@ -472,6 +496,13 @@ export default function Dashboard() {
             }}
           />
         )}
+
+        {/* Create Deck Modal */}
+        <CreateDeckModal
+          isOpen={isCreatingDeck}
+          onClose={() => setIsCreatingDeck(false)}
+          onSuccess={handleCreateSuccess}
+        />
       </main>
     </div>
   );
