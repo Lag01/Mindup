@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, access, constants } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { getCurrentUser } from '@/lib/auth';
@@ -40,36 +40,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Créer le dossier s'il n'existe pas
-    try {
-      console.log('[Upload] Vérification du dossier:', UPLOAD_DIR);
-      console.log('[Upload] process.cwd():', process.cwd());
+    // Créer le dossier s'il n'existe pas et vérifier les permissions
+    console.log('[Upload] Vérification du dossier:', UPLOAD_DIR);
+    console.log('[Upload] process.cwd():', process.cwd());
 
-      if (!existsSync(UPLOAD_DIR)) {
-        console.log('[Upload] Création du dossier:', UPLOAD_DIR);
+    if (!existsSync(UPLOAD_DIR)) {
+      console.log('[Upload] Création du dossier:', UPLOAD_DIR);
+      try {
         await mkdir(UPLOAD_DIR, { recursive: true, mode: 0o777 });
         console.log('[Upload] Dossier créé avec succès');
-      } else {
-        console.log('[Upload] Dossier existant:', UPLOAD_DIR);
+      } catch (mkdirError) {
+        console.error('[Upload] Erreur lors de la création du dossier:', mkdirError);
+        const errorMsg = mkdirError instanceof Error ? mkdirError.message : 'Erreur inconnue';
+        return NextResponse.json(
+          {
+            error: 'Impossible de créer le dossier de destination',
+            details: process.env.NODE_ENV === 'development' ? errorMsg : undefined
+          },
+          { status: 500 }
+        );
       }
+    } else {
+      console.log('[Upload] Dossier existant:', UPLOAD_DIR);
+    }
 
-      // Vérifier les permissions d'écriture
-      const testFile = join(UPLOAD_DIR, '.write-test');
-      try {
-        await writeFile(testFile, 'test');
-        await import('fs/promises').then(fs => fs.unlink(testFile));
-        console.log('[Upload] Permissions d\'écriture vérifiées');
-      } catch (permError) {
-        console.error('[Upload] Pas de permission d\'écriture dans:', UPLOAD_DIR);
-        throw new Error('Pas de permission d\'écriture dans le dossier de destination');
-      }
-    } catch (mkdirError) {
-      console.error('[Upload] Erreur lors de la création du dossier:', mkdirError);
-      const errorMsg = mkdirError instanceof Error ? mkdirError.message : 'Erreur inconnue';
+    // Vérifier les permissions d'écriture avec access
+    try {
+      await access(UPLOAD_DIR, constants.W_OK);
+      console.log('[Upload] Permissions d\'écriture vérifiées');
+    } catch (permError) {
+      console.error('[Upload] Pas de permission d\'écriture dans:', UPLOAD_DIR, permError);
       return NextResponse.json(
         {
-          error: 'Impossible de créer le dossier de destination',
-          details: process.env.NODE_ENV === 'development' ? errorMsg : undefined
+          error: 'Pas de permission d\'écriture dans le dossier de destination',
+          details: process.env.NODE_ENV === 'development'
+            ? `Vérifiez les permissions du dossier ${UPLOAD_DIR}`
+            : undefined
         },
         { status: 500 }
       );
