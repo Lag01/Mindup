@@ -79,7 +79,7 @@ export async function POST(
 
     const { id: deckId } = await context.params;
     const body = await request.json();
-    const { front, back, frontType, backType } = body;
+    const { front, back, frontType, backType, frontImage, backImage } = body;
 
     // Validation
     if (!front || !back) {
@@ -92,6 +92,20 @@ export async function POST(
     if (!['TEXT', 'LATEX'].includes(frontType) || !['TEXT', 'LATEX'].includes(backType)) {
       return NextResponse.json(
         { error: 'Type de contenu invalide' },
+        { status: 400 }
+      );
+    }
+
+    // Validation des chemins d'images
+    if (frontImage && !frontImage.startsWith('/uploads/cards/')) {
+      return NextResponse.json(
+        { error: 'Chemin image recto invalide' },
+        { status: 400 }
+      );
+    }
+    if (backImage && !backImage.startsWith('/uploads/cards/')) {
+      return NextResponse.json(
+        { error: 'Chemin image verso invalide' },
         { status: 400 }
       );
     }
@@ -140,6 +154,8 @@ export async function POST(
           back,
           frontType,
           backType,
+          frontImage: frontImage || null,
+          backImage: backImage || null,
           order: nextOrder,
         },
       });

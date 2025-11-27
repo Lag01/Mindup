@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import MathText from '@/components/MathText';
+import ImageUploader from '@/components/ImageUploader';
 
 interface Deck {
   id: string;
@@ -22,6 +23,8 @@ export default function AddCards() {
     back: '',
     frontType: 'TEXT' as 'TEXT' | 'LATEX',
     backType: 'TEXT' as 'TEXT' | 'LATEX',
+    frontImage: null as string | null,
+    backImage: null as string | null,
   });
   const [saving, setSaving] = useState(false);
   const [cardsCreated, setCardsCreated] = useState(0);
@@ -94,6 +97,8 @@ export default function AddCards() {
       back: '',
       frontType: 'TEXT',
       backType: 'TEXT',
+      frontImage: null,
+      backImage: null,
     });
     requestAnimationFrame(() => {
       frontInputRef.current?.focus();
@@ -106,6 +111,8 @@ export default function AddCards() {
       back: prev.front,
       frontType: prev.backType,
       backType: prev.frontType,
+      frontImage: prev.backImage,
+      backImage: prev.frontImage,
     }));
   }, []);
 
@@ -244,6 +251,16 @@ export default function AddCards() {
                   />
                 </div>
               )}
+
+              {/* Upload image recto */}
+              <div className="mt-3">
+                <ImageUploader
+                  currentImage={cardForm.frontImage}
+                  onImageUploaded={(path) => setCardForm(prev => ({ ...prev, frontImage: path }))}
+                  onImageRemoved={() => setCardForm(prev => ({ ...prev, frontImage: null }))}
+                  label="Recto"
+                />
+              </div>
             </div>
 
             {/* Bouton d'inversion */}
@@ -311,6 +328,16 @@ export default function AddCards() {
                   />
                 </div>
               )}
+
+              {/* Upload image verso */}
+              <div className="mt-3">
+                <ImageUploader
+                  currentImage={cardForm.backImage}
+                  onImageUploaded={(path) => setCardForm(prev => ({ ...prev, backImage: path }))}
+                  onImageRemoved={() => setCardForm(prev => ({ ...prev, backImage: null }))}
+                  label="Verso"
+                />
+              </div>
             </div>
           </div>
         </div>

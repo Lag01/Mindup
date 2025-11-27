@@ -50,15 +50,17 @@ model Deck {
 }
 
 model Card {
-  id        String      @id @default(cuid())
-  deckId    String
-  front     String      @db.Text
-  back      String      @db.Text
-  frontType ContentType @default(TEXT)
-  backType  ContentType @default(TEXT)
-  order     Int
-  deck      Deck        @relation(fields: [deckId], references: [id], onDelete: Cascade)
-  reviews   Review[]
+  id         String      @id @default(cuid())
+  deckId     String
+  front      String      @db.Text
+  back       String      @db.Text
+  frontType  ContentType @default(TEXT)
+  backType   ContentType @default(TEXT)
+  frontImage String?
+  backImage  String?
+  order      Int
+  deck       Deck        @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  reviews    Review[]
 
   @@index([deckId])
 }
