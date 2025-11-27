@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { unimportPublicDeck } from '@/lib/sync-decks';
+import { getAppSettings } from '@/lib/settings';
 
 export async function GET() {
   try {
@@ -69,6 +70,74 @@ export async function GET() {
     console.error('Get decks error:', error);
     return NextResponse.json(
       { error: 'Erreur lors de la récupération des decks' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
+
+    // Vérifier la limite de decks
+    const settings = await getAppSettings();
+    const userDecksCount = await prisma.deck.count({
+      where: { userId: user.id },
+    });
+
+    if (userDecksCount >= settings.maxDecksPerUser) {
+      return NextResponse.json(
+        { error: `Vous avez atteint la limite de ${settings.maxDecksPerUser} decks par compte. Supprimez un deck avant d'en créer un nouveau.` },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { name } = body;
+
+    // Valider le nom du deck
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Le nom du deck est requis' },
+        { status: 400 }
+      );
+    }
+
+    if (name.trim().length > 100) {
+      return NextResponse.json(
+        { error: 'Le nom du deck ne peut pas dépasser 100 caractères' },
+        { status: 400 }
+      );
+    }
+
+    // Créer le deck vide
+    const deck = await prisma.deck.create({
+      data: {
+        name: name.trim(),
+        userId: user.id,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      deck: {
+        id: deck.id,
+        name: deck.name,
+        createdAt: deck.createdAt,
+      }
+    }, { status: 201 });
+
+  } catch (error) {
+    console.error('Create deck error:', error);
+    return NextResponse.json(
+      { error: 'Erreur lors de la création du deck' },
       { status: 500 }
     );
   }
