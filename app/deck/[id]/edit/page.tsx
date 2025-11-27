@@ -6,6 +6,7 @@ import Link from 'next/link';
 import MathText from '@/components/MathText';
 import ImageUploader from '@/components/ImageUploader';
 import CardContentDisplay from '@/components/CardContentDisplay';
+import { useUser } from '@/hooks/useUser';
 
 interface Card {
   id: string;
@@ -46,6 +47,7 @@ export default function EditDeck() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'detailed' | 'table'>('detailed');
   const router = useRouter();
+  const { isAdmin } = useUser();
 
   useEffect(() => {
     fetchDeck();
@@ -574,14 +576,16 @@ export default function EditDeck() {
                     )}
 
                     {/* Upload image recto */}
-                    <div className="mt-2">
-                      <ImageUploader
-                        currentImage={editForm.frontImage}
-                        onImageUploaded={(path) => setEditForm(prev => ({ ...prev, frontImage: path }))}
-                        onImageRemoved={() => setEditForm(prev => ({ ...prev, frontImage: null }))}
-                        label="Recto"
-                      />
-                    </div>
+                    {isAdmin && (
+                      <div className="mt-2">
+                        <ImageUploader
+                          currentImage={editForm.frontImage}
+                          onImageUploaded={(path) => setEditForm(prev => ({ ...prev, frontImage: path }))}
+                          onImageRemoved={() => setEditForm(prev => ({ ...prev, frontImage: null }))}
+                          label="Recto"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Bouton d'inversion */}
@@ -656,14 +660,16 @@ export default function EditDeck() {
                     )}
 
                     {/* Upload image verso */}
-                    <div className="mt-2">
-                      <ImageUploader
-                        currentImage={editForm.backImage}
-                        onImageUploaded={(path) => setEditForm(prev => ({ ...prev, backImage: path }))}
-                        onImageRemoved={() => setEditForm(prev => ({ ...prev, backImage: null }))}
-                        label="Verso"
-                      />
-                    </div>
+                    {isAdmin && (
+                      <div className="mt-2">
+                        <ImageUploader
+                          currentImage={editForm.backImage}
+                          onImageUploaded={(path) => setEditForm(prev => ({ ...prev, backImage: path }))}
+                          onImageRemoved={() => setEditForm(prev => ({ ...prev, backImage: null }))}
+                          label="Verso"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}

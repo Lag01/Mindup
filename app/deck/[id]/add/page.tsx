@@ -6,6 +6,7 @@ import MathText from '@/components/MathText';
 import ImageUploader from '@/components/ImageUploader';
 import CardContentDisplay from '@/components/CardContentDisplay';
 import ImageOverlay from '@/components/ImageOverlay';
+import { useUser } from '@/hooks/useUser';
 
 interface Deck {
   id: string;
@@ -36,6 +37,7 @@ export default function AddCards() {
   const [showBackImage, setShowBackImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const frontInputRef = useRef<HTMLTextAreaElement>(null);
+  const { isAdmin } = useUser();
 
   // Charger les infos du deck
   useEffect(() => {
@@ -274,19 +276,21 @@ export default function AddCards() {
                   >
                     LaTeX
                   </button>
-                  <button
-                    onClick={handleToggleFrontImage}
-                    className={`px-2.5 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${
-                      showFrontImage
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                    }`}
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    Image
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={handleToggleFrontImage}
+                      className={`px-2.5 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${
+                        showFrontImage
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                      }`}
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Image
+                    </button>
+                  )}
                 </div>
               </div>
               <textarea
@@ -367,19 +371,21 @@ export default function AddCards() {
                   >
                     LaTeX
                   </button>
-                  <button
-                    onClick={handleToggleBackImage}
-                    className={`px-2.5 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${
-                      showBackImage
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                    }`}
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    Image
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={handleToggleBackImage}
+                      className={`px-2.5 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${
+                        showBackImage
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                      }`}
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Image
+                    </button>
+                  )}
                 </div>
               </div>
               <textarea
