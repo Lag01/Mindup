@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import MathText from '@/components/MathText';
+import CardContentDisplay from '@/components/CardContentDisplay';
 import { insertCardInQueue, Rating } from '@/lib/revision';
 
 interface Card {
@@ -11,6 +12,8 @@ interface Card {
   back: string;
   frontType: 'TEXT' | 'LATEX';
   backType: 'TEXT' | 'LATEX';
+  frontImage: string | null;
+  backImage: string | null;
   review: any;
 }
 
@@ -60,20 +63,45 @@ function shuffleArray<T>(array: T[]): T[] {
 const CardDisplay = memo(({
   card,
   isFlipped,
-  isMobile
+  isMobile,
+  onCardClick
 }: {
   card: Card;
   isFlipped: boolean;
   isMobile: boolean;
+  onCardClick?: () => void;
 }) => {
+  const handleClick = () => {
+    if (onCardClick && !isFlipped) {
+      onCardClick();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.key === 'Enter' || e.key === ' ') && onCardClick && !isFlipped) {
+      e.preventDefault();
+      onCardClick();
+    }
+  };
+
   return (
-    <div className="bg-zinc-900 rounded-lg p-6 md:p-8 border border-zinc-800 min-h-[300px] md:min-h-[400px] flex flex-col justify-center">
+    <div
+      className={`bg-zinc-900 rounded-lg p-6 md:p-8 border border-zinc-800 min-h-[300px] md:min-h-[400px] flex flex-col justify-center transition-colors ${
+        !isFlipped && onCardClick ? 'cursor-pointer hover:border-zinc-700' : ''
+      }`}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={!isFlipped && onCardClick ? 0 : -1}
+      role={!isFlipped && onCardClick ? 'button' : undefined}
+      aria-label={!isFlipped && onCardClick ? 'Cliquer pour retourner la carte' : undefined}
+    >
       {!isFlipped ? (
         // Front of card
         <div className="text-center">
-          <MathText
+          <CardContentDisplay
             text={card.front}
-            contentType={card.frontType}
+            textType={card.frontType}
+            imagePath={card.frontImage}
             className="text-xl md:text-2xl text-foreground"
             autoResize={true}
             maxHeight={isMobile ? 450 : 600}
@@ -83,9 +111,10 @@ const CardDisplay = memo(({
         // Both sides of card
         <div className="space-y-4 md:space-y-6">
           <div className="text-center">
-            <MathText
+            <CardContentDisplay
               text={card.front}
-              contentType={card.frontType}
+              textType={card.frontType}
+              imagePath={card.frontImage}
               className="text-lg md:text-xl text-zinc-400"
               autoResize={true}
               maxHeight={isMobile ? 180 : 250}
@@ -93,9 +122,10 @@ const CardDisplay = memo(({
           </div>
           <div className="border-t border-zinc-700"></div>
           <div className="text-center">
-            <MathText
+            <CardContentDisplay
               text={card.back}
-              contentType={card.backType}
+              textType={card.backType}
+              imagePath={card.backImage}
               className="text-xl md:text-2xl text-foreground"
               autoResize={true}
               maxHeight={isMobile ? 280 : 350}
@@ -474,7 +504,12 @@ export default function Review() {
       {/* Card Display Area */}
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-2xl">
-          <CardDisplay card={currentCard} isFlipped={isFlipped} isMobile={isMobile} />
+          <CardDisplay
+            card={currentCard}
+            isFlipped={isFlipped}
+            isMobile={isMobile}
+            onCardClick={() => !isFlipped && handleFlip()}
+          />
         </div>
       </div>
 

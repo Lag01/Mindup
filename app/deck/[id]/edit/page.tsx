@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import MathText from '@/components/MathText';
+import ImageUploader from '@/components/ImageUploader';
+import CardContentDisplay from '@/components/CardContentDisplay';
 
 interface Card {
   id: string;
@@ -11,6 +13,8 @@ interface Card {
   back: string;
   frontType: 'TEXT' | 'LATEX';
   backType: 'TEXT' | 'LATEX';
+  frontImage: string | null;
+  backImage: string | null;
   order: number;
 }
 
@@ -32,6 +36,8 @@ export default function EditDeck() {
     back: '',
     frontType: 'TEXT' as 'TEXT' | 'LATEX',
     backType: 'TEXT' as 'TEXT' | 'LATEX',
+    frontImage: null as string | null,
+    backImage: null as string | null,
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -117,6 +123,8 @@ export default function EditDeck() {
       back: card.back,
       frontType: card.frontType,
       backType: card.backType,
+      frontImage: card.frontImage,
+      backImage: card.backImage,
     });
   };
 
@@ -127,6 +135,8 @@ export default function EditDeck() {
       back: '',
       frontType: 'TEXT',
       backType: 'TEXT',
+      frontImage: null,
+      backImage: null,
     });
   };
 
@@ -236,6 +246,8 @@ export default function EditDeck() {
       back: prev.front,
       frontType: prev.backType,
       backType: prev.frontType,
+      frontImage: prev.backImage,
+      backImage: prev.frontImage,
     }));
   };
 
@@ -560,6 +572,16 @@ export default function EditDeck() {
                         />
                       </div>
                     )}
+
+                    {/* Upload image recto */}
+                    <div className="mt-2">
+                      <ImageUploader
+                        currentImage={editForm.frontImage}
+                        onImageUploaded={(path) => setEditForm(prev => ({ ...prev, frontImage: path }))}
+                        onImageRemoved={() => setEditForm(prev => ({ ...prev, frontImage: null }))}
+                        label="Recto"
+                      />
+                    </div>
                   </div>
 
                   {/* Bouton d'inversion */}
@@ -632,6 +654,16 @@ export default function EditDeck() {
                         />
                       </div>
                     )}
+
+                    {/* Upload image verso */}
+                    <div className="mt-2">
+                      <ImageUploader
+                        currentImage={editForm.backImage}
+                        onImageUploaded={(path) => setEditForm(prev => ({ ...prev, backImage: path }))}
+                        onImageRemoved={() => setEditForm(prev => ({ ...prev, backImage: null }))}
+                        label="Verso"
+                      />
+                    </div>
                   </div>
 
                   {/* Actions */}
@@ -663,11 +695,17 @@ export default function EditDeck() {
                       <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">
                         {card.frontType === 'LATEX' ? 'LaTeX' : 'Texte'}
                       </span>
+                      {card.frontImage && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-800/50">
+                          + Image
+                        </span>
+                      )}
                     </div>
                     <div className="p-4 bg-zinc-800 rounded-lg">
-                      <MathText
+                      <CardContentDisplay
                         text={card.front}
-                        contentType={card.frontType}
+                        textType={card.frontType}
+                        imagePath={card.frontImage}
                         autoResize={false}
                         className="text-foreground"
                       />
@@ -680,11 +718,17 @@ export default function EditDeck() {
                       <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">
                         {card.backType === 'LATEX' ? 'LaTeX' : 'Texte'}
                       </span>
+                      {card.backImage && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-800/50">
+                          + Image
+                        </span>
+                      )}
                     </div>
                     <div className="p-4 bg-zinc-800 rounded-lg">
-                      <MathText
+                      <CardContentDisplay
                         text={card.back}
-                        contentType={card.backType}
+                        textType={card.backType}
+                        imagePath={card.backImage}
                         autoResize={false}
                         className="text-foreground"
                       />

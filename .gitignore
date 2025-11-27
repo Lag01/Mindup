@@ -36,3 +36,7 @@ next-env.d.ts
 
 # PWA files (next-pwa generated, not used anymore)
 # public/sw.js is now manually created and should be committed
+
+# Uploaded card images
+/public/uploads/cards/*
+!/public/uploads/cards/.gitkeep

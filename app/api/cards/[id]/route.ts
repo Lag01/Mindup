@@ -23,7 +23,7 @@ export async function PATCH(
 
     const { id: cardId } = await context.params;
     const body = await request.json();
-    const { front, back, frontType, backType } = body;
+    const { front, back, frontType, backType, frontImage, backImage } = body;
 
     // Validation
     if (frontType !== undefined && !['TEXT', 'LATEX'].includes(frontType)) {
@@ -36,6 +36,20 @@ export async function PATCH(
     if (backType !== undefined && !['TEXT', 'LATEX'].includes(backType)) {
       return NextResponse.json(
         { error: 'Type de contenu invalide pour le verso' },
+        { status: 400 }
+      );
+    }
+
+    // Validation des chemins d'images
+    if (frontImage !== undefined && frontImage !== null && !frontImage.startsWith('/uploads/cards/')) {
+      return NextResponse.json(
+        { error: 'Chemin image recto invalide' },
+        { status: 400 }
+      );
+    }
+    if (backImage !== undefined && backImage !== null && !backImage.startsWith('/uploads/cards/')) {
+      return NextResponse.json(
+        { error: 'Chemin image verso invalide' },
         { status: 400 }
       );
     }
@@ -78,6 +92,8 @@ export async function PATCH(
         back: back !== undefined ? back : card.back,
         frontType: frontType !== undefined ? frontType : card.frontType,
         backType: backType !== undefined ? backType : card.backType,
+        frontImage: frontImage !== undefined ? frontImage : card.frontImage,
+        backImage: backImage !== undefined ? backImage : card.backImage,
       },
     });
 
@@ -145,14 +161,32 @@ export async function DELETE(
       );
     }
 
-    // Sauvegarder l'ID du deck avant de supprimer la carte
+    // Sauvegarder l'ID du deck et les images avant de supprimer la carte
     const deckId = card.deck.id;
     const isDeckPublic = card.deck.isPublic;
+    const frontImageToDelete = card.frontImage;
+    const backImageToDelete = card.backImage;
 
     // Delete card (reviews will be deleted automatically due to cascade)
     await prisma.card.delete({
       where: { id: cardId },
     });
+
+    // Nettoyage asynchrone des images (ne bloque pas la réponse)
+    if (frontImageToDelete) {
+      fetch('/api/upload/delete-card-image', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imagePath: frontImageToDelete }),
+      }).catch(err => console.error('Erreur suppression image recto:', err));
+    }
+    if (backImageToDelete) {
+      fetch('/api/upload/delete-card-image', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imagePath: backImageToDelete }),
+      }).catch(err => console.error('Erreur suppression image verso:', err));
+    }
 
     // Si le deck est public, synchroniser tous les decks importés
     if (isDeckPublic) {
