@@ -165,8 +165,12 @@ export default function AddCards() {
   }, [showBackImage, cardForm.backImage]);
 
   const createAndContinue = useCallback(async () => {
-    if (!cardForm.front.trim() || !cardForm.back.trim()) {
-      showToastMessage('⚠️ Le recto et le verso sont requis');
+    // Vérifier qu'il y a au moins du contenu (texte OU image) pour chaque côté
+    const hasFrontContent = cardForm.front.trim() || cardForm.frontImage;
+    const hasBackContent = cardForm.back.trim() || cardForm.backImage;
+
+    if (!hasFrontContent || !hasBackContent) {
+      showToastMessage('⚠️ Le recto et le verso doivent contenir du texte ou une image');
       return;
     }
 

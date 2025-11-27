@@ -81,10 +81,13 @@ export async function POST(
     const body = await request.json();
     const { front, back, frontType, backType, frontImage, backImage } = body;
 
-    // Validation
-    if (!front || !back) {
+    // Validation : au moins du contenu (texte OU image) pour chaque côté
+    const hasFrontContent = (front && front.trim()) || frontImage;
+    const hasBackContent = (back && back.trim()) || backImage;
+
+    if (!hasFrontContent || !hasBackContent) {
       return NextResponse.json(
-        { error: 'Le recto et le verso sont requis' },
+        { error: 'Le recto et le verso doivent contenir du texte ou une image' },
         { status: 400 }
       );
     }
@@ -96,19 +99,38 @@ export async function POST(
       );
     }
 
-    // Validation des chemins d'images
-    if (frontImage && !frontImage.startsWith('/uploads/cards/')) {
-      return NextResponse.json(
-        { error: 'Chemin image recto invalide' },
-        { status: 400 }
-      );
+    // Validation des chemins d'images (accepter URLs locales et Vercel Blob)
+    if (frontImage) {
+      const isValidPath =
+        frontImage.startsWith('/uploads/cards/') ||
+        frontImage.startsWith('https://') ||
+        frontImage.startsWith('http://');
+
+      if (!isValidPath) {
+        return NextResponse.json(
+          { error: 'Chemin image recto invalide' },
+          { status: 400 }
+        );
+      }
     }
-    if (backImage && !backImage.startsWith('/uploads/cards/')) {
-      return NextResponse.json(
-        { error: 'Chemin image verso invalide' },
-        { status: 400 }
-      );
+
+    if (backImage) {
+      const isValidPath =
+        backImage.startsWith('/uploads/cards/') ||
+        backImage.startsWith('https://') ||
+        backImage.startsWith('http://');
+
+      if (!isValidPath) {
+        return NextResponse.json(
+          { error: 'Chemin image verso invalide' },
+          { status: 400 }
+        );
+      }
     }
+
+    // Si seulement une image est fournie, utiliser une valeur par défaut pour le texte
+    const finalFront = (front && front.trim()) ? front : '';
+    const finalBack = (back && back.trim()) ? back : '';
 
     // Verify deck belongs to user
     const deck = await prisma.deck.findFirst({
@@ -150,8 +172,8 @@ export async function POST(
       const createdCard = await tx.card.create({
         data: {
           deckId: deckId,
-          front,
-          back,
+          front: finalFront,
+          back: finalBack,
           frontType,
           backType,
           frontImage: frontImage || null,
