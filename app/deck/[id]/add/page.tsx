@@ -4,6 +4,8 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import MathText from '@/components/MathText';
 import ImageUploader from '@/components/ImageUploader';
+import CardContentDisplay from '@/components/CardContentDisplay';
+import ImageOverlay from '@/components/ImageOverlay';
 
 interface Deck {
   id: string;
@@ -30,6 +32,9 @@ export default function AddCards() {
   const [cardsCreated, setCardsCreated] = useState(0);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [showFrontImage, setShowFrontImage] = useState(false);
+  const [showBackImage, setShowBackImage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const frontInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Charger les infos du deck
@@ -100,6 +105,8 @@ export default function AddCards() {
       frontImage: null,
       backImage: null,
     });
+    setShowFrontImage(false);
+    setShowBackImage(false);
     requestAnimationFrame(() => {
       frontInputRef.current?.focus();
     });
@@ -114,7 +121,46 @@ export default function AddCards() {
       frontImage: prev.backImage,
       backImage: prev.frontImage,
     }));
-  }, []);
+    setShowFrontImage(prev => {
+      const temp = prev;
+      setShowBackImage(showFrontImage);
+      return showBackImage;
+    });
+  }, [showFrontImage, showBackImage]);
+
+  const handleToggleFrontImage = useCallback(async () => {
+    if (showFrontImage && cardForm.frontImage) {
+      // Supprimer l'image du serveur
+      try {
+        await fetch('/api/upload/delete-card-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imagePath: cardForm.frontImage }),
+        });
+      } catch (error) {
+        console.error('Error deleting image:', error);
+      }
+      setCardForm(prev => ({ ...prev, frontImage: null }));
+    }
+    setShowFrontImage(!showFrontImage);
+  }, [showFrontImage, cardForm.frontImage]);
+
+  const handleToggleBackImage = useCallback(async () => {
+    if (showBackImage && cardForm.backImage) {
+      // Supprimer l'image du serveur
+      try {
+        await fetch('/api/upload/delete-card-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imagePath: cardForm.backImage }),
+        });
+      } catch (error) {
+        console.error('Error deleting image:', error);
+      }
+      setCardForm(prev => ({ ...prev, backImage: null }));
+    }
+    setShowBackImage(!showBackImage);
+  }, [showBackImage, cardForm.backImage]);
 
   const createAndContinue = useCallback(async () => {
     if (!cardForm.front.trim() || !cardForm.back.trim()) {
@@ -228,6 +274,19 @@ export default function AddCards() {
                   >
                     LaTeX
                   </button>
+                  <button
+                    onClick={handleToggleFrontImage}
+                    className={`px-2.5 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${
+                      showFrontImage
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    }`}
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Image
+                  </button>
                 </div>
               </div>
               <textarea
@@ -253,14 +312,16 @@ export default function AddCards() {
               )}
 
               {/* Upload image recto */}
-              <div className="mt-3">
-                <ImageUploader
-                  currentImage={cardForm.frontImage}
-                  onImageUploaded={(path) => setCardForm(prev => ({ ...prev, frontImage: path }))}
-                  onImageRemoved={() => setCardForm(prev => ({ ...prev, frontImage: null }))}
-                  label="Recto"
-                />
-              </div>
+              {showFrontImage && (
+                <div className="mt-3">
+                  <ImageUploader
+                    currentImage={cardForm.frontImage}
+                    onImageUploaded={(path) => setCardForm(prev => ({ ...prev, frontImage: path }))}
+                    onImageRemoved={() => setCardForm(prev => ({ ...prev, frontImage: null }))}
+                    label="Recto"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Bouton d'inversion */}
@@ -306,6 +367,19 @@ export default function AddCards() {
                   >
                     LaTeX
                   </button>
+                  <button
+                    onClick={handleToggleBackImage}
+                    className={`px-2.5 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${
+                      showBackImage
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    }`}
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Image
+                  </button>
                 </div>
               </div>
               <textarea
@@ -330,14 +404,16 @@ export default function AddCards() {
               )}
 
               {/* Upload image verso */}
-              <div className="mt-3">
-                <ImageUploader
-                  currentImage={cardForm.backImage}
-                  onImageUploaded={(path) => setCardForm(prev => ({ ...prev, backImage: path }))}
-                  onImageRemoved={() => setCardForm(prev => ({ ...prev, backImage: null }))}
-                  label="Verso"
-                />
-              </div>
+              {showBackImage && (
+                <div className="mt-3">
+                  <ImageUploader
+                    currentImage={cardForm.backImage}
+                    onImageUploaded={(path) => setCardForm(prev => ({ ...prev, backImage: path }))}
+                    onImageRemoved={() => setCardForm(prev => ({ ...prev, backImage: null }))}
+                    label="Verso"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -377,6 +453,13 @@ export default function AddCards() {
           {toastMessage}
         </div>
       )}
+
+      {/* Image Overlay */}
+      <ImageOverlay
+        imageUrl={selectedImage}
+        isOpen={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+      />
     </div>
   );
 }
