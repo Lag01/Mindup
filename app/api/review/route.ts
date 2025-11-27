@@ -64,6 +64,8 @@ export async function GET(request: NextRequest) {
         back: card.back,
         frontType: card.frontType,
         backType: card.backType,
+        frontImage: card.frontImage,
+        backImage: card.backImage,
         review: card.reviews[0] || null,
       })),
     });

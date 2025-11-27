@@ -9,6 +9,7 @@ interface CardContentDisplayProps {
   className?: string;
   autoResize?: boolean;
   maxHeight?: number;
+  onImageClick?: (imageUrl: string) => void;
 }
 
 export default function CardContentDisplay({
@@ -18,6 +19,7 @@ export default function CardContentDisplay({
   className = '',
   autoResize = true,
   maxHeight = 400,
+  onImageClick,
 }: CardContentDisplayProps) {
   const hasText = text && text.trim().length > 0;
   const hasImage = imagePath && imagePath.length > 0;
@@ -29,8 +31,9 @@ export default function CardContentDisplay({
         <img
           src={imagePath}
           alt="Contenu de la carte"
-          className="max-w-full max-h-full object-contain"
+          className="max-w-full max-h-full object-contain cursor-pointer hover:opacity-80 transition-opacity"
           style={{ maxHeight: `${maxHeight}px` }}
+          onClick={() => onImageClick?.(imagePath)}
         />
       </div>
     );
@@ -72,8 +75,9 @@ export default function CardContentDisplay({
           <img
             src={imagePath}
             alt="Illustration de la carte"
-            className="max-w-full object-contain rounded"
+            className="max-w-full object-contain rounded cursor-pointer hover:opacity-80 transition-opacity"
             style={{ maxHeight: `${imageMaxHeight}px` }}
+            onClick={() => onImageClick?.(imagePath)}
           />
         </div>
       </div>

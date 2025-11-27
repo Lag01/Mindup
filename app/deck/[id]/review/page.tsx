@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import MathText from '@/components/MathText';
 import CardContentDisplay from '@/components/CardContentDisplay';
+import ImageOverlay from '@/components/ImageOverlay';
 import { insertCardInQueue, Rating } from '@/lib/revision';
 
 interface Card {
@@ -64,12 +65,14 @@ const CardDisplay = memo(({
   card,
   isFlipped,
   isMobile,
-  onCardClick
+  onCardClick,
+  onImageClick
 }: {
   card: Card;
   isFlipped: boolean;
   isMobile: boolean;
   onCardClick?: () => void;
+  onImageClick?: (imageUrl: string) => void;
 }) => {
   const handleClick = () => {
     if (onCardClick && !isFlipped) {
@@ -105,6 +108,7 @@ const CardDisplay = memo(({
             className="text-xl md:text-2xl text-foreground"
             autoResize={true}
             maxHeight={isMobile ? 450 : 600}
+            onImageClick={onImageClick}
           />
         </div>
       ) : (
@@ -118,6 +122,7 @@ const CardDisplay = memo(({
               className="text-lg md:text-xl text-zinc-400"
               autoResize={true}
               maxHeight={isMobile ? 180 : 250}
+              onImageClick={onImageClick}
             />
           </div>
           <div className="border-t border-zinc-700"></div>
@@ -129,6 +134,7 @@ const CardDisplay = memo(({
               className="text-xl md:text-2xl text-foreground"
               autoResize={true}
               maxHeight={isMobile ? 280 : 350}
+              onImageClick={onImageClick}
             />
           </div>
         </div>
@@ -198,6 +204,7 @@ export default function Review() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [sessionStats, setSessionStats] = useState({ total: 0, again: 0, hard: 0, good: 0, easy: 0 });
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const router = useRouter();
   const isMobile = useIsMobile();
 
@@ -509,6 +516,7 @@ export default function Review() {
             isFlipped={isFlipped}
             isMobile={isMobile}
             onCardClick={() => !isFlipped && handleFlip()}
+            onImageClick={setSelectedImage}
           />
         </div>
       </div>
@@ -604,6 +612,13 @@ export default function Review() {
 
       {/* Précharger la carte suivante en arrière-plan */}
       <CardPreloader card={nextCard} />
+
+      {/* Image Overlay */}
+      <ImageOverlay
+        imageUrl={selectedImage}
+        isOpen={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+      />
     </div>
   );
 }
