@@ -30,6 +30,7 @@ export default function EditDeck() {
   const deckId = params.id as string;
   const [deck, setDeck] = useState<Deck | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [editingCard, setEditingCard] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     front: '',
@@ -46,6 +47,23 @@ export default function EditDeck() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'detailed' | 'table'>('detailed');
   const router = useRouter();
+
+  // Vérifier si l'utilisateur est admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          setIsAdmin(data.user?.isAdmin || false);
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    };
+
+    checkAdmin();
+  }, []);
 
   useEffect(() => {
     fetchDeck();
@@ -574,14 +592,16 @@ export default function EditDeck() {
                     )}
 
                     {/* Upload image recto */}
-                    <div className="mt-2">
-                      <ImageUploader
-                        currentImage={editForm.frontImage}
-                        onImageUploaded={(path) => setEditForm(prev => ({ ...prev, frontImage: path }))}
-                        onImageRemoved={() => setEditForm(prev => ({ ...prev, frontImage: null }))}
-                        label="Recto"
-                      />
-                    </div>
+                    {isAdmin && (
+                      <div className="mt-2">
+                        <ImageUploader
+                          currentImage={editForm.frontImage}
+                          onImageUploaded={(path) => setEditForm(prev => ({ ...prev, frontImage: path }))}
+                          onImageRemoved={() => setEditForm(prev => ({ ...prev, frontImage: null }))}
+                          label="Recto"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Bouton d'inversion */}
@@ -656,14 +676,16 @@ export default function EditDeck() {
                     )}
 
                     {/* Upload image verso */}
-                    <div className="mt-2">
-                      <ImageUploader
-                        currentImage={editForm.backImage}
-                        onImageUploaded={(path) => setEditForm(prev => ({ ...prev, backImage: path }))}
-                        onImageRemoved={() => setEditForm(prev => ({ ...prev, backImage: null }))}
-                        label="Verso"
-                      />
-                    </div>
+                    {isAdmin && (
+                      <div className="mt-2">
+                        <ImageUploader
+                          currentImage={editForm.backImage}
+                          onImageUploaded={(path) => setEditForm(prev => ({ ...prev, backImage: path }))}
+                          onImageRemoved={() => setEditForm(prev => ({ ...prev, backImage: null }))}
+                          label="Verso"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}
