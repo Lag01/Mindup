@@ -40,18 +40,30 @@ export async function PATCH(
       );
     }
 
-    // Validation des chemins d'images
-    if (frontImage !== undefined && frontImage !== null && !frontImage.startsWith('/uploads/cards/')) {
-      return NextResponse.json(
-        { error: 'Chemin image recto invalide' },
-        { status: 400 }
-      );
+    // Validation des chemins d'images (accepter URLs locales et Vercel Blob)
+    if (frontImage !== undefined && frontImage !== null) {
+      const isValidPath =
+        frontImage.startsWith('/uploads/cards/') ||
+        frontImage.startsWith('https://') ||
+        frontImage.startsWith('http://');
+      if (!isValidPath) {
+        return NextResponse.json(
+          { error: 'Chemin image recto invalide' },
+          { status: 400 }
+        );
+      }
     }
-    if (backImage !== undefined && backImage !== null && !backImage.startsWith('/uploads/cards/')) {
-      return NextResponse.json(
-        { error: 'Chemin image verso invalide' },
-        { status: 400 }
-      );
+    if (backImage !== undefined && backImage !== null) {
+      const isValidPath =
+        backImage.startsWith('/uploads/cards/') ||
+        backImage.startsWith('https://') ||
+        backImage.startsWith('http://');
+      if (!isValidPath) {
+        return NextResponse.json(
+          { error: 'Chemin image verso invalide' },
+          { status: 400 }
+        );
+      }
     }
 
     // Verify card belongs to user's deck
