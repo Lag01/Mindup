@@ -33,7 +33,11 @@ export default function AddCards() {
   const [cardsCreated, setCardsCreated] = useState(0);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [showFrontText, setShowFrontText] = useState(true);
+  const [showFrontLatex, setShowFrontLatex] = useState(false);
   const [showFrontImage, setShowFrontImage] = useState(false);
+  const [showBackText, setShowBackText] = useState(true);
+  const [showBackLatex, setShowBackLatex] = useState(false);
   const [showBackImage, setShowBackImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const frontInputRef = useRef<HTMLTextAreaElement>(null);
@@ -107,7 +111,12 @@ export default function AddCards() {
       frontImage: null,
       backImage: null,
     });
+    // Reset des toggles - Par défaut : Texte actif, autres désactivés
+    setShowFrontText(true);
+    setShowFrontLatex(false);
     setShowFrontImage(false);
+    setShowBackText(true);
+    setShowBackLatex(false);
     setShowBackImage(false);
     requestAnimationFrame(() => {
       frontInputRef.current?.focus();
@@ -123,14 +132,76 @@ export default function AddCards() {
       frontImage: prev.backImage,
       backImage: prev.frontImage,
     }));
-    setShowFrontImage(prev => {
-      const temp = prev;
-      setShowBackImage(showFrontImage);
-      return showBackImage;
-    });
-  }, [showFrontImage, showBackImage]);
+
+    // Swap des états de toggle
+    const tempText = showFrontText;
+    const tempLatex = showFrontLatex;
+    const tempImage = showFrontImage;
+
+    setShowFrontText(showBackText);
+    setShowFrontLatex(showBackLatex);
+    setShowFrontImage(showBackImage);
+
+    setShowBackText(tempText);
+    setShowBackLatex(tempLatex);
+    setShowBackImage(tempImage);
+  }, [showFrontText, showFrontLatex, showFrontImage,
+      showBackText, showBackLatex, showBackImage]);
+
+  // Fonction helper pour vérifier si on peut désactiver un champ
+  const canDisableFrontField = useCallback(() => {
+    const activeFieldsCount = [
+      showFrontText || showFrontLatex,
+      showFrontImage
+    ].filter(Boolean).length;
+    return activeFieldsCount > 1;
+  }, [showFrontText, showFrontLatex, showFrontImage]);
+
+  const canDisableBackField = useCallback(() => {
+    const activeFieldsCount = [
+      showBackText || showBackLatex,
+      showBackImage
+    ].filter(Boolean).length;
+    return activeFieldsCount > 1;
+  }, [showBackText, showBackLatex, showBackImage]);
+
+  // Handlers de toggle pour les champs FRONT
+  const handleToggleFrontText = useCallback(() => {
+    if (showFrontText && !canDisableFrontField()) {
+      showToastMessage('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
+    setShowFrontText(!showFrontText);
+
+    if (!showFrontText) {
+      // On active Texte → désactiver LaTeX
+      setShowFrontLatex(false);
+      setCardForm(prev => ({ ...prev, frontType: 'TEXT' }));
+    }
+  }, [showFrontText, canDisableFrontField, showToastMessage]);
+
+  const handleToggleFrontLatex = useCallback(() => {
+    if (showFrontLatex && !canDisableFrontField()) {
+      showToastMessage('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
+    setShowFrontLatex(!showFrontLatex);
+
+    if (!showFrontLatex) {
+      // On active LaTeX → désactiver Texte
+      setShowFrontText(false);
+      setCardForm(prev => ({ ...prev, frontType: 'LATEX' }));
+    }
+  }, [showFrontLatex, canDisableFrontField, showToastMessage]);
 
   const handleToggleFrontImage = useCallback(async () => {
+    if (showFrontImage && !canDisableFrontField()) {
+      showToastMessage('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
     if (showFrontImage && cardForm.frontImage) {
       // Supprimer l'image du serveur
       try {
@@ -145,9 +216,45 @@ export default function AddCards() {
       setCardForm(prev => ({ ...prev, frontImage: null }));
     }
     setShowFrontImage(!showFrontImage);
-  }, [showFrontImage, cardForm.frontImage]);
+  }, [showFrontImage, cardForm.frontImage, canDisableFrontField, showToastMessage]);
+
+  // Handlers de toggle pour les champs BACK
+  const handleToggleBackText = useCallback(() => {
+    if (showBackText && !canDisableBackField()) {
+      showToastMessage('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
+    setShowBackText(!showBackText);
+
+    if (!showBackText) {
+      // On active Texte → désactiver LaTeX
+      setShowBackLatex(false);
+      setCardForm(prev => ({ ...prev, backType: 'TEXT' }));
+    }
+  }, [showBackText, canDisableBackField, showToastMessage]);
+
+  const handleToggleBackLatex = useCallback(() => {
+    if (showBackLatex && !canDisableBackField()) {
+      showToastMessage('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
+    setShowBackLatex(!showBackLatex);
+
+    if (!showBackLatex) {
+      // On active LaTeX → désactiver Texte
+      setShowBackText(false);
+      setCardForm(prev => ({ ...prev, backType: 'LATEX' }));
+    }
+  }, [showBackLatex, canDisableBackField, showToastMessage]);
 
   const handleToggleBackImage = useCallback(async () => {
+    if (showBackImage && !canDisableBackField()) {
+      showToastMessage('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
     if (showBackImage && cardForm.backImage) {
       // Supprimer l'image du serveur
       try {
@@ -162,12 +269,17 @@ export default function AddCards() {
       setCardForm(prev => ({ ...prev, backImage: null }));
     }
     setShowBackImage(!showBackImage);
-  }, [showBackImage, cardForm.backImage]);
+  }, [showBackImage, cardForm.backImage, canDisableBackField, showToastMessage]);
 
   const createAndContinue = useCallback(async () => {
-    // Vérifier qu'il y a au moins du contenu (texte OU image) pour chaque côté
-    const hasFrontContent = cardForm.front.trim() || cardForm.frontImage;
-    const hasBackContent = cardForm.back.trim() || cardForm.backImage;
+    // Vérifier qu'il y a du contenu pour chaque côté (en tenant compte des champs actifs)
+    const hasFrontTextContent = (showFrontText || showFrontLatex) && cardForm.front.trim();
+    const hasFrontImageContent = showFrontImage && cardForm.frontImage;
+    const hasFrontContent = hasFrontTextContent || hasFrontImageContent;
+
+    const hasBackTextContent = (showBackText || showBackLatex) && cardForm.back.trim();
+    const hasBackImageContent = showBackImage && cardForm.backImage;
+    const hasBackContent = hasBackTextContent || hasBackImageContent;
 
     if (!hasFrontContent || !hasBackContent) {
       showToastMessage('⚠️ Le recto et le verso doivent contenir du texte ou une image');
@@ -200,7 +312,9 @@ export default function AddCards() {
       setCardForm(oldCardForm);
       showToastMessage('❌ Erreur lors de la création');
     }
-  }, [cardForm, cardsCreated, deckId, resetForm, showToastMessage]);
+  }, [cardForm, cardsCreated, deckId, resetForm, showToastMessage,
+      showFrontText, showFrontLatex, showFrontImage,
+      showBackText, showBackLatex, showBackImage]);
 
   if (loading) {
     return (
@@ -257,11 +371,9 @@ export default function AddCards() {
                 <label className="text-zinc-300 font-medium text-sm">Recto</label>
                 <div className="flex gap-2">
                   <button
-                    onClick={() =>
-                      setCardForm(prev => ({ ...prev, frontType: 'TEXT' }))
-                    }
+                    onClick={handleToggleFrontText}
                     className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                      cardForm.frontType === 'TEXT'
+                      showFrontText
                         ? 'bg-blue-600 text-white'
                         : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                     }`}
@@ -269,11 +381,9 @@ export default function AddCards() {
                     Texte
                   </button>
                   <button
-                    onClick={() =>
-                      setCardForm(prev => ({ ...prev, frontType: 'LATEX' }))
-                    }
+                    onClick={handleToggleFrontLatex}
                     className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                      cardForm.frontType === 'LATEX'
+                      showFrontLatex
                         ? 'bg-blue-600 text-white'
                         : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                     }`}
@@ -297,21 +407,29 @@ export default function AddCards() {
                   )}
                 </div>
               </div>
-              <textarea
-                ref={frontInputRef}
-                value={cardForm.front}
-                onChange={e =>
-                  setCardForm(prev => ({ ...prev, front: e.target.value }))
-                }
-                placeholder="Entrez le recto de la carte..."
-                className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] sm:min-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm sm:text-base"
-              />
-              {cardForm.front && cardForm.frontType === 'LATEX' && (
+
+              {/* Afficher textarea seulement si Texte OU LaTeX est actif */}
+              {(showFrontText || showFrontLatex) && (
+                <textarea
+                  ref={frontInputRef}
+                  value={cardForm.front}
+                  onChange={e =>
+                    setCardForm(prev => ({ ...prev, front: e.target.value }))
+                  }
+                  placeholder={showFrontLatex
+                    ? "Entrez du LaTeX (ex: $\\frac{a}{b}$)..."
+                    : "Entrez le recto de la carte..."}
+                  className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] sm:min-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm sm:text-base"
+                />
+              )}
+
+              {/* Aperçu LaTeX - Condition mise à jour */}
+              {cardForm.front && showFrontLatex && (
                 <div className="mt-2 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
                   <div className="text-zinc-400 text-xs mb-1">Aperçu LaTeX :</div>
                   <MathText
                     text={cardForm.front}
-                    contentType={cardForm.frontType}
+                    contentType="LATEX"
                     autoResize={false}
                     maxHeight={200}
                     className="text-foreground"
@@ -352,11 +470,9 @@ export default function AddCards() {
                 <label className="text-zinc-300 font-medium text-sm">Verso</label>
                 <div className="flex gap-2">
                   <button
-                    onClick={() =>
-                      setCardForm(prev => ({ ...prev, backType: 'TEXT' }))
-                    }
+                    onClick={handleToggleBackText}
                     className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                      cardForm.backType === 'TEXT'
+                      showBackText
                         ? 'bg-blue-600 text-white'
                         : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                     }`}
@@ -364,11 +480,9 @@ export default function AddCards() {
                     Texte
                   </button>
                   <button
-                    onClick={() =>
-                      setCardForm(prev => ({ ...prev, backType: 'LATEX' }))
-                    }
+                    onClick={handleToggleBackLatex}
                     className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                      cardForm.backType === 'LATEX'
+                      showBackLatex
                         ? 'bg-blue-600 text-white'
                         : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                     }`}
@@ -392,20 +506,28 @@ export default function AddCards() {
                   )}
                 </div>
               </div>
-              <textarea
-                value={cardForm.back}
-                onChange={e =>
-                  setCardForm(prev => ({ ...prev, back: e.target.value }))
-                }
-                placeholder="Entrez le verso de la carte..."
-                className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] sm:min-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm sm:text-base"
-              />
-              {cardForm.back && cardForm.backType === 'LATEX' && (
+
+              {/* Afficher textarea seulement si Texte OU LaTeX est actif */}
+              {(showBackText || showBackLatex) && (
+                <textarea
+                  value={cardForm.back}
+                  onChange={e =>
+                    setCardForm(prev => ({ ...prev, back: e.target.value }))
+                  }
+                  placeholder={showBackLatex
+                    ? "Entrez du LaTeX (ex: $\\frac{a}{b}$)..."
+                    : "Entrez le verso de la carte..."}
+                  className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[100px] sm:min-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm sm:text-base"
+                />
+              )}
+
+              {/* Aperçu LaTeX - Condition mise à jour */}
+              {cardForm.back && showBackLatex && (
                 <div className="mt-2 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
                   <div className="text-zinc-400 text-xs mb-1">Aperçu LaTeX :</div>
                   <MathText
                     text={cardForm.back}
-                    contentType={cardForm.backType}
+                    contentType="LATEX"
                     autoResize={false}
                     maxHeight={200}
                     className="text-foreground"

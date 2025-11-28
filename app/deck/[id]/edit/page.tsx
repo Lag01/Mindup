@@ -46,6 +46,16 @@ export default function EditDeck() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'detailed' | 'table'>('detailed');
+  const [editFrontFieldsVisibility, setEditFrontFieldsVisibility] = useState({
+    showText: true,
+    showLatex: false,
+    showImage: false,
+  });
+  const [editBackFieldsVisibility, setEditBackFieldsVisibility] = useState({
+    showText: true,
+    showLatex: false,
+    showImage: false,
+  });
   const router = useRouter();
   const { isAdmin } = useUser();
 
@@ -128,6 +138,21 @@ export default function EditDeck() {
       frontImage: card.frontImage,
       backImage: card.backImage,
     });
+
+    // Initialiser les toggles basés sur le contenu existant de la carte
+    const hasFrontText = card.front.trim().length > 0;
+    setEditFrontFieldsVisibility({
+      showText: card.frontType === 'TEXT' && hasFrontText,
+      showLatex: card.frontType === 'LATEX' && hasFrontText,
+      showImage: card.frontImage !== null,
+    });
+
+    const hasBackText = card.back.trim().length > 0;
+    setEditBackFieldsVisibility({
+      showText: card.backType === 'TEXT' && hasBackText,
+      showLatex: card.backType === 'LATEX' && hasBackText,
+      showImage: card.backImage !== null,
+    });
   };
 
   const cancelEdit = () => {
@@ -140,10 +165,36 @@ export default function EditDeck() {
       frontImage: null,
       backImage: null,
     });
+
+    // Reset des toggles
+    setEditFrontFieldsVisibility({
+      showText: true,
+      showLatex: false,
+      showImage: false,
+    });
+    setEditBackFieldsVisibility({
+      showText: true,
+      showLatex: false,
+      showImage: false,
+    });
   };
 
   const saveCard = async () => {
     if (!editingCard) return;
+
+    // Valider qu'il y a du contenu
+    const hasFrontContent =
+      ((editFrontFieldsVisibility.showText || editFrontFieldsVisibility.showLatex) && editForm.front.trim()) ||
+      (editFrontFieldsVisibility.showImage && editForm.frontImage);
+
+    const hasBackContent =
+      ((editBackFieldsVisibility.showText || editBackFieldsVisibility.showLatex) && editForm.back.trim()) ||
+      (editBackFieldsVisibility.showImage && editForm.backImage);
+
+    if (!hasFrontContent || !hasBackContent) {
+      alert('⚠️ Le recto et le verso doivent contenir du texte ou une image');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -250,6 +301,152 @@ export default function EditDeck() {
       backType: prev.frontType,
       frontImage: prev.backImage,
       backImage: prev.frontImage,
+    }));
+
+    // Swap des états de visibilité
+    const tempFrontVisibility = editFrontFieldsVisibility;
+    setEditFrontFieldsVisibility(editBackFieldsVisibility);
+    setEditBackFieldsVisibility(tempFrontVisibility);
+  };
+
+  // Fonctions helper pour vérifier si on peut désactiver un champ en édition
+  const canDisableEditFrontField = () => {
+    const { showText, showLatex, showImage } = editFrontFieldsVisibility;
+    const activeFieldsCount = [
+      showText || showLatex,
+      showImage
+    ].filter(Boolean).length;
+    return activeFieldsCount > 1;
+  };
+
+  const canDisableEditBackField = () => {
+    const { showText, showLatex, showImage } = editBackFieldsVisibility;
+    const activeFieldsCount = [
+      showText || showLatex,
+      showImage
+    ].filter(Boolean).length;
+    return activeFieldsCount > 1;
+  };
+
+  // Handlers de toggle pour les champs FRONT en édition
+  const handleToggleEditFrontText = () => {
+    if (editFrontFieldsVisibility.showText && !canDisableEditFrontField()) {
+      alert('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
+    setEditFrontFieldsVisibility(prev => ({
+      ...prev,
+      showText: !prev.showText,
+      showLatex: prev.showText ? prev.showLatex : false,
+    }));
+
+    if (!editFrontFieldsVisibility.showText) {
+      setEditForm(prev => ({ ...prev, frontType: 'TEXT' }));
+    }
+  };
+
+  const handleToggleEditFrontLatex = () => {
+    if (editFrontFieldsVisibility.showLatex && !canDisableEditFrontField()) {
+      alert('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
+    setEditFrontFieldsVisibility(prev => ({
+      ...prev,
+      showLatex: !prev.showLatex,
+      showText: prev.showLatex ? prev.showText : false,
+    }));
+
+    if (!editFrontFieldsVisibility.showLatex) {
+      setEditForm(prev => ({ ...prev, frontType: 'LATEX' }));
+    }
+  };
+
+  const handleToggleEditFrontImage = async () => {
+    if (editFrontFieldsVisibility.showImage && !canDisableEditFrontField()) {
+      alert('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
+    // Si on désactive une image existante, la supprimer
+    if (editFrontFieldsVisibility.showImage && editForm.frontImage) {
+      try {
+        await fetch('/api/upload/delete-card-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imagePath: editForm.frontImage }),
+        });
+        setEditForm(prev => ({ ...prev, frontImage: null }));
+      } catch (error) {
+        console.error('Erreur suppression image:', error);
+      }
+    }
+
+    setEditFrontFieldsVisibility(prev => ({
+      ...prev,
+      showImage: !prev.showImage,
+    }));
+  };
+
+  // Handlers de toggle pour les champs BACK en édition
+  const handleToggleEditBackText = () => {
+    if (editBackFieldsVisibility.showText && !canDisableEditBackField()) {
+      alert('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
+    setEditBackFieldsVisibility(prev => ({
+      ...prev,
+      showText: !prev.showText,
+      showLatex: prev.showText ? prev.showLatex : false,
+    }));
+
+    if (!editBackFieldsVisibility.showText) {
+      setEditForm(prev => ({ ...prev, backType: 'TEXT' }));
+    }
+  };
+
+  const handleToggleEditBackLatex = () => {
+    if (editBackFieldsVisibility.showLatex && !canDisableEditBackField()) {
+      alert('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
+    setEditBackFieldsVisibility(prev => ({
+      ...prev,
+      showLatex: !prev.showLatex,
+      showText: prev.showLatex ? prev.showText : false,
+    }));
+
+    if (!editBackFieldsVisibility.showLatex) {
+      setEditForm(prev => ({ ...prev, backType: 'LATEX' }));
+    }
+  };
+
+  const handleToggleEditBackImage = async () => {
+    if (editBackFieldsVisibility.showImage && !canDisableEditBackField()) {
+      alert('⚠️ Au moins un champ doit être actif (Texte, LaTeX ou Image)');
+      return;
+    }
+
+    // Si on désactive une image existante, la supprimer
+    if (editBackFieldsVisibility.showImage && editForm.backImage) {
+      try {
+        await fetch('/api/upload/delete-card-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imagePath: editForm.backImage }),
+        });
+        setEditForm(prev => ({ ...prev, backImage: null }));
+      } catch (error) {
+        console.error('Erreur suppression image:', error);
+      }
+    }
+
+    setEditBackFieldsVisibility(prev => ({
+      ...prev,
+      showImage: !prev.showImage,
     }));
   };
 
@@ -525,14 +722,9 @@ export default function EditDeck() {
                       <label className="text-zinc-300 font-medium text-sm">Recto</label>
                       <div className="flex gap-2">
                         <button
-                          onClick={() =>
-                            setEditForm(prev => ({
-                              ...prev,
-                              frontType: 'TEXT',
-                            }))
-                          }
+                          onClick={handleToggleEditFrontText}
                           className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                            editForm.frontType === 'TEXT'
+                            editFrontFieldsVisibility.showText
                               ? 'bg-blue-600 text-white'
                               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                           }`}
@@ -540,43 +732,62 @@ export default function EditDeck() {
                           Texte
                         </button>
                         <button
-                          onClick={() =>
-                            setEditForm(prev => ({
-                              ...prev,
-                              frontType: 'LATEX',
-                            }))
-                          }
+                          onClick={handleToggleEditFrontLatex}
                           className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                            editForm.frontType === 'LATEX'
+                            editFrontFieldsVisibility.showLatex
                               ? 'bg-blue-600 text-white'
                               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                           }`}
                         >
                           LaTeX
                         </button>
+                        {isAdmin && (
+                          <button
+                            onClick={handleToggleEditFrontImage}
+                            className={`px-2.5 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${
+                              editFrontFieldsVisibility.showImage
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                            }`}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Image
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <textarea
-                      value={editForm.front}
-                      onChange={e =>
-                        setEditForm(prev => ({ ...prev, front: e.target.value }))
-                      }
-                      className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[80px] sm:min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    />
-                    {editForm.front && editForm.frontType === 'LATEX' && (
+
+                    {/* Textarea - Affichage conditionnel */}
+                    {(editFrontFieldsVisibility.showText || editFrontFieldsVisibility.showLatex) && (
+                      <textarea
+                        value={editForm.front}
+                        onChange={e =>
+                          setEditForm(prev => ({ ...prev, front: e.target.value }))
+                        }
+                        placeholder={editFrontFieldsVisibility.showLatex
+                          ? "Entrez du LaTeX..."
+                          : "Entrez le recto..."}
+                        className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[80px] sm:min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      />
+                    )}
+
+                    {/* Aperçu LaTeX */}
+                    {editForm.front && editFrontFieldsVisibility.showLatex && (
                       <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
                         <div className="text-zinc-400 text-xs mb-1">Aperçu LaTeX :</div>
                         <MathText
                           text={editForm.front}
-                          contentType={editForm.frontType}
+                          contentType="LATEX"
                           autoResize={false}
                           className="text-foreground"
                         />
                       </div>
                     )}
 
-                    {/* Upload image recto */}
-                    {isAdmin && (
+                    {/* Upload image recto - Affichage conditionnel */}
+                    {isAdmin && editFrontFieldsVisibility.showImage && (
                       <div className="mt-2">
                         <ImageUploader
                           currentImage={editForm.frontImage}
@@ -609,14 +820,9 @@ export default function EditDeck() {
                       <label className="text-zinc-300 font-medium text-sm">Verso</label>
                       <div className="flex gap-2">
                         <button
-                          onClick={() =>
-                            setEditForm(prev => ({
-                              ...prev,
-                              backType: 'TEXT',
-                            }))
-                          }
+                          onClick={handleToggleEditBackText}
                           className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                            editForm.backType === 'TEXT'
+                            editBackFieldsVisibility.showText
                               ? 'bg-blue-600 text-white'
                               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                           }`}
@@ -624,43 +830,62 @@ export default function EditDeck() {
                           Texte
                         </button>
                         <button
-                          onClick={() =>
-                            setEditForm(prev => ({
-                              ...prev,
-                              backType: 'LATEX',
-                            }))
-                          }
+                          onClick={handleToggleEditBackLatex}
                           className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
-                            editForm.backType === 'LATEX'
+                            editBackFieldsVisibility.showLatex
                               ? 'bg-blue-600 text-white'
                               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                           }`}
                         >
                           LaTeX
                         </button>
+                        {isAdmin && (
+                          <button
+                            onClick={handleToggleEditBackImage}
+                            className={`px-2.5 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${
+                              editBackFieldsVisibility.showImage
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                            }`}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Image
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <textarea
-                      value={editForm.back}
-                      onChange={e =>
-                        setEditForm(prev => ({ ...prev, back: e.target.value }))
-                      }
-                      className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[80px] sm:min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    />
-                    {editForm.back && editForm.backType === 'LATEX' && (
+
+                    {/* Textarea - Affichage conditionnel */}
+                    {(editBackFieldsVisibility.showText || editBackFieldsVisibility.showLatex) && (
+                      <textarea
+                        value={editForm.back}
+                        onChange={e =>
+                          setEditForm(prev => ({ ...prev, back: e.target.value }))
+                        }
+                        placeholder={editBackFieldsVisibility.showLatex
+                          ? "Entrez du LaTeX..."
+                          : "Entrez le verso..."}
+                        className="w-full bg-zinc-800 text-foreground border border-zinc-700 rounded-lg p-3 min-h-[80px] sm:min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      />
+                    )}
+
+                    {/* Aperçu LaTeX */}
+                    {editForm.back && editBackFieldsVisibility.showLatex && (
                       <div className="mt-1.5 p-3 bg-zinc-800 rounded-lg border border-zinc-700">
                         <div className="text-zinc-400 text-xs mb-1">Aperçu LaTeX :</div>
                         <MathText
                           text={editForm.back}
-                          contentType={editForm.backType}
+                          contentType="LATEX"
                           autoResize={false}
                           className="text-foreground"
                         />
                       </div>
                     )}
 
-                    {/* Upload image verso */}
-                    {isAdmin && (
+                    {/* Upload image verso - Affichage conditionnel */}
+                    {isAdmin && editBackFieldsVisibility.showImage && (
                       <div className="mt-2">
                         <ImageUploader
                           currentImage={editForm.backImage}
