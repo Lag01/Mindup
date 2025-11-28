@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import imageCompression from 'browser-image-compression';
 
 interface ImageUploaderProps {
   currentImage: string | null;
@@ -30,9 +31,10 @@ export default function ImageUploader({
       return;
     }
 
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // Validation de la taille (avant compression)
+    const maxSize = 10 * 1024 * 1024; // 10MB avant compression
     if (file.size > maxSize) {
-      setError('Fichier trop volumineux (maximum 5MB)');
+      setError('Fichier trop volumineux (maximum 10MB avant compression)');
       return;
     }
 
@@ -40,8 +42,18 @@ export default function ImageUploader({
     setUploading(true);
 
     try {
+      // Compression légère côté client
+      const options = {
+        maxSizeMB: 3, // Taille max après compression client : 3MB
+        maxWidthOrHeight: 1920, // Résolution max
+        useWebWorker: true,
+        fileType: file.type,
+      };
+
+      const compressedFile = await imageCompression(file, options);
+
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', compressedFile);
 
       const response = await fetch('/api/upload/card-image', {
         method: 'POST',
@@ -56,6 +68,7 @@ export default function ImageUploader({
       const data = await response.json();
       onImageUploaded(data.path);
     } catch (err) {
+      console.error('Erreur upload:', err);
       setError(err instanceof Error ? err.message : 'Erreur lors de l\'upload');
     } finally {
       setUploading(false);
@@ -128,7 +141,7 @@ export default function ImageUploader({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <p className="mt-2 text-sm text-zinc-400">Cliquer pour sélectionner une image</p>
-                <p className="text-xs text-zinc-500 mt-1">PNG, JPG, GIF, WEBP (max 5MB)</p>
+                <p className="text-xs text-zinc-500 mt-1">PNG, JPG, GIF, WEBP (max 10MB, compressé automatiquement)</p>
               </div>
             )}
           </label>

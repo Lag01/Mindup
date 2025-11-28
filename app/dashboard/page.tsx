@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCreatingDeck, setIsCreatingDeck] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -183,47 +184,112 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <header className="bg-zinc-900 border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center mb-4 gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Mes Decks</h1>
-            <div className="flex gap-2">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Mes Decks</h1>
+
+            {/* Boutons desktop (cachés sur mobile) */}
+            <div className="hidden md:flex gap-2">
               <button
                 onClick={() => router.push('/public-decks')}
-                className="bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
               >
-                <span className="hidden sm:inline">Decks Publics</span>
-                <span className="sm:hidden">Publics</span>
+                Decks Publics
               </button>
               <button
                 onClick={() => setIsCreatingDeck(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
               >
-                <span className="hidden sm:inline">Créer un deck</span>
-                <span className="sm:hidden">Créer</span>
+                <span className="text-lg">+</span> Créer un deck
               </button>
               <button
                 onClick={() => router.push('/import')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
               >
-                <span className="hidden sm:inline">Importer un deck</span>
-                <span className="sm:hidden">Importer</span>
+                Importer un deck
               </button>
               {isAdmin && (
                 <button
                   onClick={() => router.push('/admin')}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
                 >
-                  <span className="hidden sm:inline">Administration</span>
-                  <span className="sm:hidden">Admin</span>
+                  Administration
                 </button>
               )}
               <button
                 onClick={handleLogout}
-                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
               >
                 Déconnexion
               </button>
             </div>
+
+            {/* Bouton burger (mobile uniquement) */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isMobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
           </div>
+
+          {/* Menu déroulant mobile */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden mb-4 bg-zinc-800 rounded-lg p-3 flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  router.push('/public-decks');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
+              >
+                Decks Publics
+              </button>
+              <button
+                onClick={() => {
+                  setIsCreatingDeck(true);
+                  setIsMobileMenuOpen(false);
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
+              >
+                <span className="text-lg">+</span> Créer un deck
+              </button>
+              <button
+                onClick={() => {
+                  router.push('/import');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
+              >
+                Importer un deck
+              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    router.push('/admin');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
+                >
+                  Administration
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
+              >
+                Déconnexion
+              </button>
+            </div>
+          )}
 
           {/* Barre de recherche */}
           {decks.length > 0 && (

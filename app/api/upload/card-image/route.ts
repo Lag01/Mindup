@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { requireAdmin } from '@/lib/auth';
+import sharp from 'sharp';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 4.5 * 1024 * 1024; // 4.5MB (limite Vercel Blob)
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
 
 export async function POST(request: NextRequest) {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     // Valider la taille
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: 'Fichier trop volumineux (maximum 5MB)' },
+        { error: 'Fichier trop volumineux (maximum 4.5MB)' },
         { status: 400 }
       );
     }
@@ -49,10 +50,26 @@ export async function POST(request: NextRequest) {
 
     console.log('[Upload] Upload vers Vercel Blob:', filename);
 
+    // Convertir le fichier en buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Compression avec Sharp
+    const compressedBuffer = await sharp(buffer)
+      .resize(1920, 1920, {
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 85, mozjpeg: true })
+      .toBuffer();
+
+    console.log('[Upload] Compression terminée, taille:', compressedBuffer.length, 'bytes');
+
     // Upload vers Vercel Blob Storage
-    const blob = await put(filename, file, {
+    const blob = await put(filename, compressedBuffer, {
       access: 'public',
       addRandomSuffix: false,
+      contentType: 'image/jpeg',
     });
 
     console.log('[Upload] Fichier uploadé avec succès:', blob.url);
