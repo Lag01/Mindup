@@ -441,7 +441,10 @@ export default function AddCards() {
             </button>
             <button
               onClick={createAndContinue}
-              disabled={!cardForm.front.trim() || !cardForm.back.trim()}
+              disabled={
+                (!cardForm.front.trim() && !cardForm.frontImage) ||
+                (!cardForm.back.trim() && !cardForm.backImage)
+              }
               className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-3 rounded-lg transition-colors disabled:opacity-50 text-sm flex items-center justify-center gap-2 order-1 sm:order-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
