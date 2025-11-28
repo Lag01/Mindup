@@ -33,7 +33,10 @@ export default function CardContentDisplay({
           alt="Contenu de la carte"
           className="max-w-full max-h-full object-contain cursor-pointer hover:opacity-80 transition-opacity"
           style={{ maxHeight: `${maxHeight}px` }}
-          onClick={() => onImageClick?.(imagePath)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onImageClick?.(imagePath);
+          }}
         />
       </div>
     );
@@ -77,7 +80,10 @@ export default function CardContentDisplay({
             alt="Illustration de la carte"
             className="max-w-full object-contain rounded cursor-pointer hover:opacity-80 transition-opacity"
             style={{ maxHeight: `${imageMaxHeight}px` }}
-            onClick={() => onImageClick?.(imagePath)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onImageClick?.(imagePath);
+            }}
           />
         </div>
       </div>

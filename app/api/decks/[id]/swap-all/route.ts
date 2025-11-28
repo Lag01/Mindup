@@ -49,6 +49,8 @@ export async function PATCH(
           back: card.front,
           frontType: card.backType,
           backType: card.frontType,
+          frontImage: card.backImage,
+          backImage: card.frontImage,
         },
       })
     );
