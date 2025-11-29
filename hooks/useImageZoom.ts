@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 
 // Constantes de zoom
-const MIN_SCALE = 1;
-const MAX_SCALE = 4;
+const MIN_SCALE = 0.5;  // Permet de dézoomer si besoin
+const MAX_SCALE = 5;    // Permet plus de zoom pour les détails
 const ZOOM_STEP = 0.3;
 
 interface Position {
@@ -14,6 +14,7 @@ interface UseImageZoomReturn {
   scale: number;
   position: Position;
   isDragging: boolean;
+  containerRef: React.RefObject<HTMLDivElement>;
 
   // Handlers d'événements
   onWheel: (e: React.WheelEvent) => void;
@@ -46,9 +47,30 @@ export function useImageZoom(): UseImageZoomReturn {
   const initialPinchDistance = useRef<number | null>(null);
   const initialPinchScale = useRef<number>(1);
 
+  // Référence au conteneur pour calculer les limites
+  const containerRef = useRef<HTMLDivElement>(null);
+
   // Fonction pour clamper le scale entre min et max
   const clampScale = useCallback((value: number) => {
     return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
+  }, []);
+
+  // Fonction pour limiter la position et empêcher l'image de sortir
+  const clampPosition = useCallback((pos: Position, imageScale: number, containerWidth: number, containerHeight: number) => {
+    // Calcule la taille de l'image zoomée
+    const scaledWidth = containerWidth * imageScale;
+    const scaledHeight = containerHeight * imageScale;
+
+    // Limites pour empêcher l'image de sortir complètement
+    const maxX = (scaledWidth - containerWidth) / 2 + containerWidth * 0.3;
+    const maxY = (scaledHeight - containerHeight) / 2 + containerHeight * 0.3;
+    const minX = -maxX;
+    const minY = -maxY;
+
+    return {
+      x: Math.max(minX, Math.min(maxX, pos.x)),
+      y: Math.max(minY, Math.min(maxY, pos.y))
+    };
   }, []);
 
   // Zoom avec la molette de la souris
@@ -77,11 +99,20 @@ export function useImageZoom(): UseImageZoomReturn {
     const deltaX = e.clientX - dragStartPos.current.x;
     const deltaY = e.clientY - dragStartPos.current.y;
 
-    setPosition({
-      x: lastPosition.current.x + deltaX,
-      y: lastPosition.current.y + deltaY,
-    });
-  }, [isDragging]);
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const newPos = {
+        x: lastPosition.current.x + deltaX,
+        y: lastPosition.current.y + deltaY,
+      };
+      setPosition(clampPosition(newPos, scale, rect.width, rect.height));
+    } else {
+      setPosition({
+        x: lastPosition.current.x + deltaX,
+        y: lastPosition.current.y + deltaY,
+      });
+    }
+  }, [isDragging, scale, clampPosition]);
 
   // Fin du drag (souris)
   const onMouseUp = useCallback(() => {
@@ -93,7 +124,7 @@ export function useImageZoom(): UseImageZoomReturn {
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       // Pinch avec 2 doigts
-      e.preventDefault();
+      // Ne pas preventDefault ici, on le fera dans onTouchMove
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
 
@@ -104,7 +135,7 @@ export function useImageZoom(): UseImageZoomReturn {
 
       initialPinchDistance.current = distance;
       initialPinchScale.current = scale;
-    } else if (e.touches.length === 1 && scale > 1) {
+    } else if (e.touches.length === 1 && scale > MIN_SCALE) {
       // Drag avec 1 doigt (si zoomé)
       const touch = e.touches[0];
       dragStartPos.current = { x: touch.clientX, y: touch.clientY };
@@ -117,7 +148,10 @@ export function useImageZoom(): UseImageZoomReturn {
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2 && initialPinchDistance.current !== null) {
       // Pinch en cours
-      e.preventDefault();
+      // Seulement preventDefault si vraiment en train de zoomer/déplacer
+      if (scale > 1 || (e.touches.length === 2 && initialPinchDistance.current !== null)) {
+        e.preventDefault();
+      }
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
 
@@ -132,18 +166,30 @@ export function useImageZoom(): UseImageZoomReturn {
       setScale(clampScale(newScale));
     } else if (e.touches.length === 1 && isDragging && dragStartPos.current) {
       // Drag en cours
-      e.preventDefault();
+      // Seulement preventDefault si vraiment en train de déplacer
+      if (scale > 1 || (e.touches.length === 2 && initialPinchDistance.current !== null)) {
+        e.preventDefault();
+      }
       const touch = e.touches[0];
 
       const deltaX = touch.clientX - dragStartPos.current.x;
       const deltaY = touch.clientY - dragStartPos.current.y;
 
-      setPosition({
-        x: lastPosition.current.x + deltaX,
-        y: lastPosition.current.y + deltaY,
-      });
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const newPos = {
+          x: lastPosition.current.x + deltaX,
+          y: lastPosition.current.y + deltaY,
+        };
+        setPosition(clampPosition(newPos, scale, rect.width, rect.height));
+      } else {
+        setPosition({
+          x: lastPosition.current.x + deltaX,
+          y: lastPosition.current.y + deltaY,
+        });
+      }
     }
-  }, [isDragging, clampScale]);
+  }, [isDragging, clampScale, scale, clampPosition]);
 
   // Fin du touch
   const onTouchEnd = useCallback(() => {
@@ -182,6 +228,7 @@ export function useImageZoom(): UseImageZoomReturn {
     scale,
     position,
     isDragging,
+    containerRef,
 
     onWheel,
     onMouseDown,

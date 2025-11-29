@@ -12,6 +12,7 @@ interface ImageOverlayProps {
 export default function ImageOverlay({ imageUrl, isOpen, onClose }: ImageOverlayProps) {
   const {
     scale,
+    containerRef,
     onWheel,
     onMouseDown,
     onMouseMove,
@@ -76,7 +77,7 @@ export default function ImageOverlay({ imageUrl, isOpen, onClose }: ImageOverlay
       </button>
 
       {/* Contrôles de zoom (bas droite) */}
-      <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-10">
+      <div className="absolute bottom-6 right-6 hidden md:flex flex-col gap-2 z-10">
         <button
           onClick={(e) => { e.stopPropagation(); zoomIn(); }}
           className="bg-zinc-800 hover:bg-zinc-700 text-white w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
@@ -109,7 +110,8 @@ export default function ImageOverlay({ imageUrl, isOpen, onClose }: ImageOverlay
 
       {/* Container de l'image avec overflow hidden */}
       <div
-        className="relative w-[90vw] h-[90vh] overflow-hidden"
+        ref={containerRef}
+        className="relative w-[90vw] h-[90vh] overflow-hidden flex items-center justify-center"
         onWheel={onWheel}
         onClick={(e) => e.stopPropagation()}
       >
@@ -123,7 +125,7 @@ export default function ImageOverlay({ imageUrl, isOpen, onClose }: ImageOverlay
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
-          className={`max-w-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className={`w-full h-full object-contain ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           draggable={false}
         />
       </div>
