@@ -148,10 +148,7 @@ export function useImageZoom(): UseImageZoomReturn {
   const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2 && initialPinchDistance.current !== null) {
       // Pinch en cours
-      // Seulement preventDefault si vraiment en train de zoomer/déplacer
-      if (scale > 1 || (e.touches.length === 2 && initialPinchDistance.current !== null)) {
-        e.preventDefault();
-      }
+      e.preventDefault();
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
 
@@ -166,8 +163,7 @@ export function useImageZoom(): UseImageZoomReturn {
       setScale(clampScale(newScale));
     } else if (e.touches.length === 1 && isDragging && dragStartPos.current) {
       // Drag en cours
-      // Seulement preventDefault si vraiment en train de déplacer
-      if (scale > 1 || (e.touches.length === 2 && initialPinchDistance.current !== null)) {
+      if (scale > 1) {
         e.preventDefault();
       }
       const touch = e.touches[0];
