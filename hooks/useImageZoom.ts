@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 
 // Constantes de zoom
 const MIN_SCALE = 0.5;  // Permet de dézoomer si besoin
@@ -57,6 +57,11 @@ export function useImageZoom(): UseImageZoomReturn {
 
   // Fonction pour limiter la position et empêcher l'image de sortir
   const clampPosition = useCallback((pos: Position, imageScale: number, containerWidth: number, containerHeight: number) => {
+    // Si l'image est dézoomée, la forcer au centre
+    if (imageScale < 1) {
+      return { x: 0, y: 0 };
+    }
+
     // Calcule la taille de l'image zoomée
     const scaledWidth = containerWidth * imageScale;
     const scaledHeight = containerHeight * imageScale;
@@ -84,7 +89,7 @@ export function useImageZoom(): UseImageZoomReturn {
 
   // Début du drag (souris)
   const onMouseDown = useCallback((e: React.MouseEvent) => {
-    if (scale <= 1) return; // Pas de drag si pas de zoom
+    if (scale < 1) return; // Pas de drag si l'image est dézoomée
 
     e.preventDefault();
     setIsDragging(true);
@@ -135,8 +140,8 @@ export function useImageZoom(): UseImageZoomReturn {
 
       initialPinchDistance.current = distance;
       initialPinchScale.current = scale;
-    } else if (e.touches.length === 1 && scale > MIN_SCALE) {
-      // Drag avec 1 doigt (si zoomé)
+    } else if (e.touches.length === 1 && scale >= 1) {
+      // Drag avec 1 doigt (si zoomé ou à 100%)
       const touch = e.touches[0];
       dragStartPos.current = { x: touch.clientX, y: touch.clientY };
       lastPosition.current = position;
@@ -212,6 +217,13 @@ export function useImageZoom(): UseImageZoomReturn {
     dragStartPos.current = null;
     initialPinchDistance.current = null;
   }, []);
+
+  // Réinitialiser la position si on dézoome en dessous de 1
+  useEffect(() => {
+    if (scale < 1) {
+      setPosition({ x: 0, y: 0 });
+    }
+  }, [scale]);
 
   // Style CSS pour l'image
   const imageStyle = useMemo<React.CSSProperties>(() => ({
