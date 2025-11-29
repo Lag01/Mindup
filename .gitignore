@@ -40,3 +40,6 @@ next-env.d.ts
 # Uploaded card images
 /public/uploads/cards/*
 !/public/uploads/cards/.gitkeep
+
+# Claude Code settings locaux
+.claude/settings.local.json
