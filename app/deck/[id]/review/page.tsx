@@ -220,68 +220,6 @@ export default function Review() {
     fetchCards();
   }, [deckId]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input or textarea
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      // Prevent action if submitting
-      if (submitting) return;
-
-      // Flip card with Space (only when card is not flipped)
-      if (!isFlipped && e.code === 'Space') {
-        e.preventDefault();
-        handleFlip();
-        return;
-      }
-
-      // In study mode, Space also advances to next card (when flipped)
-      if (isFlipped && isStudyMode && e.code === 'Space') {
-        e.preventDefault();
-        handleRating('good');
-        return;
-      }
-
-      // Rating shortcuts (only when card is flipped)
-      if (isFlipped) {
-        switch (e.code) {
-          case 'Digit1':
-          case 'Numpad1':
-            e.preventDefault();
-            handleRating('again');
-            break;
-          case 'Digit2':
-          case 'Numpad2':
-            e.preventDefault();
-            handleRating('hard');
-            break;
-          case 'Digit3':
-          case 'Numpad3':
-            e.preventDefault();
-            handleRating('good');
-            break;
-          case 'Digit4':
-          case 'Numpad4':
-            e.preventDefault();
-            handleRating('easy');
-            break;
-        }
-      }
-
-      // Quit with Escape
-      if (e.code === 'Escape') {
-        e.preventDefault();
-        router.push('/dashboard');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isFlipped, submitting, currentCard, router, isStudyMode, handleRating, handleFlip]);
-
   const fetchCards = async () => {
     try {
       // Check if there's a saved session
@@ -458,6 +396,68 @@ export default function Review() {
       setSubmitting(false);
     }
   }, [submitting, currentCard, isStudyMode, sessionStats, cardQueue, allCards, deckId, isFlipped]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input or textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Prevent action if submitting
+      if (submitting) return;
+
+      // Flip card with Space (only when card is not flipped)
+      if (!isFlipped && e.code === 'Space') {
+        e.preventDefault();
+        handleFlip();
+        return;
+      }
+
+      // In study mode, Space also advances to next card (when flipped)
+      if (isFlipped && isStudyMode && e.code === 'Space') {
+        e.preventDefault();
+        handleRating('good');
+        return;
+      }
+
+      // Rating shortcuts (only when card is flipped)
+      if (isFlipped) {
+        switch (e.code) {
+          case 'Digit1':
+          case 'Numpad1':
+            e.preventDefault();
+            handleRating('again');
+            break;
+          case 'Digit2':
+          case 'Numpad2':
+            e.preventDefault();
+            handleRating('hard');
+            break;
+          case 'Digit3':
+          case 'Numpad3':
+            e.preventDefault();
+            handleRating('good');
+            break;
+          case 'Digit4':
+          case 'Numpad4':
+            e.preventDefault();
+            handleRating('easy');
+            break;
+        }
+      }
+
+      // Quit with Escape
+      if (e.code === 'Escape') {
+        e.preventDefault();
+        router.push('/dashboard');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [isFlipped, submitting, currentCard, router, isStudyMode, handleRating, handleFlip]);
 
   if (loading) {
     return (
