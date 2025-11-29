@@ -238,6 +238,13 @@ export default function Review() {
         return;
       }
 
+      // In study mode, Space also advances to next card (when flipped)
+      if (isFlipped && isStudyMode && e.code === 'Space') {
+        e.preventDefault();
+        handleRating('good');
+        return;
+      }
+
       // Rating shortcuts (only when card is flipped)
       if (isFlipped) {
         switch (e.code) {
@@ -273,7 +280,7 @@ export default function Review() {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isFlipped, submitting, currentCard, router]);
+  }, [isFlipped, submitting, currentCard, router, isStudyMode, handleRating, handleFlip]);
 
   const fetchCards = async () => {
     try {
@@ -551,7 +558,7 @@ export default function Review() {
               </button>
               {!isMobile && (
                 <div className="text-center text-zinc-500 text-sm">
-                  Appuyez sur <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">1-4</kbd> pour continuer ou <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> pour quitter
+                  Appuyez sur <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Espace</kbd>, <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">1-4</kbd> pour continuer ou <kbd className="px-2 py-1 bg-zinc-800 rounded border border-zinc-700 text-zinc-400">Échap</kbd> pour quitter
                 </div>
               )}
             </div>
