@@ -14,7 +14,7 @@ interface UseImageZoomReturn {
   scale: number;
   position: Position;
   isDragging: boolean;
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
 
   // Handlers d'événements
   onWheel: (e: React.WheelEvent) => void;
