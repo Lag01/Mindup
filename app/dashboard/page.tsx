@@ -196,6 +196,12 @@ export default function Dashboard() {
                 Decks Publics
               </button>
               <button
+                onClick={() => router.push('/leaderboard')}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
+              >
+                Classement
+              </button>
+              <button
                 onClick={() => setIsCreatingDeck(true)}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
               >
@@ -249,6 +255,15 @@ export default function Dashboard() {
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
               >
                 Decks Publics
+              </button>
+              <button
+                onClick={() => {
+                  router.push('/leaderboard');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
+              >
+                Classement
               </button>
               <button
                 onClick={() => {

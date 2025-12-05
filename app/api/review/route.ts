@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Update review in database
-    await prisma.review.update({
+    const updatedReview = await prisma.review.update({
       where: {
         cardId_userId: {
           cardId,
@@ -194,6 +194,16 @@ export async function POST(request: NextRequest) {
         goodCount: newStats.goodCount,
         easyCount: newStats.easyCount,
         lastReview: newStats.lastReview,
+      },
+    });
+
+    // Créer un événement de révision pour le tracking du leaderboard
+    await prisma.reviewEvent.create({
+      data: {
+        reviewId: updatedReview.id,
+        userId: user.id,
+        cardId,
+        rating: rating as Rating,
       },
     });
 
