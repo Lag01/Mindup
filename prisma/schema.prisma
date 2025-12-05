@@ -25,6 +25,7 @@ model User {
   createdAt          DateTime @default(now())
   decks              Deck[]
   reviews            Review[]
+  reviewEvents       ReviewEvent[]
 }
 
 model Deck {
@@ -50,17 +51,18 @@ model Deck {
 }
 
 model Card {
-  id         String      @id @default(cuid())
-  deckId     String
-  front      String      @db.Text
-  back       String      @db.Text
-  frontType  ContentType @default(TEXT)
-  backType   ContentType @default(TEXT)
-  frontImage String?
-  backImage  String?
-  order      Int
-  deck       Deck        @relation(fields: [deckId], references: [id], onDelete: Cascade)
-  reviews    Review[]
+  id           String      @id @default(cuid())
+  deckId       String
+  front        String      @db.Text
+  back         String      @db.Text
+  frontType    ContentType @default(TEXT)
+  backType     ContentType @default(TEXT)
+  frontImage   String?
+  backImage    String?
+  order        Int
+  deck         Deck        @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  reviews      Review[]
+  reviewEvents ReviewEvent[]
 
   @@index([deckId])
 }
@@ -83,8 +85,9 @@ model Review {
   updatedAt   DateTime  @updatedAt
 
   // Relations
-  card        Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card        Card         @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events      ReviewEvent[]
 
   @@unique([cardId, userId])
   @@index([userId])
@@ -95,4 +98,20 @@ model AppSettings {
   maxDecksPerUser Int    @default(10)
   maxTotalUsers   Int    @default(5)
   updatedAt       DateTime @updatedAt
+}
+
+model ReviewEvent {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  cardId    String
+  rating    String   // 'again', 'hard', 'good', 'easy'
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([reviewId])
 }
