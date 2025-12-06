@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 type MathMode = 'ADDITION' | 'SUBTRACTION' | 'MULTIPLICATION' | 'DIVISION';
@@ -46,6 +46,19 @@ export default function VeryFastMathPage() {
         .catch(err => console.error(`Erreur récupération score ${mode}:`, err));
     });
   }, []);
+
+  // Bloquer le scroll pendant countdown et jeu
+  useEffect(() => {
+    if (screen === 'countdown' || screen === 'playing') {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [screen]);
 
   const handleModeSelect = (mode: MathMode) => {
     setSelectedMode(mode);
@@ -183,16 +196,18 @@ function CountdownScreen({ onCountdownEnd }: { onCountdownEnd: () => void }) {
   const [count, setCount] = useState(3);
 
   useEffect(() => {
-    if (count === 0) {
-      onCountdownEnd();
-      return;
+    if (count > 0) {
+      const timeout = setTimeout(() => {
+        setCount(count - 1);
+      }, 1000);
+      return () => clearTimeout(timeout);
+    } else {
+      // count === 0 : afficher "GO!" puis démarrer
+      const timeout = setTimeout(() => {
+        onCountdownEnd();
+      }, 500); // Afficher GO! pendant 500ms
+      return () => clearTimeout(timeout);
     }
-
-    const timeout = setTimeout(() => {
-      setCount(count - 1);
-    }, 1000);
-
-    return () => clearTimeout(timeout);
   }, [count, onCountdownEnd]);
 
   return (
@@ -260,6 +275,15 @@ function GameScreen({
   const [isPlaying, setIsPlaying] = useState(true);
   const [finalScore, setFinalScore] = useState(0);
 
+  // Handlers mémorisés pour le pavé numérique
+  const handleInput = useCallback((digit: string) => {
+    setUserAnswer(prev => prev + digit);
+  }, []);
+
+  const handleDelete = useCallback(() => {
+    setUserAnswer(prev => prev.slice(0, -1));
+  }, []);
+
   // Timer
   useEffect(() => {
     if (!isPlaying) return;
@@ -285,17 +309,23 @@ function GameScreen({
 
   // Sauvegarder le score à la fin
   useEffect(() => {
-    if (!isPlaying && finalScore > 0) {
-      fetch('/api/veryfastmath/save-score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, score: finalScore }),
-      })
-        .then(() => onGameEnd(finalScore))
-        .catch(err => {
-          console.error('Erreur sauvegarde:', err);
-          onGameEnd(finalScore);
-        });
+    if (!isPlaying && finalScore >= 0) {
+      // Sauvegarder uniquement si le score est > 0
+      if (finalScore > 0) {
+        fetch('/api/veryfastmath/save-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode, score: finalScore }),
+        })
+          .then(() => onGameEnd(finalScore))
+          .catch(err => {
+            console.error('Erreur sauvegarde:', err);
+            onGameEnd(finalScore);
+          });
+      } else {
+        // Si score = 0, passer directement à l'écran de résultats sans sauvegarder
+        onGameEnd(finalScore);
+      }
     }
   }, [isPlaying, finalScore, mode, onGameEnd]);
 
@@ -311,10 +341,10 @@ function GameScreen({
     }
   }, [userAnswer, currentOp, isPlaying, mode]);
 
-  if (!isPlaying && finalScore > 0) {
+  if (!isPlaying) {
     return (
       <div className="flex items-center justify-center h-[70vh]">
-        <div className="text-2xl">Sauvegarde du score...</div>
+        <div className="text-2xl">Chargement des résultats...</div>
       </div>
     );
   }
@@ -346,8 +376,8 @@ function GameScreen({
       {/* Pavé numérique - ancré en bas */}
       <div className="pb-8 pb-safe">
         <NumPad
-          onInput={(digit) => setUserAnswer(userAnswer + digit)}
-          onDelete={() => setUserAnswer(userAnswer.slice(0, -1))}
+          onInput={handleInput}
+          onDelete={handleDelete}
           userAnswer={userAnswer}
         />
       </div>
@@ -365,6 +395,22 @@ function NumPad({
   onDelete: () => void;
   userAnswer: string;
 }) {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleButtonPress = useCallback((key: string) => {
+    if (isProcessing) return;
+
+    setIsProcessing(true);
+
+    if (key === 'delete') {
+      onDelete();
+    } else {
+      onInput(key);
+    }
+
+    setTimeout(() => setIsProcessing(false), 50);
+  }, [onInput, onDelete, isProcessing]);
+
   const layout = [
     ['7', '8', '9'],
     ['4', '5', '6'],
@@ -382,13 +428,17 @@ function NumPad({
         return (
           <button
             key={index}
-            onClick={() => (key === 'delete' ? onDelete() : onInput(key))}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              handleButtonPress(key);
+            }}
             className={`
               h-16 md:h-20 rounded-lg font-bold text-xl md:text-2xl transition-colors
+              select-none touch-none
               ${
                 key === 'delete'
-                  ? 'bg-red-800 hover:bg-red-700 text-white'
-                  : 'bg-zinc-800 hover:bg-zinc-700 text-white'
+                  ? 'bg-red-800 hover:bg-red-700 active:bg-red-600 text-white'
+                  : 'bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 text-white'
               }
               ${key === 'delete' && userAnswer === '' ? 'invisible' : ''}
             `}
