@@ -41,17 +41,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sauvegarder le score
-    await prisma.veryFastMathScore.create({
-      data: {
-        userId: user.id,
-        mode,
-        score,
-      },
-    });
-
-    // Récupérer le meilleur score de l'utilisateur pour ce mode
-    const bestScore = await prisma.veryFastMathScore.findFirst({
+    // Récupérer le meilleur score AVANT la sauvegarde
+    const previousBestScore = await prisma.veryFastMathScore.findFirst({
       where: {
         userId: user.id,
         mode,
@@ -61,13 +52,35 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const isNewRecord = bestScore ? score === bestScore.score : false;
-    const currentBest = bestScore?.score || 0;
+    // Sauvegarder le score
+    await prisma.veryFastMathScore.create({
+      data: {
+        userId: user.id,
+        mode,
+        score,
+      },
+    });
+
+    // Récupérer le nouveau meilleur score après la sauvegarde
+    const currentBestScore = await prisma.veryFastMathScore.findFirst({
+      where: {
+        userId: user.id,
+        mode,
+      },
+      orderBy: {
+        score: 'desc',
+      },
+    });
+
+    const previousBest = previousBestScore?.score || null;
+    const currentBest = currentBestScore?.score || score;
+    const isNewRecord = !previousBest || score > previousBest;
 
     return NextResponse.json({
       savedScore: score,
       isNewRecord,
       currentBest,
+      previousBest,
     });
   } catch (error) {
     console.error('Save score error:', error);

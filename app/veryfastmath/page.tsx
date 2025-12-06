@@ -63,22 +63,45 @@ export default function VeryFastMathPage() {
     setScreen('selection');
   };
 
+  const handleCancelAttempt = () => {
+    if (confirm('Voulez-vous vraiment annuler cette tentative ?')) {
+      setSelectedMode(null);
+      setFinalScore(0);
+      setScreen('selection');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <header className="bg-zinc-900 border-b border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl sm:text-3xl font-bold">Défis VeryFastMath</h1>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-            >
-              Retour au dashboard
-            </button>
+      {/* Header visible uniquement en mode sélection et résultats */}
+      {(screen === 'selection' || screen === 'finished') && (
+        <header className="bg-zinc-900 border-b border-zinc-800">
+          <div className="max-w-7xl mx-auto px-4 py-4">
+            <div className="flex justify-between items-center">
+              <h1 className="text-2xl sm:text-3xl font-bold">Défis VeryFastMath</h1>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+              >
+                Retour au dashboard
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
+
+      {/* Bouton d'annulation rond pendant countdown et playing */}
+      {(screen === 'countdown' || screen === 'playing') && (
+        <button
+          onClick={handleCancelAttempt}
+          className="fixed top-4 right-4 z-50 w-12 h-12 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center transition-colors shadow-lg"
+          aria-label="Annuler la tentative"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {screen === 'selection' && (
@@ -297,9 +320,9 @@ function GameScreen({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)]">
-      {/* Opération */}
-      <div className="flex-1 flex items-center justify-center">
+    <div className="flex flex-col min-h-screen">
+      {/* Opération - flex-grow pour occuper l'espace disponible */}
+      <div className="flex-grow flex items-center justify-center">
         <div className="text-4xl md:text-6xl font-bold">
           {currentOp.num1} {currentOp.operator} {currentOp.num2} = ?
         </div>
@@ -320,8 +343,8 @@ function GameScreen({
         </div>
       </div>
 
-      {/* Pavé numérique */}
-      <div className="pb-8">
+      {/* Pavé numérique - ancré en bas */}
+      <div className="pb-8 pb-safe">
         <NumPad
           onInput={(digit) => setUserAnswer(userAnswer + digit)}
           onDelete={() => setUserAnswer(userAnswer.slice(0, -1))}
@@ -346,29 +369,35 @@ function NumPad({
     ['7', '8', '9'],
     ['4', '5', '6'],
     ['1', '2', '3'],
-    ['.', '0', 'delete'],
+    ['', '0', 'delete'],
   ];
 
   return (
     <div className="grid grid-cols-3 gap-3 max-w-sm mx-auto">
-      {layout.flat().map((key, index) => (
-        <button
-          key={index}
-          onClick={() => (key === 'delete' ? onDelete() : onInput(key))}
-          className={`
-            h-16 md:h-20 rounded-lg font-bold text-xl md:text-2xl transition-colors
-            ${
-              key === 'delete'
-                ? 'bg-red-800 hover:bg-red-700 text-white'
-                : 'bg-zinc-800 hover:bg-zinc-700 text-white'
-            }
-            ${key === 'delete' && userAnswer === '' ? 'invisible' : ''}
-          `}
-          disabled={key === 'delete' && userAnswer === ''}
-        >
-          {key === 'delete' ? '⌫' : key}
-        </button>
-      ))}
+      {layout.flat().map((key, index) => {
+        if (key === '') {
+          return <div key={index} />;
+        }
+
+        return (
+          <button
+            key={index}
+            onClick={() => (key === 'delete' ? onDelete() : onInput(key))}
+            className={`
+              h-16 md:h-20 rounded-lg font-bold text-xl md:text-2xl transition-colors
+              ${
+                key === 'delete'
+                  ? 'bg-red-800 hover:bg-red-700 text-white'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-white'
+              }
+              ${key === 'delete' && userAnswer === '' ? 'invisible' : ''}
+            `}
+            disabled={key === 'delete' && userAnswer === ''}
+          >
+            {key === 'delete' ? '⌫' : key}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -389,20 +418,23 @@ function ResultsScreen({
     savedScore: number;
     isNewRecord: boolean;
     currentBest: number;
+    previousBest: number | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Récupérer les informations de sauvegarde
+    // Les données viennent maintenant de l'API save-score qui retourne previousBest
+    // On récupère juste les infos pour afficher
     fetch(`/api/veryfastmath/best-score?mode=${mode}`)
       .then(res => res.json())
       .then(data => {
         const bestScore = data.bestScore || 0;
-        const isNewRecord = score > bestScore || (score > 0 && bestScore === 0);
+        const isNewRecord = score >= bestScore && score > 0;
         setResult({
           savedScore: score,
           isNewRecord,
-          currentBest: Math.max(score, bestScore),
+          currentBest: bestScore,
+          previousBest: isNewRecord && bestScore > score ? bestScore : null,
         });
         setLoading(false);
       })
@@ -412,6 +444,7 @@ function ResultsScreen({
           savedScore: score,
           isNewRecord: false,
           currentBest: score,
+          previousBest: null,
         });
         setLoading(false);
       });
@@ -430,22 +463,48 @@ function ResultsScreen({
   return (
     <div className="text-center max-w-md mx-auto">
       <div className="bg-zinc-900 rounded-lg p-8 border border-zinc-800">
-        <h2 className="text-3xl font-bold mb-4">Temps écoulé !</h2>
+        {/* Titre avec emoji selon le résultat */}
+        <h2 className="text-3xl font-bold mb-4">
+          {result?.isNewRecord && score > 0 ? '🎉 Nouveau Record !' : 'Temps écoulé !'}
+        </h2>
 
         {result && (
           <>
-            <div className="text-6xl font-bold text-blue-500 mb-4">
+            {/* Score avec animation si record */}
+            <div className={`text-6xl font-bold mb-4 ${
+              result.isNewRecord && score > 0 ? 'text-green-500 animate-bounce' : 'text-blue-500'
+            }`}>
               {result.savedScore}
             </div>
+
+            {/* Message détaillé */}
             <div className="text-xl mb-4">
-              {result.isNewRecord && result.savedScore > 0 && (
-                <div className="text-green-500 font-bold mb-2">
-                  🎉 Nouveau record personnel !
+              {result.isNewRecord && result.savedScore > 0 ? (
+                <div className="space-y-2">
+                  <div className="text-green-500 font-bold">
+                    Nouveau record personnel !
+                  </div>
+                  {result.previousBest && result.previousBest < result.savedScore && (
+                    <div className="text-zinc-400 text-sm">
+                      Ancien record : {result.previousBest}
+                      <span className="text-green-400 ml-2">
+                        (+{result.savedScore - result.previousBest})
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="text-zinc-400">
+                    Votre meilleur score : {result.currentBest}
+                  </div>
+                  {result.savedScore > 0 && result.currentBest > result.savedScore && (
+                    <div className="text-zinc-500 text-sm">
+                      Encore {result.currentBest - result.savedScore} pour battre votre record !
+                    </div>
+                  )}
                 </div>
               )}
-              <div className="text-zinc-400">
-                Meilleur score : {result.currentBest}
-              </div>
             </div>
           </>
         )}
