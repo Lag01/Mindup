@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 type MathMode = 'ADDITION' | 'SUBTRACTION' | 'MULTIPLICATION' | 'DIVISION';
@@ -374,7 +374,7 @@ function GameScreen({
       </div>
 
       {/* Pavé numérique - ancré en bas */}
-      <div className="pb-8 pb-safe">
+      <div className="pb-16">
         <NumPad
           onInput={handleInput}
           onDelete={handleDelete}
@@ -395,12 +395,13 @@ function NumPad({
   onDelete: () => void;
   userAnswer: string;
 }) {
-  const [isProcessing, setIsProcessing] = useState(false);
+  const isProcessingRef = useRef(false);
 
   const handleButtonPress = useCallback((key: string) => {
-    if (isProcessing) return;
+    // Protection minimale contre les vrais doubles clics (bounce physique)
+    if (isProcessingRef.current) return;
 
-    setIsProcessing(true);
+    isProcessingRef.current = true;
 
     if (key === 'delete') {
       onDelete();
@@ -408,8 +409,11 @@ function NumPad({
       onInput(key);
     }
 
-    setTimeout(() => setIsProcessing(false), 50);
-  }, [onInput, onDelete, isProcessing]);
+    // Débloquer dès la prochaine frame (~16ms au lieu de 50ms)
+    requestAnimationFrame(() => {
+      isProcessingRef.current = false;
+    });
+  }, [onInput, onDelete]);
 
   const layout = [
     ['7', '8', '9'],
@@ -515,7 +519,12 @@ function ResultsScreen({
       <div className="bg-zinc-900 rounded-lg p-8 border border-zinc-800">
         {/* Titre avec emoji selon le résultat */}
         <h2 className="text-3xl font-bold mb-4">
-          {result?.isNewRecord && score > 0 ? '🎉 Nouveau Record !' : 'Temps écoulé !'}
+          {result?.isNewRecord && score > 0
+            ? '🎉 Nouveau Record !'
+            : score === 0
+              ? 'Aucune opération réussie'
+              : `${score} opération${score > 1 ? 's' : ''} réussie${score > 1 ? 's' : ''} !`
+          }
         </h2>
 
         {result && (
@@ -534,23 +543,33 @@ function ResultsScreen({
                   <div className="text-green-500 font-bold">
                     Nouveau record personnel !
                   </div>
-                  {result.previousBest && result.previousBest < result.savedScore && (
+                  {result.previousBest && result.previousBest < result.savedScore ? (
                     <div className="text-zinc-400 text-sm">
-                      Ancien record : {result.previousBest}
+                      Précédent record : {result.previousBest}
                       <span className="text-green-400 ml-2">
                         (+{result.savedScore - result.previousBest})
                       </span>
+                    </div>
+                  ) : (
+                    <div className="text-zinc-400 text-sm">
+                      Premier score enregistré pour ce mode !
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="space-y-2">
                   <div className="text-zinc-400">
-                    Votre meilleur score : {result.currentBest}
+                    {result.savedScore === 0
+                      ? "Continuez à vous entraîner !"
+                      : `Vous avez réussi ${result.savedScore} opération${result.savedScore > 1 ? 's' : ''}`
+                    }
                   </div>
-                  {result.savedScore > 0 && result.currentBest > result.savedScore && (
+                  {result.currentBest > 0 && result.currentBest > result.savedScore && (
                     <div className="text-zinc-500 text-sm">
-                      Encore {result.currentBest - result.savedScore} pour battre votre record !
+                      Votre record : {result.currentBest}
+                      <span className="text-orange-400 ml-2">
+                        (encore {result.currentBest - result.savedScore} pour l'égaler)
+                      </span>
                     </div>
                   )}
                 </div>
