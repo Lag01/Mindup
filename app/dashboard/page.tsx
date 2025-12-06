@@ -202,6 +202,12 @@ export default function Dashboard() {
                 Classement
               </button>
               <button
+                onClick={() => router.push('/veryfastmath')}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
+              >
+                Défis VeryFastMath
+              </button>
+              <button
                 onClick={() => setIsCreatingDeck(true)}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
               >
@@ -264,6 +270,15 @@ export default function Dashboard() {
                 className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
               >
                 Classement
+              </button>
+              <button
+                onClick={() => {
+                  router.push('/veryfastmath');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
+              >
+                Défis VeryFastMath
               </button>
               <button
                 onClick={() => {
