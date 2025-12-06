@@ -271,6 +271,7 @@ function GameScreen({
   const [currentOp, setCurrentOp] = useState<Operation>(generateOperation(mode));
   const [userAnswer, setUserAnswer] = useState('');
   const [score, setScore] = useState(0);
+  const scoreRef = useRef(0); // Ref pour éviter les problèmes de closure
   const [timeRemaining, setTimeRemaining] = useState(60);
   const [isPlaying, setIsPlaying] = useState(true);
   const [finalScore, setFinalScore] = useState(0);
@@ -300,7 +301,7 @@ function GameScreen({
       if (remaining === 0) {
         clearInterval(interval);
         setIsPlaying(false);
-        setFinalScore(score);
+        setFinalScore(scoreRef.current); // Utiliser le ref pour éviter la closure périmée
       }
     }, 100);
 
@@ -335,7 +336,11 @@ function GameScreen({
 
     const numAnswer = parseFloat(userAnswer);
     if (numAnswer === currentOp.answer) {
-      setScore(s => s + 1);
+      setScore(s => {
+        const newScore = s + 1;
+        scoreRef.current = newScore; // Synchroniser le ref avec le score
+        return newScore;
+      });
       setUserAnswer('');
       setCurrentOp(generateOperation(mode));
     }
