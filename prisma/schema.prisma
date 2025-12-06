@@ -15,6 +15,13 @@ enum ContentType {
   LATEX
 }
 
+enum MathMode {
+  ADDITION
+  SUBTRACTION
+  MULTIPLICATION
+  DIVISION
+}
+
 model User {
   id                 String   @id @default(cuid())
   email              String   @unique
@@ -26,6 +33,7 @@ model User {
   decks              Deck[]
   reviews            Review[]
   reviewEvents       ReviewEvent[]
+  veryFastMathScores VeryFastMathScore[]
 }
 
 model Deck {
@@ -114,4 +122,18 @@ model ReviewEvent {
 
   @@index([userId, createdAt])
   @@index([reviewId])
+}
+
+model VeryFastMathScore {
+  id        String   @id @default(cuid())
+  userId    String
+  mode      MathMode
+  score     Int      // Nombre d'opérations réussies
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, mode])
+  @@index([mode, createdAt])
+  @@index([mode, score])
 }
