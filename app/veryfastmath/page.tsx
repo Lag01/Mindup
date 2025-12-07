@@ -523,9 +523,27 @@ function NumPad({
               // Gestion optimisée pour tactile mobile (appelé avant batching)
               e.preventDefault();
               e.stopPropagation();
-              if (e.touches[0]) {
-                handleButtonPress(key);
-              }
+
+              // Traiter TOUTES les touches simultanées, pas juste la première
+              Array.from(e.touches).forEach((touch) => {
+                const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (element instanceof HTMLButtonElement) {
+                  // Récupérer la valeur du bouton touché
+                  const buttonText = element.textContent?.trim();
+
+                  // Mapper le texte vers la clé appropriée
+                  let touchKey: string | null = null;
+                  if (buttonText === '⌫') {
+                    touchKey = 'delete';
+                  } else if (buttonText && /^\d$/.test(buttonText)) {
+                    touchKey = buttonText;
+                  }
+
+                  if (touchKey) {
+                    handleButtonPress(touchKey);
+                  }
+                }
+              });
             }}
             onPointerDown={(e) => {
               // Fallback pour souris/stylet (ignorer si déjà géré par onTouchStart)
