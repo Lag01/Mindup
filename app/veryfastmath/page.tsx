@@ -403,23 +403,29 @@ function NumPad({
   // Map pour tracker le dernier timestamp de chaque touche (détection de vrais doubles clics)
   const lastInputTimeRef = useRef<Map<string, number>>(new Map());
 
+  // Tracker de la dernière touche pressée pour distinguer même bouton vs boutons différents
+  const lastKeyRef = useRef<string | null>(null);
+
   // État pour le feedback visuel des touches pressées
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
 
   // Seuil de détection de double-clic en millisecondes (même touche uniquement)
-  const DOUBLE_CLICK_THRESHOLD = 10;
+  // 50ms pour mobile (vs 10ms pour desktop) pour gérer la latence tactile
+  const DOUBLE_CLICK_THRESHOLD = 50;
 
   const handleButtonPress = useCallback((key: string) => {
     const now = performance.now();
     const lastTime = lastInputTimeRef.current.get(key);
+    const isSameKey = lastKeyRef.current === key;
 
-    // Bloquer SEULEMENT si c'est la MÊME touche en moins de 10ms (rebond physique)
-    if (lastTime && (now - lastTime) < DOUBLE_CLICK_THRESHOLD) {
+    // Bloquer SEULEMENT si c'est le MÊME bouton en moins de 50ms (rebond physique)
+    if (lastTime && isSameKey && (now - lastTime) < DOUBLE_CLICK_THRESHOLD) {
       return;
     }
 
-    // Enregistrer le timestamp pour cette touche
+    // Enregistrer le timestamp pour cette touche et mettre à jour la dernière touche
     lastInputTimeRef.current.set(key, now);
+    lastKeyRef.current = key;
 
     // Feedback visuel
     setPressedKeys(prev => new Set(prev).add(key));
@@ -513,14 +519,26 @@ function NumPad({
         return (
           <button
             key={index}
+            onTouchStart={(e) => {
+              // Gestion optimisée pour tactile mobile (appelé avant batching)
+              e.preventDefault();
+              e.stopPropagation();
+              if (e.touches[0]) {
+                handleButtonPress(key);
+              }
+            }}
             onPointerDown={(e) => {
+              // Fallback pour souris/stylet (ignorer si déjà géré par onTouchStart)
+              if (e.pointerType === 'touch') return;
               e.preventDefault();
               handleButtonPress(key);
             }}
             className={`
               h-16 md:h-20 rounded-lg font-bold text-xl md:text-2xl
-              select-none touch-none
+              select-none
+              [-webkit-tap-highlight-color:transparent]
               transition-all duration-50
+              active:scale-95
               ${isPressed ? 'scale-95 brightness-110' : 'scale-100'}
               ${
                 key === 'delete'
