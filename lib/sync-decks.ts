@@ -6,6 +6,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { deleteImagesAsync } from '@/lib/image-cleanup';
 
 /**
  * Importe un deck public dans le profil d'un utilisateur
@@ -97,7 +98,15 @@ export async function importPublicDeck(userId: string, sourceDeckId: string) {
 export async function unimportPublicDeck(userId: string, importedDeckId: string) {
   // Vérifier que le deck appartient à l'utilisateur et qu'il est bien importé
   const deck = await prisma.deck.findUnique({
-    where: { id: importedDeckId }
+    where: { id: importedDeckId },
+    include: {
+      cards: {
+        select: {
+          frontImage: true,
+          backImage: true
+        }
+      }
+    }
   });
 
   if (!deck) {
@@ -114,10 +123,23 @@ export async function unimportPublicDeck(userId: string, importedDeckId: string)
 
   const sourceDeckId = deck.originalDeckId;
 
+  // Collecter les images avant suppression (bien que les decks importés n'aient normalement pas d'images)
+  const imagesToDelete = deck.cards.flatMap(card =>
+    [card.frontImage, card.backImage].filter(Boolean) as string[]
+  );
+
   // Supprimer le deck (cascade supprime les cartes et reviews)
   await prisma.deck.delete({
     where: { id: importedDeckId }
   });
+
+  // Nettoyage asynchrone des images (si présentes)
+  if (imagesToDelete.length > 0) {
+    console.log(`[CLEANUP] Nettoyage de ${imagesToDelete.length} image(s) du deck importé ${importedDeckId}`);
+    deleteImagesAsync(imagesToDelete).catch(err =>
+      console.error('[CLEANUP] Erreur nettoyage images deck importé:', err)
+    );
+  }
 
   // Décrémenter le compteur d'importations du deck source
   await prisma.deck.update({
@@ -252,6 +274,11 @@ async function syncSingleDeck(
     }
   }
 
+  // Collecter les images des cartes à supprimer
+  const imagesToDelete = cardsToDelete.flatMap(card =>
+    [card.frontImage, card.backImage].filter(Boolean) as string[]
+  );
+
   // Exécuter les modifications dans une transaction
   await prisma.$transaction(async (tx) => {
     // Supprimer les cartes obsolètes
@@ -302,6 +329,14 @@ async function syncSingleDeck(
       });
     }
   });
+
+  // Nettoyage asynchrone des images des cartes supprimées
+  if (imagesToDelete.length > 0) {
+    console.log(`[CLEANUP] Nettoyage de ${imagesToDelete.length} image(s) lors de la synchronisation du deck ${importedDeckId}`);
+    deleteImagesAsync(imagesToDelete).catch(err =>
+      console.error('[CLEANUP] Erreur nettoyage images synchronisation:', err)
+    );
+  }
 }
 
 /**
@@ -321,12 +356,42 @@ export async function unpublishDeck(deckId: string) {
     throw new Error('Ce deck n\'est pas public');
   }
 
+  // Récupérer tous les decks importés avec leurs images
+  const importedDecks = await prisma.deck.findMany({
+    where: {
+      originalDeckId: deckId
+    },
+    include: {
+      cards: {
+        select: {
+          frontImage: true,
+          backImage: true
+        }
+      }
+    }
+  });
+
+  // Collecter toutes les images de tous les decks importés
+  const allImagesToDelete = importedDecks.flatMap(importedDeck =>
+    importedDeck.cards.flatMap(card =>
+      [card.frontImage, card.backImage].filter(Boolean) as string[]
+    )
+  );
+
   // Supprimer tous les decks importés (cascade supprime cartes et reviews)
   await prisma.deck.deleteMany({
     where: {
       originalDeckId: deckId
     }
   });
+
+  // Nettoyage asynchrone de toutes les images des decks importés
+  if (allImagesToDelete.length > 0) {
+    console.log(`[CLEANUP] Nettoyage de ${allImagesToDelete.length} image(s) des decks importés lors de la dépublication`);
+    deleteImagesAsync(allImagesToDelete).catch(err =>
+      console.error('[CLEANUP] Erreur nettoyage images dépublication:', err)
+    );
+  }
 
   // Marquer le deck comme non public et réinitialiser le compteur
   await prisma.deck.update({

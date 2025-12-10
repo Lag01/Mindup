@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { syncImportedDecks } from '@/lib/sync-decks';
+import { deleteImagesAsync } from '@/lib/image-cleanup';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -96,6 +97,19 @@ export async function PATCH(
       );
     }
 
+    // Détecter les images à supprimer (si changées)
+    const imagesToDelete: string[] = [];
+
+    if (frontImage !== undefined && card.frontImage && frontImage !== card.frontImage) {
+      // L'image recto a changé, supprimer l'ancienne
+      imagesToDelete.push(card.frontImage);
+    }
+
+    if (backImage !== undefined && card.backImage && backImage !== card.backImage) {
+      // L'image verso a changé, supprimer l'ancienne
+      imagesToDelete.push(card.backImage);
+    }
+
     // Update card
     const updatedCard = await prisma.card.update({
       where: { id: cardId },
@@ -108,6 +122,13 @@ export async function PATCH(
         backImage: backImage !== undefined ? backImage : card.backImage,
       },
     });
+
+    // Nettoyage asynchrone des anciennes images (après mise à jour réussie)
+    if (imagesToDelete.length > 0) {
+      deleteImagesAsync(imagesToDelete).catch(err =>
+        console.error('[CLEANUP] Erreur nettoyage images modifiées:', err)
+      );
+    }
 
     // Si le deck est public, synchroniser tous les decks importés
     if (card.deck.isPublic) {
@@ -176,8 +197,7 @@ export async function DELETE(
     // Sauvegarder l'ID du deck et les images avant de supprimer la carte
     const deckId = card.deck.id;
     const isDeckPublic = card.deck.isPublic;
-    const frontImageToDelete = card.frontImage;
-    const backImageToDelete = card.backImage;
+    const imagesToDelete = [card.frontImage, card.backImage].filter(Boolean) as string[];
 
     // Delete card (reviews will be deleted automatically due to cascade)
     await prisma.card.delete({
@@ -185,19 +205,10 @@ export async function DELETE(
     });
 
     // Nettoyage asynchrone des images (ne bloque pas la réponse)
-    if (frontImageToDelete) {
-      fetch('/api/upload/delete-card-image', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imagePath: frontImageToDelete }),
-      }).catch(err => console.error('Erreur suppression image recto:', err));
-    }
-    if (backImageToDelete) {
-      fetch('/api/upload/delete-card-image', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imagePath: backImageToDelete }),
-      }).catch(err => console.error('Erreur suppression image verso:', err));
+    if (imagesToDelete.length > 0) {
+      deleteImagesAsync(imagesToDelete).catch(err =>
+        console.error('[CLEANUP] Erreur nettoyage images supprimées:', err)
+      );
     }
 
     // Si le deck est public, synchroniser tous les decks importés

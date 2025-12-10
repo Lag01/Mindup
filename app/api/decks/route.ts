@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { unimportPublicDeck } from '@/lib/sync-decks';
 import { getAppSettings } from '@/lib/settings';
+import { deleteImagesAsync } from '@/lib/image-cleanup';
 
 export async function GET() {
   try {
@@ -164,12 +165,20 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Verify deck belongs to user
+    // Verify deck belongs to user and get all cards with images
     const deck = await prisma.deck.findFirst({
       where: {
         id: deckId,
         userId: user.id,
       },
+      include: {
+        cards: {
+          select: {
+            frontImage: true,
+            backImage: true
+          }
+        }
+      }
     });
 
     if (!deck) {
@@ -193,12 +202,25 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Collecter toutes les images du deck avant suppression
+    const imagesToDelete = deck.cards.flatMap(card =>
+      [card.frontImage, card.backImage].filter(Boolean) as string[]
+    );
+
     // Delete deck (cascade will delete cards and reviews)
     await prisma.deck.delete({
       where: {
         id: deckId,
       },
     });
+
+    // Nettoyage asynchrone de toutes les images du deck
+    if (imagesToDelete.length > 0) {
+      console.log(`[CLEANUP] Nettoyage de ${imagesToDelete.length} image(s) du deck supprimé ${deckId}`);
+      deleteImagesAsync(imagesToDelete).catch(err =>
+        console.error('[CLEANUP] Erreur nettoyage images du deck:', err)
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
