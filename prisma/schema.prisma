@@ -137,3 +137,14 @@ model VeryFastMathScore {
   @@index([mode, createdAt])
   @@index([mode, score])
 }
+
+model OrphanedImage {
+  id          String   @id @default(cuid())
+  imagePath   String   @unique
+  createdAt   DateTime @default(now())
+  retryCount  Int      @default(0)
+  lastError   String?  @db.Text
+
+  @@index([retryCount])
+  @@index([createdAt])
+}
