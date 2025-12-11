@@ -26,6 +26,19 @@ interface Deck {
   originalDeckId?: string | null;
 }
 
+interface DuplicateLocation {
+  cardId: string;
+  field: 'front' | 'back';
+  order: number;
+}
+
+interface DuplicateGroup {
+  text: string;
+  normalizedText: string;
+  locations: DuplicateLocation[];
+  count: number;
+}
+
 export default function EditDeck() {
   const params = useParams();
   const deckId = params.id as string;
@@ -56,6 +69,8 @@ export default function EditDeck() {
     showLatex: false,
     showImage: false,
   });
+  const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
+  const [showDuplicatesDetails, setShowDuplicatesDetails] = useState(false);
   const router = useRouter();
   const { isAdmin } = useUser();
 
@@ -71,6 +86,14 @@ export default function EditDeck() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Détection automatique des doublons
+  useEffect(() => {
+    if (deck?.cards) {
+      const detected = detectDuplicates(deck.cards);
+      setDuplicates(detected);
+    }
+  }, [deck?.cards]);
 
   // Raccourcis clavier pour l'édition
   useEffect(() => {
@@ -100,6 +123,69 @@ export default function EditDeck() {
     window.addEventListener('keydown', handleKeyboard);
     return () => window.removeEventListener('keydown', handleKeyboard);
   }, [editingCard, editForm, saving]);
+
+  // Fonction utilitaire pour normaliser le texte
+  const normalizeText = (text: string): string | null => {
+    const trimmed = text.trim();
+    return trimmed.length > 0 ? trimmed.toLowerCase() : null;
+  };
+
+  // Fonction utilitaire pour ajouter un texte à la map de doublons
+  const addToMap = (
+    map: Map<string, DuplicateGroup>,
+    normalizedText: string,
+    originalText: string,
+    cardId: string,
+    field: 'front' | 'back',
+    order: number
+  ) => {
+    if (!map.has(normalizedText)) {
+      map.set(normalizedText, {
+        text: originalText,
+        normalizedText,
+        locations: [],
+        count: 0,
+      });
+    }
+
+    const group = map.get(normalizedText)!;
+    group.locations.push({ cardId, field, order });
+    group.count++;
+  };
+
+  // Fonction de détection des doublons
+  const detectDuplicates = (cards: Card[]): DuplicateGroup[] => {
+    try {
+      if (!cards || !Array.isArray(cards)) {
+        console.warn('Invalid cards array provided to detectDuplicates');
+        return [];
+      }
+
+      const textMap = new Map<string, DuplicateGroup>();
+
+      cards.forEach((card, index) => {
+        // Traiter le front
+        const frontNorm = normalizeText(card.front);
+        if (frontNorm) {
+          addToMap(textMap, frontNorm, card.front, card.id, 'front', index + 1);
+        }
+
+        // Traiter le back
+        const backNorm = normalizeText(card.back);
+        if (backNorm) {
+          addToMap(textMap, backNorm, card.back, card.id, 'back', index + 1);
+        }
+      });
+
+      // Filtrer pour garder uniquement les doublons (count >= 2) et trier par count décroissant
+      return Array.from(textMap.values())
+        .filter(group => group.count >= 2)
+        .sort((a, b) => b.count - a.count);
+    } catch (error) {
+      console.error('Error detecting duplicates:', error);
+      return [];
+    }
+  };
 
   const fetchDeck = async () => {
     try {
@@ -515,6 +601,20 @@ export default function EditDeck() {
     }
   };
 
+  const handleSearchDuplicate = (text: string) => {
+    // Remplir la barre de recherche avec le texte original
+    setSearchQuery(text);
+
+    // Fermer la section des doublons
+    setShowDuplicatesDetails(false);
+
+    // Scroll vers la liste des cartes
+    setTimeout(() => {
+      const cardsContainer = document.querySelector('[data-cards-list]');
+      cardsContainer?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -657,6 +757,75 @@ export default function EditDeck() {
           </div>
         </div>
 
+        {/* Section d'avertissement des doublons */}
+        {duplicates.length > 0 && (
+          <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-4 mb-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="text-amber-400 text-2xl">⚠️</div>
+                <div>
+                  <h3 className="text-amber-300 font-semibold text-lg">
+                    Doublons Détectés
+                  </h3>
+                  <p className="text-amber-200/70 text-sm mt-1">
+                    {duplicates.length} texte{duplicates.length > 1 ? 's' : ''} dupliqué{duplicates.length > 1 ? 's' : ''} dans{' '}
+                    {new Set(duplicates.flatMap(d => d.locations.map(l => l.cardId))).size} carte{new Set(duplicates.flatMap(d => d.locations.map(l => l.cardId))).size > 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowDuplicatesDetails(!showDuplicatesDetails)}
+                className="bg-amber-800/30 hover:bg-amber-800/50 text-amber-300 px-4 py-2 rounded-lg transition-colors text-sm font-medium whitespace-nowrap"
+              >
+                {showDuplicatesDetails ? 'Masquer ▲' : 'Voir les détails ▼'}
+              </button>
+            </div>
+
+            {/* Détails (collapsible) */}
+            {showDuplicatesDetails && (
+              <div className="mt-4 space-y-3">
+                {duplicates.map((dup, idx) => {
+                  const displayText = dup.text.length > 80
+                    ? dup.text.substring(0, 80) + '...'
+                    : dup.text;
+
+                  return (
+                    <div key={idx} className="bg-zinc-900 border border-amber-700/30 rounded-lg p-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-zinc-300 font-medium mb-2">
+                            📝 "{displayText}"
+                          </div>
+                          <div className="text-zinc-400 text-sm">
+                            Trouvé dans {dup.count} endroit{dup.count > 1 ? 's' : ''} :{' '}
+                            {dup.locations.map((loc, i) => (
+                              <span key={i}>
+                                {i > 0 && ', '}
+                                Carte #{loc.order} ({loc.field === 'front' ? 'recto' : 'verso'})
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleSearchDuplicate(dup.text)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors text-sm font-medium whitespace-nowrap flex items-center gap-1.5"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          Chercher
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Add Card Button - Redirige vers la page d'ajout rapide */}
         <div className="mb-6">
           <Link
@@ -684,16 +853,29 @@ export default function EditDeck() {
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredCards.map((card, index) => (
+          <div className="space-y-3" data-cards-list>
+            {filteredCards.map((card, index) => {
+              // Vérifier si la carte est en doublon
+              const isCardDuplicate = duplicates.some(d =>
+                d.locations.some(loc => loc.cardId === card.id)
+              );
+
+              return (
             <div
               key={card.id}
               className="bg-zinc-900 rounded-lg p-4 border border-zinc-800"
             >
               <div className="flex justify-between items-start mb-4 gap-2">
-                <h3 className="text-base sm:text-lg font-semibold text-foreground">
-                  Carte {index + 1}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                    Carte {index + 1}
+                  </h3>
+                  {isCardDuplicate && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-amber-900/30 text-amber-300 border border-amber-700/50">
+                      ⚠️ Doublon
+                    </span>
+                  )}
+                </div>
                 {editingCard !== card.id && (
                   <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
                     <button
@@ -968,7 +1150,8 @@ export default function EditDeck() {
                 </div>
               )}
             </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
