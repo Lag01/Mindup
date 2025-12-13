@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/hooks/useUser';
 import { useDuplicateDetection } from '@/hooks/useDuplicateDetection';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useDebounce } from '@/hooks/useDebounce';
 import { DeckWithCards, CardFormData, FieldsVisibility, ContentType } from '@/lib/types';
 import { SearchBar } from './components/SearchBar';
 import { DuplicateWarning } from './components/DuplicateWarning';
@@ -337,6 +338,22 @@ export default function EditDeck() {
     );
   }
 
+  // Debounce de la recherche pour éviter les recalculs trop fréquents
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Mémoriser le filtrage pour éviter les recalculs inutiles
+  const filteredCards = useMemo(() => {
+    if (!deck) return [];
+    if (!debouncedSearchQuery.trim()) {
+      return deck.cards;
+    }
+    const query = debouncedSearchQuery.toLowerCase();
+    return deck.cards.filter(card =>
+      card.front.toLowerCase().includes(query) ||
+      card.back.toLowerCase().includes(query)
+    );
+  }, [deck, debouncedSearchQuery]);
+
   if (!deck) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -344,12 +361,6 @@ export default function EditDeck() {
       </div>
     );
   }
-
-  // Filtrer les cartes selon la recherche (recto ou verso)
-  const filteredCards = deck.cards.filter(card =>
-    card.front.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    card.back.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="min-h-screen bg-background">

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import EditDeckNameModal from '@/components/EditDeckNameModal';
 import CreateDeckModal from '@/components/CreateDeckModal';
 import { DeckWithStats } from '@/lib/types';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function Dashboard() {
   const [decks, setDecks] = useState<DeckWithStats[]>([]);
@@ -157,6 +158,20 @@ export default function Dashboard() {
     }
   };
 
+  // Debounce de la recherche pour éviter les recalculs trop fréquents
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Mémoriser le filtrage pour éviter les recalculs inutiles
+  const filteredDecks = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return decks;
+    }
+    const query = debouncedSearchQuery.toLowerCase();
+    return decks.filter(deck =>
+      deck.name.toLowerCase().includes(query)
+    );
+  }, [decks, debouncedSearchQuery]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -164,11 +179,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  // Filtrer les decks selon la recherche
-  const filteredDecks = decks.filter(deck =>
-    deck.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="min-h-screen bg-background">

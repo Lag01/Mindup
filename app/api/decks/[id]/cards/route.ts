@@ -27,18 +27,31 @@ export async function GET(
 
     const { id: deckId } = await context.params;
 
+    // Paramètres de pagination
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+
+    // Validation des paramètres
+    if (page < 1 || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: 'Paramètres de pagination invalides' },
+        { status: 400 }
+      );
+    }
+
+    const skip = (page - 1) * limit;
+
     // Verify deck belongs to user
     const deck = await prisma.deck.findFirst({
       where: {
         id: deckId,
         userId: user.id,
       },
-      include: {
-        cards: {
-          orderBy: {
-            order: 'asc',
-          },
-        },
+      select: {
+        id: true,
+        name: true,
+        originalDeckId: true,
       },
     });
 
@@ -49,12 +62,37 @@ export async function GET(
       );
     }
 
+    // Récupérer le nombre total de cartes et les cartes paginées en parallèle
+    const [totalCards, cards] = await Promise.all([
+      prisma.card.count({
+        where: { deckId },
+      }),
+      prisma.card.findMany({
+        where: { deckId },
+        skip,
+        take: limit,
+        orderBy: {
+          order: 'asc',
+        },
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalCards / limit);
+
     return NextResponse.json({
       deck: {
         id: deck.id,
         name: deck.name,
-        cards: deck.cards,
+        cards,
         originalDeckId: deck.originalDeckId,
+      },
+      pagination: {
+        page,
+        limit,
+        totalCards,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
       },
     });
   } catch (error) {
