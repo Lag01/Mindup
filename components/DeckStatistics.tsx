@@ -14,24 +14,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-
-// Hook pour détecter si on est sur mobile
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  return isMobile;
-}
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface DeckStats {
   totalCards: number;

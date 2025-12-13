@@ -6,49 +6,8 @@ import MathText from '@/components/MathText';
 import CardContentDisplay from '@/components/CardContentDisplay';
 import ImageOverlay from '@/components/ImageOverlay';
 import { insertCardInQueue, Rating } from '@/lib/revision';
-
-interface Card {
-  id: string;
-  front: string;
-  back: string;
-  frontType: 'TEXT' | 'LATEX';
-  backType: 'TEXT' | 'LATEX';
-  frontImage: string | null;
-  backImage: string | null;
-  review: any;
-}
-
-interface SessionState {
-  cardQueue: Card[];
-  currentCardId: string | null;
-  sessionStats: {
-    total: number;
-    again: number;
-    hard: number;
-    good: number;
-    easy: number;
-  };
-}
-
-// Hook to detect mobile screen size
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    // Check on mount
-    checkMobile();
-
-    // Add event listener for window resize
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  return isMobile;
-}
+import { Card, SessionState } from '@/lib/types';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 // Fonction pour mélanger aléatoirement un tableau (Fisher-Yates shuffle)
 function shuffleArray<T>(array: T[]): T[] {
