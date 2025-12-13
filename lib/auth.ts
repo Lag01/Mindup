@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import { cookies } from 'next/headers';
 import { prisma } from './prisma';
+import { signToken, verifyToken } from './jwt';
 
 const SALT_ROUNDS = 10;
 const SESSION_COOKIE_NAME = 'session';
@@ -15,19 +16,27 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 export async function createSession(userId: string) {
   const cookieStore = await cookies();
-  // Simple session implementation - in production, use a proper session library
-  cookieStore.set(SESSION_COOKIE_NAME, userId, {
+
+  // Créer un JWT signé contenant l'userId
+  const token = await signToken({ userId });
+
+  cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    secure: true, // Toujours HTTPS
+    sameSite: 'strict', // Protection CSRF renforcée
+    maxAge: 60 * 60 * 2, // 2 heures (JWT expire aussi après 2h)
   });
 }
 
 export async function getSession(): Promise<string | null> {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
-  return sessionCookie?.value || null;
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+  if (!token) return null;
+
+  // Vérifier et décoder le JWT
+  const userId = await verifyToken(token);
+  return userId;
 }
 
 export async function deleteSession() {

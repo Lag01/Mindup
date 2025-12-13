@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { isValidImageUrl } from '@/lib/utils/validate-image-url';
+import { validateCardContent } from '@/lib/utils/validate-card';
+import { handlePrismaError } from '@/lib/utils/error-handler';
 import { createNewReviewStats } from '@/lib/revision';
 import { syncImportedDecks } from '@/lib/sync-decks';
 
@@ -99,33 +102,28 @@ export async function POST(
       );
     }
 
-    // Validation des chemins d'images (accepter URLs locales et Vercel Blob)
-    if (frontImage) {
-      const isValidPath =
-        frontImage.startsWith('/uploads/cards/') ||
-        frontImage.startsWith('https://') ||
-        frontImage.startsWith('http://');
-
-      if (!isValidPath) {
-        return NextResponse.json(
-          { error: 'Chemin image recto invalide' },
-          { status: 400 }
-        );
-      }
+    // Validation stricte des URLs d'images
+    if (frontImage && !isValidImageUrl(frontImage)) {
+      return NextResponse.json(
+        { error: 'URL d\'image recto invalide ou domaine non autorisé' },
+        { status: 400 }
+      );
     }
 
-    if (backImage) {
-      const isValidPath =
-        backImage.startsWith('/uploads/cards/') ||
-        backImage.startsWith('https://') ||
-        backImage.startsWith('http://');
+    if (backImage && !isValidImageUrl(backImage)) {
+      return NextResponse.json(
+        { error: 'URL d\'image verso invalide ou domaine non autorisé' },
+        { status: 400 }
+      );
+    }
 
-      if (!isValidPath) {
-        return NextResponse.json(
-          { error: 'Chemin image verso invalide' },
-          { status: 400 }
-        );
-      }
+    // Validation du contenu (longueur et LaTeX)
+    const contentValidation = validateCardContent(front || '', back || '', frontType, backType);
+    if (!contentValidation.valid) {
+      return NextResponse.json(
+        { error: contentValidation.error },
+        { status: 400 }
+      );
     }
 
     // Si seulement une image est fournie, utiliser une valeur par défaut pour le texte
@@ -212,7 +210,7 @@ export async function POST(
   } catch (error) {
     console.error('Create card error:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la création de la carte' },
+      { error: handlePrismaError(error) },
       { status: 500 }
     );
   }

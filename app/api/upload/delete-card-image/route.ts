@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { del } from '@vercel/blob';
 import { unlink } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { join, basename, resolve } from 'path';
 import { requireAdmin } from '@/lib/auth';
 
 const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'cards');
@@ -38,7 +38,9 @@ export async function DELETE(request: NextRequest) {
       console.log('[Delete] Fichier supprimé avec succès de Vercel Blob');
     } else if (imagePath.startsWith('/uploads/cards/')) {
       // Chemin local - utiliser unlink (pour compatibilité avec les anciennes images)
-      const filename = imagePath.split('/').pop();
+      // Protection contre path traversal : n'utiliser que le nom de fichier (pas de ../)
+      const filename = basename(imagePath);
+
       if (!filename) {
         return NextResponse.json(
           { error: 'Nom de fichier invalide' },
@@ -46,7 +48,17 @@ export async function DELETE(request: NextRequest) {
         );
       }
 
-      const filepath = join(UPLOAD_DIR, filename);
+      const filepath = resolve(UPLOAD_DIR, filename);
+
+      // Vérifier que le chemin résolu reste bien dans UPLOAD_DIR
+      if (!filepath.startsWith(resolve(UPLOAD_DIR))) {
+        console.error('[Delete] Tentative de path traversal bloquée:', imagePath);
+        return NextResponse.json(
+          { error: 'Accès refusé' },
+          { status: 403 }
+        );
+      }
+
       if (existsSync(filepath)) {
         await unlink(filepath);
         console.log('[Delete] Fichier local supprimé:', filepath);
