@@ -16,57 +16,49 @@ export async function GET() {
       );
     }
 
-    const decks = await prisma.deck.findMany({
-      where: {
-        userId: user.id,
-      },
-      include: {
-        cards: {
-          include: {
-            reviews: {
-              where: {
-                userId: user.id,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    // Optimisation : utiliser une requête SQL agrégée au lieu de charger toutes les cartes et reviews
+    // Cela élimine le problème N+1 et réduit considérablement la charge mémoire
+    const decksWithStats = await prisma.$queryRaw<Array<{
+      id: string;
+      name: string;
+      createdAt: Date;
+      isPublic: boolean;
+      originalDeckId: string | null;
+      totalCards: bigint;
+      notStarted: bigint;
+      totalReviews: bigint | null;
+    }>>`
+      SELECT
+        d.id,
+        d.name,
+        d."createdAt",
+        d."isPublic",
+        d."originalDeckId",
+        COUNT(DISTINCT c.id) as "totalCards",
+        COUNT(DISTINCT CASE WHEN r.reps IS NULL OR r.reps = 0 THEN c.id END) as "notStarted",
+        COALESCE(SUM(r.reps), 0) as "totalReviews"
+      FROM "Deck" d
+      LEFT JOIN "Card" c ON c."deckId" = d.id
+      LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
+      WHERE d."userId" = ${user.id}
+      GROUP BY d.id, d.name, d."createdAt", d."isPublic", d."originalDeckId"
+      ORDER BY d."createdAt" DESC
+    `;
 
-    // Calculate statistics for each deck
-    const decksWithStats = decks.map(deck => {
-      const totalCards = deck.cards.length;
+    // Convertir les bigint en number pour JSON
+    const decks = decksWithStats.map(deck => ({
+      id: deck.id,
+      name: deck.name,
+      createdAt: deck.createdAt,
+      totalCards: Number(deck.totalCards),
+      notStarted: Number(deck.notStarted),
+      totalReviews: Number(deck.totalReviews),
+      isPublic: deck.isPublic,
+      originalDeckId: deck.originalDeckId,
+      isImported: !!deck.originalDeckId,
+    }));
 
-      // Dans le système de révision immédiate, toutes les cartes sont disponibles
-      // On compte les cartes jamais révisées pour donner une indication de progression
-      const notStarted = deck.cards.filter(card => {
-        const review = card.reviews[0];
-        return !review || review.reps === 0;
-      }).length;
-
-      // Calculer le taux de révision
-      const totalReviews = deck.cards.reduce((sum, card) => {
-        const review = card.reviews[0];
-        return sum + (review?.reps || 0);
-      }, 0);
-
-      return {
-        id: deck.id,
-        name: deck.name,
-        createdAt: deck.createdAt,
-        totalCards,
-        notStarted,
-        totalReviews,
-        isPublic: deck.isPublic,
-        originalDeckId: deck.originalDeckId,
-        isImported: !!deck.originalDeckId,
-      };
-    });
-
-    return NextResponse.json({ decks: decksWithStats });
+    return NextResponse.json({ decks });
   } catch (error) {
     console.error('Get decks error:', error);
     return NextResponse.json(

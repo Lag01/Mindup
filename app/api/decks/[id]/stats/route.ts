@@ -37,119 +37,71 @@ export async function GET(
       );
     }
 
-    // Get all cards with their reviews
-    const cards = await prisma.card.findMany({
-      where: {
-        deckId: deckId,
-      },
-      include: {
-        reviews: {
-          where: {
-            userId: user.id,
-          },
-        },
-      },
-    });
-
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    // Calculate statistics
-    const stats = {
-      totalCards: cards.length,
+    // Optimisation : requête SQL agrégée au lieu de charger toutes les cartes
+    // Cela élimine les boucles forEach et réduit drastiquement la charge mémoire
+    const [mainStats] = await prisma.$queryRaw<Array<{
+      totalCards: bigint;
+      notStarted: bigint;
+      inProgress: bigint;
+      reviewed: bigint;
+      totalReviews: bigint;
+      againCount: bigint;
+      hardCount: bigint;
+      goodCount: bigint;
+      easyCount: bigint;
+      difficultCards: bigint;
+      masteredCards: bigint;
+      reviewsToday: bigint;
+      reviewsThisWeek: bigint;
+    }>>`
+      SELECT
+        COUNT(*) as "totalCards",
+        COUNT(CASE WHEN r.reps IS NULL OR r.reps = 0 THEN 1 END) as "notStarted",
+        COUNT(CASE WHEN r.reps > 0 THEN 1 END) as "inProgress",
+        COUNT(CASE WHEN r.reps > 0 THEN 1 END) as "reviewed",
+        COALESCE(SUM(r.reps), 0) as "totalReviews",
+        COALESCE(SUM(r."againCount"), 0) as "againCount",
+        COALESCE(SUM(r."hardCount"), 0) as "hardCount",
+        COALESCE(SUM(r."goodCount"), 0) as "goodCount",
+        COALESCE(SUM(r."easyCount"), 0) as "easyCount",
+        COUNT(CASE
+          WHEN r.reps > 0 AND (r."againCount" + r."hardCount")::float / r.reps > 0.5
+          THEN 1
+        END) as "difficultCards",
+        COUNT(CASE
+          WHEN r.reps > 0 AND r."easyCount"::float / r.reps > 0.7
+          THEN 1
+        END) as "masteredCards",
+        COUNT(CASE WHEN r."lastReview" >= ${today} THEN 1 END) as "reviewsToday",
+        COUNT(CASE WHEN r."lastReview" >= ${weekAgo} THEN 1 END) as "reviewsThisWeek"
+      FROM "Card" c
+      LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
+      WHERE c."deckId" = ${deckId}
+    `;
 
-      // Cartes par statut
-      cardsByStatus: {
-        notStarted: 0,  // Jamais révisées (reps = 0)
-        inProgress: 0,  // En cours (reps > 0)
-        reviewed: 0,    // Total avec reviews
-      },
+    // Requête pour l'historique des 7 derniers jours
+    const reviewHistoryRaw = await prisma.$queryRaw<Array<{
+      date: Date;
+      count: bigint;
+    }>>`
+      SELECT
+        DATE(r."lastReview") as "date",
+        COUNT(*) as "count"
+      FROM "Card" c
+      INNER JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
+      WHERE c."deckId" = ${deckId}
+        AND r."lastReview" >= ${weekAgo}
+      GROUP BY DATE(r."lastReview")
+      ORDER BY "date" ASC
+    `;
 
-      // Performance globale
-      totalReviews: 0,
-      successRate: 0,   // % de "good" et "easy"
-
-      // Répartition des ratings
-      ratingDistribution: {
-        again: 0,
-        hard: 0,
-        good: 0,
-        easy: 0,
-      },
-
-      // Cartes difficiles et faciles
-      difficultCards: 0,  // Plus de 50% de "again" ou "hard"
-      masteredCards: 0,   // Plus de 70% de "easy"
-
-      // Activité récente
-      reviewsToday: 0,
-      reviewsThisWeek: 0,
-
-      // Historique des révisions par jour (7 derniers jours)
-      reviewHistory: [] as { date: string; count: number }[],
-    };
-
-    let cardsWithReviews = 0;
-
-    cards.forEach(card => {
-      const review = card.reviews[0];
-
-      if (!review || review.reps === 0) {
-        stats.cardsByStatus.notStarted++;
-        return;
-      }
-
-      cardsWithReviews++;
-      stats.cardsByStatus.reviewed++;
-      stats.cardsByStatus.inProgress++;
-
-      // Performance
-      stats.totalReviews += review.reps;
-      stats.ratingDistribution.again += review.againCount;
-      stats.ratingDistribution.hard += review.hardCount;
-      stats.ratingDistribution.good += review.goodCount;
-      stats.ratingDistribution.easy += review.easyCount;
-
-      // Calculer le taux de réussite de cette carte
-      const successCount = review.goodCount + review.easyCount;
-      const cardSuccessRate = review.reps > 0 ? (successCount / review.reps) * 100 : 0;
-
-      // Cartes difficiles (plus de 50% d'échecs ou difficultés)
-      const failureCount = review.againCount + review.hardCount;
-      const failureRate = review.reps > 0 ? (failureCount / review.reps) * 100 : 0;
-      if (failureRate > 50) {
-        stats.difficultCards++;
-      }
-
-      // Cartes maîtrisées (plus de 70% de "easy")
-      const easyRate = review.reps > 0 ? (review.easyCount / review.reps) * 100 : 0;
-      if (easyRate > 70) {
-        stats.masteredCards++;
-      }
-
-      // Activité récente
-      if (review.lastReview) {
-        const lastReviewDate = new Date(review.lastReview);
-        if (lastReviewDate >= today) {
-          stats.reviewsToday++;
-        }
-        if (lastReviewDate >= weekAgo) {
-          stats.reviewsThisWeek++;
-        }
-      }
-    });
-
-    // Calculate global success rate
-    const totalSuccesses = stats.ratingDistribution.good + stats.ratingDistribution.easy;
-    if (stats.totalReviews > 0) {
-      stats.successRate = (totalSuccesses / stats.totalReviews) * 100;
-    }
-
-    // Build review history for the last 7 days
+    // Construire l'historique complet avec les jours à 0
     const historyMap = new Map<string, number>();
-
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
@@ -157,23 +109,46 @@ export async function GET(
       historyMap.set(dateStr, 0);
     }
 
-    // Count reviews per day
-    cards.forEach(card => {
-      const review = card.reviews[0];
-      if (review?.lastReview) {
-        const reviewDate = new Date(review.lastReview);
-        const dateStr = reviewDate.toISOString().split('T')[0];
-
-        if (historyMap.has(dateStr)) {
-          historyMap.set(dateStr, historyMap.get(dateStr)! + 1);
-        }
+    // Remplir avec les vraies valeurs
+    reviewHistoryRaw.forEach(row => {
+      const dateStr = new Date(row.date).toISOString().split('T')[0];
+      if (historyMap.has(dateStr)) {
+        historyMap.set(dateStr, Number(row.count));
       }
     });
 
-    stats.reviewHistory = Array.from(historyMap.entries()).map(([date, count]) => ({
+    const reviewHistory = Array.from(historyMap.entries()).map(([date, count]) => ({
       date,
       count,
     }));
+
+    // Calculer le taux de succès
+    const totalReviews = Number(mainStats.totalReviews);
+    const totalSuccesses = Number(mainStats.goodCount) + Number(mainStats.easyCount);
+    const successRate = totalReviews > 0 ? (totalSuccesses / totalReviews) * 100 : 0;
+
+    // Construire l'objet stats final
+    const stats = {
+      totalCards: Number(mainStats.totalCards),
+      cardsByStatus: {
+        notStarted: Number(mainStats.notStarted),
+        inProgress: Number(mainStats.inProgress),
+        reviewed: Number(mainStats.reviewed),
+      },
+      totalReviews,
+      successRate,
+      ratingDistribution: {
+        again: Number(mainStats.againCount),
+        hard: Number(mainStats.hardCount),
+        good: Number(mainStats.goodCount),
+        easy: Number(mainStats.easyCount),
+      },
+      difficultCards: Number(mainStats.difficultCards),
+      masteredCards: Number(mainStats.masteredCards),
+      reviewsToday: Number(mainStats.reviewsToday),
+      reviewsThisWeek: Number(mainStats.reviewsThisWeek),
+      reviewHistory,
+    };
 
     return NextResponse.json(stats);
   } catch (error) {
