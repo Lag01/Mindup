@@ -7,12 +7,7 @@ import ImageUploader from '@/components/ImageUploader';
 import CardContentDisplay from '@/components/CardContentDisplay';
 import ImageOverlay from '@/components/ImageOverlay';
 import { useUser } from '@/hooks/useUser';
-
-interface Deck {
-  id: string;
-  name: string;
-  originalDeckId?: string | null;
-}
+import { Deck, CardFormData } from '@/lib/types';
 
 export default function AddCards() {
   const params = useParams();

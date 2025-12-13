@@ -4,20 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import EditDeckNameModal from '@/components/EditDeckNameModal';
 import CreateDeckModal from '@/components/CreateDeckModal';
-
-interface Deck {
-  id: string;
-  name: string;
-  totalCards: number;
-  dueCards: number;
-  createdAt: string;
-  isImported?: boolean;
-  originalDeckId?: string | null;
-  isPublic?: boolean;
-}
+import { DeckWithStats } from '@/lib/types';
 
 export default function Dashboard() {
-  const [decks, setDecks] = useState<Deck[]>([]);
+  const [decks, setDecks] = useState<DeckWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [resettingStats, setResettingStats] = useState<string | null>(null);
