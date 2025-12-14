@@ -30,10 +30,6 @@ model User {
   isAdmin            Boolean  @default(false)
   reviewedCardsCount Int      @default(0)  // Total number of cards reviewed (increments on each review)
 
-  // Champs 2FA
-  twoFactorEnabled   Boolean  @default(false)
-  twoFactorSecret    String?  // Secret TOTP (chiffré)
-
   createdAt          DateTime @default(now())
   decks              Deck[]
   reviews            Review[]
@@ -186,9 +182,6 @@ enum AuditAction {
   CARD_DELETE
   SETTINGS_UPDATE
   ADMIN_ACTION
-  TWO_FACTOR_ENABLE
-  TWO_FACTOR_DISABLE
-  TWO_FACTOR_VERIFY
 }
 
 model AuditLog {

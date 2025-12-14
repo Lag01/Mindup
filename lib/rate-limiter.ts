@@ -116,10 +116,6 @@ export const RATE_LIMITS = {
     maxRequests: 10,
     windowMs: 60 * 60 * 1000, // 1 heure
   },
-  TWO_FACTOR: {
-    maxRequests: 5,
-    windowMs: 15 * 60 * 1000, // 15 minutes
-  },
 };
 
 /**

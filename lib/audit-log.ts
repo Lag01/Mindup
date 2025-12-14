@@ -15,10 +15,7 @@ export type AuditAction =
   | 'CARD_UPDATE'
   | 'CARD_DELETE'
   | 'SETTINGS_UPDATE'
-  | 'ADMIN_ACTION'
-  | 'TWO_FACTOR_ENABLE'
-  | 'TWO_FACTOR_DISABLE'
-  | 'TWO_FACTOR_VERIFY';
+  | 'ADMIN_ACTION';
 
 interface AuditLogOptions {
   userId?: string;
