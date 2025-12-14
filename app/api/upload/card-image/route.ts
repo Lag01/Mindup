@@ -4,7 +4,41 @@ import { requireAdmin } from '@/lib/auth';
 import sharp from 'sharp';
 
 const MAX_FILE_SIZE = 4.5 * 1024 * 1024; // 4.5MB (limite Vercel Blob)
+// Note : SVG est explicitement exclu pour des raisons de sécurité (risque XSS)
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+
+// Magic bytes pour vérifier la signature réelle du fichier
+const MAGIC_BYTES = {
+  png: [0x89, 0x50, 0x4e, 0x47],
+  jpeg: [0xff, 0xd8, 0xff],
+  gif: [0x47, 0x49, 0x46],
+  webp: [0x52, 0x49, 0x46, 0x46], // "RIFF" + WebP signature à offset 8
+};
+
+function validateImageMagicBytes(buffer: Buffer): boolean {
+  // PNG
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+    return true;
+  }
+  // JPEG
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return true;
+  }
+  // GIF
+  if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+    return true;
+  }
+  // WebP (RIFF header + WebP signature)
+  if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+    // Vérifier "WEBP" à l'offset 8
+    if (buffer.length >= 12 &&
+        buffer[8] === 0x57 && buffer[9] === 0x45 &&
+        buffer[10] === 0x42 && buffer[11] === 0x50) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,6 +87,14 @@ export async function POST(request: NextRequest) {
     // Convertir le fichier en buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    // Validation des magic bytes (signature réelle du fichier)
+    if (!validateImageMagicBytes(buffer)) {
+      return NextResponse.json(
+        { error: 'Fichier invalide ou corrompu. Le fichier ne correspond pas à un format d\'image supporté.' },
+        { status: 400 }
+      );
+    }
 
     // Compression avec Sharp
     const compressedBuffer = await sharp(buffer)

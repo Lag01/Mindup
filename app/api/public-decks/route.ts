@@ -4,7 +4,8 @@ import { prisma } from '@/lib/prisma';
 
 /**
  * GET /api/public-decks
- * Liste tous les decks publics disponibles
+ * Liste tous les decks publics disponibles avec pagination
+ * Query params: page (défaut: 1), limit (défaut: 20, max: 100)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +18,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Récupérer tous les decks publics
+    // Récupérer les paramètres de pagination
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10)));
+    const skip = (page - 1) * limit;
+
+    // Compter le total de decks publics (pour pagination côté client)
+    const totalDecks = await prisma.deck.count({
+      where: {
+        isPublic: true
+      }
+    });
+
+    // Récupérer les decks publics avec pagination
     const publicDecks = await prisma.deck.findMany({
       where: {
         isPublic: true
@@ -37,7 +51,9 @@ export async function GET(request: NextRequest) {
       },
       orderBy: {
         createdAt: 'desc'
-      }
+      },
+      skip,
+      take: limit,
     });
 
     // Récupérer les IDs des decks déjà importés par l'utilisateur
@@ -72,7 +88,15 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({
-      decks: formattedDecks
+      decks: formattedDecks,
+      pagination: {
+        page,
+        limit,
+        total: totalDecks,
+        totalPages: Math.ceil(totalDecks / limit),
+        hasNext: page < Math.ceil(totalDecks / limit),
+        hasPrev: page > 1,
+      }
     });
   } catch (error: any) {
     console.error('Erreur lors de la récupération des decks publics:', error);

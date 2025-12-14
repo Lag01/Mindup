@@ -73,6 +73,7 @@ model Card {
   reviewEvents ReviewEvent[]
 
   @@index([deckId])
+  @@index([deckId, order])
 }
 
 model Review {

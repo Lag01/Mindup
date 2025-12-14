@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const period = (searchParams.get('period') || 'today') as TimePeriod;
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
 
     if (!['today', 'week', 'month', 'year'].includes(period)) {
       return NextResponse.json(
@@ -58,7 +60,19 @@ export async function GET(request: NextRequest) {
 
     const startDate = getDateRangeForPeriod(period);
 
-    // Requête pour compter les révisions par utilisateur dans la période
+    // Requête pour compter le total d'utilisateurs dans le leaderboard
+    const totalUsersInPeriod = await prisma.reviewEvent.groupBy({
+      by: ['userId'],
+      where: {
+        createdAt: {
+          gte: startDate,
+        },
+      },
+    });
+    const totalUsers = totalUsersInPeriod.length;
+
+    // Requête pour compter les révisions par utilisateur dans la période avec pagination
+    const skip = (page - 1) * limit;
     const leaderboardData = await prisma.reviewEvent.groupBy({
       by: ['userId'],
       where: {
@@ -74,6 +88,8 @@ export async function GET(request: NextRequest) {
           id: 'desc',
         },
       },
+      skip,
+      take: limit,
     });
 
     // Récupérer les informations des utilisateurs
@@ -94,7 +110,7 @@ export async function GET(request: NextRequest) {
     const userMap = new Map(users.map(u => [u.id, u.displayName]));
 
     const leaderboard = leaderboardData.map((entry, index) => ({
-      rank: index + 1,
+      rank: skip + index + 1, // Rank global tenant compte de la pagination
       userId: entry.userId,
       displayName: userMap.get(entry.userId) || 'Utilisateur inconnu',
       reviewCount: entry._count.id,
@@ -104,6 +120,14 @@ export async function GET(request: NextRequest) {
       period,
       startDate: startDate.toISOString(),
       leaderboard,
+      pagination: {
+        page,
+        limit,
+        total: totalUsers,
+        totalPages: Math.ceil(totalUsers / limit),
+        hasNext: page < Math.ceil(totalUsers / limit),
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error('Leaderboard error:', error);
