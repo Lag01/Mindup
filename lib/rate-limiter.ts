@@ -107,6 +107,19 @@ export const RATE_LIMITS = {
     maxRequests: 5,
     windowMs: 60 * 60 * 1000, // 1 heure
   },
+  // Endpoints critiques (user-based)
+  UPLOAD: {
+    maxRequests: 20,
+    windowMs: 60 * 60 * 1000, // 1 heure
+  },
+  ADMIN_DELETE: {
+    maxRequests: 10,
+    windowMs: 60 * 60 * 1000, // 1 heure
+  },
+  TWO_FACTOR: {
+    maxRequests: 5,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+  },
 };
 
 /**
@@ -128,4 +141,44 @@ export function getClientIp(request: Request): string {
 
   // Fallback (ne devrait pas arriver en production)
   return 'unknown';
+}
+
+/**
+ * Helper pour rate limiting par user ID (plus robuste que par IP)
+ * Utilisation : checkUserRateLimit(userId, RATE_LIMITS.UPLOAD)
+ */
+export function checkUserRateLimit(
+  userId: string,
+  config: { maxRequests: number; windowMs: number }
+): { allowed: boolean; retryAfter?: number } {
+  const identifier = `user:${userId}`;
+  return rateLimiter.check(identifier, config.maxRequests, config.windowMs);
+}
+
+/**
+ * Helper pour rate limiting combiné (IP + userId si disponible)
+ * Plus sécurisé : limite à la fois par IP et par user
+ */
+export function checkCombinedRateLimit(
+  request: Request,
+  userId: string | null,
+  config: { maxRequests: number; windowMs: number }
+): { allowed: boolean; retryAfter?: number } {
+  const ip = getClientIp(request);
+
+  // Check IP d'abord
+  const ipCheck = rateLimiter.check(`ip:${ip}`, config.maxRequests, config.windowMs);
+  if (!ipCheck.allowed) {
+    return ipCheck;
+  }
+
+  // Si userId disponible, check aussi par user
+  if (userId) {
+    const userCheck = rateLimiter.check(`user:${userId}`, config.maxRequests, config.windowMs);
+    if (!userCheck.allowed) {
+      return userCheck;
+    }
+  }
+
+  return { allowed: true };
 }
