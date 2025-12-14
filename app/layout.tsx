@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import 'katex/dist/katex.min.css';
 import RegisterServiceWorker from './register-sw';
+import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
   title: "Mindup - Révision",
@@ -42,7 +43,9 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <RegisterServiceWorker />
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
