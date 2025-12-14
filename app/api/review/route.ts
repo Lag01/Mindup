@@ -179,44 +179,47 @@ export async function POST(request: NextRequest) {
       rating as Rating
     );
 
-    // Update review in database
-    const updatedReview = await prisma.review.update({
-      where: {
-        cardId_userId: {
-          cardId,
+    // Utiliser une transaction pour garantir la cohérence des données
+    await prisma.$transaction(async (tx) => {
+      // Update review in database
+      const updatedReview = await tx.review.update({
+        where: {
+          cardId_userId: {
+            cardId,
+            userId: user.id,
+          },
+        },
+        data: {
+          reps: newStats.reps,
+          againCount: newStats.againCount,
+          hardCount: newStats.hardCount,
+          goodCount: newStats.goodCount,
+          easyCount: newStats.easyCount,
+          lastReview: newStats.lastReview,
+        },
+      });
+
+      // Créer un événement de révision pour le tracking du leaderboard
+      await tx.reviewEvent.create({
+        data: {
+          reviewId: updatedReview.id,
           userId: user.id,
+          cardId,
+          rating: rating as Rating,
         },
-      },
-      data: {
-        reps: newStats.reps,
-        againCount: newStats.againCount,
-        hardCount: newStats.hardCount,
-        goodCount: newStats.goodCount,
-        easyCount: newStats.easyCount,
-        lastReview: newStats.lastReview,
-      },
-    });
+      });
 
-    // Créer un événement de révision pour le tracking du leaderboard
-    await prisma.reviewEvent.create({
-      data: {
-        reviewId: updatedReview.id,
-        userId: user.id,
-        cardId,
-        rating: rating as Rating,
-      },
-    });
-
-    // Increment user's reviewed cards counter
-    await prisma.user.update({
-      where: {
-        id: user.id,
-      },
-      data: {
-        reviewedCardsCount: {
-          increment: 1,
+      // Increment user's reviewed cards counter
+      await tx.user.update({
+        where: {
+          id: user.id,
         },
-      },
+        data: {
+          reviewedCardsCount: {
+            increment: 1,
+          },
+        },
+      });
     });
 
     return NextResponse.json({ success: true });
