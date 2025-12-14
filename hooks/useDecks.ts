@@ -18,7 +18,7 @@ export function useDecks() {
     setError,
   } = useDecksStore();
 
-  const { showToast } = useToast();
+  const { success: showSuccess, error: showError } = useToast();
 
   // Charger les decks au montage si pas encore chargés
   useEffect(() => {
@@ -30,9 +30,9 @@ export function useDecks() {
   // Afficher les erreurs via toast
   useEffect(() => {
     if (error) {
-      showToast(error, 'error');
+      showError(error);
     }
-  }, [error]);
+  }, [error, showError]);
 
   /**
    * Créer un nouveau deck
@@ -57,7 +57,7 @@ export function useDecks() {
       };
 
       addDeck(newDeck);
-      showToast('Deck créé avec succès', 'success');
+      showSuccess('Deck créé avec succès');
       return newDeck;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erreur inconnue';
@@ -81,7 +81,7 @@ export function useDecks() {
       }
 
       removeDeck(id);
-      showToast('Deck supprimé avec succès', 'success');
+      showSuccess('Deck supprimé avec succès');
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erreur inconnue';
@@ -107,7 +107,7 @@ export function useDecks() {
       }
 
       updateDeck(id, { name });
-      showToast('Deck renommé avec succès', 'success');
+      showSuccess('Deck renommé avec succès');
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erreur inconnue';

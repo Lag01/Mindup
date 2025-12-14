@@ -53,10 +53,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Générer un nouveau access token
-    const accessToken = signToken({
+    const accessToken = await signToken({
       userId: user.id,
-      email: user.email,
-      isAdmin: user.isAdmin,
     });
 
     // Créer la réponse avec le nouveau access token en cookie
