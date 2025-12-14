@@ -14,19 +14,31 @@ const ENCRYPTION_KEY = process.env.TWO_FACTOR_ENCRYPTION_KEY || 'fallback-key-ch
  * Chiffrer le secret 2FA avant stockage
  */
 export function encryptSecret(secret: string): string {
-  const cipher = crypto.createCipher('aes-256-cbc', ENCRYPTION_KEY);
+  const iv = crypto.randomBytes(16);
+  const key = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
+  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+
   let encrypted = cipher.update(secret, 'utf8', 'hex');
   encrypted += cipher.final('hex');
-  return encrypted;
+
+  // Stocker l'IV avec les données chiffrées (séparés par ':')
+  return iv.toString('hex') + ':' + encrypted;
 }
 
 /**
  * Déchiffrer le secret 2FA depuis la BDD
  */
 export function decryptSecret(encryptedSecret: string): string {
-  const decipher = crypto.createDecipher('aes-256-cbc', ENCRYPTION_KEY);
-  let decrypted = decipher.update(encryptedSecret, 'hex', 'utf8');
+  const parts = encryptedSecret.split(':');
+  const iv = Buffer.from(parts[0], 'hex');
+  const encryptedData = parts[1];
+
+  const key = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
+  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+
+  let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
+
   return decrypted;
 }
 
