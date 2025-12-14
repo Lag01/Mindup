@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, memo } from 'react';
 
 interface NumPadProps {
   onInput: (digit: string) => void;
@@ -8,7 +8,7 @@ interface NumPadProps {
   userAnswer: string;
 }
 
-export default function NumPad({ onInput, onDelete, userAnswer }: NumPadProps) {
+function NumPad({ onInput, onDelete, userAnswer }: NumPadProps) {
   // Map pour tracker le dernier timestamp de chaque touche (détection de vrais doubles clics)
   const lastInputTimeRef = useRef<Map<string, number>>(new Map());
 
@@ -183,3 +183,7 @@ export default function NumPad({ onInput, onDelete, userAnswer }: NumPadProps) {
     </div>
   );
 }
+
+// Mémoriser le composant pour éviter les re-renders inutiles
+// Le NumPad ne change que quand userAnswer change
+export default memo(NumPad);

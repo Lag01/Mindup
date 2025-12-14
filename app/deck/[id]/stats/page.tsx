@@ -2,7 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import DeckStatistics from '@/components/DeckStatistics';
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/Skeleton';
+
+// Lazy-load DeckStatistics avec Recharts pour réduire le bundle initial
+const DeckStatistics = dynamic(() => import('@/components/DeckStatistics'), {
+  loading: () => (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <Skeleton className="h-64 w-full mb-6" />
+      <div className="grid md:grid-cols-2 gap-6">
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    </div>
+  ),
+  ssr: false,
+});
 
 export default function DeckStatsPage() {
   const params = useParams();

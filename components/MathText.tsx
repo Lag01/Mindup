@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import katex from 'katex';
 
 interface MathTextProps {
@@ -11,7 +11,7 @@ interface MathTextProps {
   maxHeight?: number;
 }
 
-export default function MathText({
+function MathText({
   text,
   contentType,
   className = '',
@@ -147,3 +147,7 @@ export default function MathText({
     />
   );
 }
+
+// Mémoriser le composant pour éviter les re-renders inutiles lors de révisions
+// Ne re-render que si text ou contentType changent
+export default memo(MathText);
