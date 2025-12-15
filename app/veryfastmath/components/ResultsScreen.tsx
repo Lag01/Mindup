@@ -56,8 +56,8 @@ export default function ResultsScreen({
   if (loading) {
     return (
       <div className="text-center max-w-md mx-auto">
-        <div className="bg-zinc-900 rounded-lg p-8 border border-zinc-800">
-          <div className="text-xl">Chargement des résultats...</div>
+        <div className="bg-zinc-900 rounded-xl p-6 sm:p-8 border border-zinc-800 shadow-lg">
+          <div className="text-lg sm:text-xl">Chargement des résultats...</div>
         </div>
       </div>
     );
@@ -65,9 +65,9 @@ export default function ResultsScreen({
 
   return (
     <div className="text-center max-w-md mx-auto">
-      <div className="bg-zinc-900 rounded-lg p-8 border border-zinc-800">
+      <div className="bg-zinc-900 rounded-xl p-6 sm:p-8 border border-zinc-800 shadow-lg">
         {/* Titre avec emoji selon le résultat */}
-        <h2 className="text-3xl font-bold mb-4">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-4">
           {result?.isNewRecord && score > 0
             ? '🎉 Nouveau Record !'
             : score === 0
@@ -79,14 +79,14 @@ export default function ResultsScreen({
         {result && (
           <>
             {/* Score avec animation si record */}
-            <div className={`text-6xl font-bold mb-4 ${
+            <div className={`text-5xl sm:text-6xl font-bold mb-4 ${
               result.isNewRecord && score > 0 ? 'text-green-500 animate-bounce' : 'text-blue-500'
             }`}>
               {result.savedScore}
             </div>
 
             {/* Message détaillé */}
-            <div className="text-xl mb-4">
+            <div className="text-lg sm:text-xl mb-4">
               {result.isNewRecord && result.savedScore > 0 ? (
                 <div className="space-y-2">
                   <div className="text-green-500 font-bold">
@@ -130,13 +130,13 @@ export default function ResultsScreen({
         <div className="flex flex-col gap-3 mt-6">
           <button
             onClick={onPlayAgain}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-bold"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition-all font-bold shadow-lg hover:shadow-xl"
           >
             Rejouer
           </button>
           <button
             onClick={onViewLeaderboard}
-            className="bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-lg transition-colors font-bold"
+            className="bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-xl transition-all font-bold shadow-lg hover:shadow-xl"
           >
             Voir le classement
           </button>

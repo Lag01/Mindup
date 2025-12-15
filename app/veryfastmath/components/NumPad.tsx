@@ -161,7 +161,7 @@ function NumPad({ onInput, onDelete, userAnswer }: NumPadProps) {
               handleButtonPress(key);
             }}
             className={`
-              h-16 md:h-20 rounded-lg font-bold text-xl md:text-2xl
+              h-16 md:h-20 rounded-xl font-bold text-xl md:text-2xl shadow-lg
               select-none
               [-webkit-tap-highlight-color:transparent]
               transition-all duration-50
