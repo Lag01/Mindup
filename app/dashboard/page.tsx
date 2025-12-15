@@ -6,23 +6,34 @@ import EditDeckNameModal from '@/components/EditDeckNameModal';
 import CreateDeckModal from '@/components/CreateDeckModal';
 import { DeckWithStats } from '@/lib/types';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useUser } from '@/hooks/useUser';
 
 export default function Dashboard() {
   const [decks, setDecks] = useState<DeckWithStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const [resettingStats, setResettingStats] = useState<string | null>(null);
-  const [editingDeck, setEditingDeck] = useState<{ id: string; name: string } | null>(null);
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isCreatingDeck, setIsCreatingDeck] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Regroupement des états UI pour réduire les re-renders
+  const [uiState, setUIState] = useState({
+    isCreatingDeck: false,
+    isMobileMenuOpen: false,
+    openDropdown: null as string | null,
+    editingDeck: null as { id: string; name: string } | null,
+  });
+
+  // Regroupement des états d'opérations en cours
+  const [operations, setOperations] = useState({
+    deleting: null as string | null,
+    resettingStats: null as string | null,
+  });
+
   const router = useRouter();
+
+  // Utiliser le hook useUser au lieu de fetchUser() - élimine le double fetch
+  const { isAdmin } = useUser();
 
   useEffect(() => {
     fetchDecks();
-    fetchUser();
   }, []);
 
   const fetchDecks = async () => {
@@ -44,18 +55,6 @@ export default function Dashboard() {
     }
   };
 
-  const fetchUser = async () => {
-    try {
-      const response = await fetch('/api/auth/me');
-      if (response.ok) {
-        const data = await response.json();
-        setIsAdmin(data.user?.isAdmin || false);
-      }
-    } catch (error) {
-      console.error('Error fetching user:', error);
-    }
-  };
-
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
@@ -70,7 +69,7 @@ export default function Dashboard() {
       return;
     }
 
-    setDeleting(deckId);
+    setOperations(prev => ({ ...prev, deleting: deckId }));
     try {
       const response = await fetch(`/api/decks?id=${deckId}`, {
         method: 'DELETE',
@@ -85,7 +84,7 @@ export default function Dashboard() {
       console.error('Error deleting deck:', error);
       alert('Erreur lors de la suppression du deck');
     } finally {
-      setDeleting(null);
+      setOperations(prev => ({ ...prev, deleting: null }));
     }
   };
 
@@ -139,7 +138,7 @@ export default function Dashboard() {
       return;
     }
 
-    setResettingStats(deckId);
+    setOperations(prev => ({ ...prev, resettingStats: deckId }));
     try {
       const response = await fetch(`/api/decks/${deckId}/reset-stats`, {
         method: 'POST',
@@ -154,7 +153,7 @@ export default function Dashboard() {
       console.error('Error resetting stats:', error);
       alert('Erreur lors de la réinitialisation des statistiques');
     } finally {
-      setResettingStats(null);
+      setOperations(prev => ({ ...prev, resettingStats: null }));
     }
   };
 
@@ -208,7 +207,7 @@ export default function Dashboard() {
                 Défis VeryFastMath
               </button>
               <button
-                onClick={() => setIsCreatingDeck(true)}
+                onClick={() => setUIState(prev => ({ ...prev, isCreatingDeck: true }))}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
               >
                 <span className="text-lg">+</span> Créer un deck
@@ -237,11 +236,11 @@ export default function Dashboard() {
 
             {/* Bouton burger (mobile uniquement) */}
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              onClick={() => setUIState(prev => ({ ...prev, isMobileMenuOpen: !prev.isMobileMenuOpen }))}
               className="md:hidden p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {isMobileMenuOpen ? (
+                {uiState.isMobileMenuOpen ? (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 ) : (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -251,12 +250,12 @@ export default function Dashboard() {
           </div>
 
           {/* Menu déroulant mobile */}
-          {isMobileMenuOpen && (
+          {uiState.isMobileMenuOpen && (
             <div className="md:hidden mb-4 bg-zinc-800 rounded-lg p-3 flex flex-col gap-2">
               <button
                 onClick={() => {
                   router.push('/public-decks');
-                  setIsMobileMenuOpen(false);
+                  setUIState(prev => ({ ...prev, isMobileMenuOpen: false }));
                 }}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
               >
@@ -265,7 +264,7 @@ export default function Dashboard() {
               <button
                 onClick={() => {
                   router.push('/leaderboard');
-                  setIsMobileMenuOpen(false);
+                  setUIState(prev => ({ ...prev, isMobileMenuOpen: false }));
                 }}
                 className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
               >
@@ -274,7 +273,7 @@ export default function Dashboard() {
               <button
                 onClick={() => {
                   router.push('/veryfastmath');
-                  setIsMobileMenuOpen(false);
+                  setUIState(prev => ({ ...prev, isMobileMenuOpen: false }));
                 }}
                 className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
               >
@@ -283,7 +282,7 @@ export default function Dashboard() {
               <button
                 onClick={() => {
                   setIsCreatingDeck(true);
-                  setIsMobileMenuOpen(false);
+                  setUIState(prev => ({ ...prev, isMobileMenuOpen: false }));
                 }}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
               >
@@ -292,7 +291,7 @@ export default function Dashboard() {
               <button
                 onClick={() => {
                   router.push('/import');
-                  setIsMobileMenuOpen(false);
+                  setUIState(prev => ({ ...prev, isMobileMenuOpen: false }));
                 }}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
               >
@@ -302,7 +301,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => {
                     router.push('/admin');
-                    setIsMobileMenuOpen(false);
+                    setUIState(prev => ({ ...prev, isMobileMenuOpen: false }));
                   }}
                   className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
                 >
@@ -312,7 +311,7 @@ export default function Dashboard() {
               <button
                 onClick={() => {
                   handleLogout();
-                  setIsMobileMenuOpen(false);
+                  setUIState(prev => ({ ...prev, isMobileMenuOpen: false }));
                 }}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm text-left"
               >
@@ -359,7 +358,7 @@ export default function Dashboard() {
             </p>
             <div className="flex gap-3 justify-center">
               <button
-                onClick={() => setIsCreatingDeck(true)}
+                onClick={() => setUIState(prev => ({ ...prev, isCreatingDeck: true }))}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
               >
                 Créer un deck vide
@@ -419,7 +418,7 @@ export default function Dashboard() {
                   {/* Menu dropdown */}
                   <div className="relative">
                     <button
-                      onClick={() => setOpenDropdown(openDropdown === deck.id ? null : deck.id)}
+                      onClick={() => setUIState(prev => ({ ...prev, openDropdown: prev.openDropdown === deck.id ? null : deck.id }))}
                       className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
                       aria-label="Menu d'actions"
                     >
@@ -433,18 +432,18 @@ export default function Dashboard() {
                     </button>
 
                     {/* Dropdown menu */}
-                    {openDropdown === deck.id && (
+                    {uiState.openDropdown === deck.id && (
                       <>
                         {/* Overlay pour fermer le dropdown */}
                         <div
                           className="fixed inset-0 z-10"
-                          onClick={() => setOpenDropdown(null)}
+                          onClick={() => setUIState(prev => ({ ...prev, openDropdown: null }))}
                         />
                         <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl z-20 overflow-hidden">
                           <button
                             onClick={() => {
                               router.push(`/deck/${deck.id}/review?mode=study`);
-                              setOpenDropdown(null);
+                              setUIState(prev => ({ ...prev, openDropdown: null }));
                             }}
                             className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-zinc-700 transition-colors flex items-center gap-2"
                           >
@@ -456,7 +455,7 @@ export default function Dashboard() {
                           <button
                             onClick={() => {
                               router.push(`/deck/${deck.id}/stats`);
-                              setOpenDropdown(null);
+                              setUIState(prev => ({ ...prev, openDropdown: null }));
                             }}
                             className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-zinc-700 transition-colors flex items-center gap-2"
                           >
@@ -468,21 +467,21 @@ export default function Dashboard() {
                           <button
                             onClick={() => {
                               handleResetStats(deck.id);
-                              setOpenDropdown(null);
+                              setUIState(prev => ({ ...prev, openDropdown: null }));
                             }}
-                            disabled={resettingStats === deck.id}
+                            disabled={operations.resettingStats === deck.id}
                             className="w-full text-left px-4 py-3 text-orange-400 hover:bg-orange-900/30 transition-colors disabled:opacity-50 flex items-center gap-2"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
-                            {resettingStats === deck.id ? 'Réinitialisation...' : 'Réinitialiser les stats'}
+                            {operations.resettingStats === deck.id ? 'Réinitialisation...' : 'Réinitialiser les stats'}
                           </button>
                           {!deck.isImported && (
                             <button
                               onClick={() => {
                                 router.push(`/deck/${deck.id}/add`);
-                                setOpenDropdown(null);
+                                setUIState(prev => ({ ...prev, openDropdown: null }));
                               }}
                               className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-zinc-700 transition-colors flex items-center gap-2"
                             >
@@ -495,8 +494,8 @@ export default function Dashboard() {
                           {!deck.isImported && (
                             <button
                               onClick={() => {
-                                setEditingDeck({ id: deck.id, name: deck.name });
-                                setOpenDropdown(null);
+                                setUIState(prev => ({ ...prev, editingDeck: { id: deck.id, name: deck.name } }));
+                                setUIState(prev => ({ ...prev, openDropdown: null }));
                               }}
                               className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-zinc-700 transition-colors flex items-center gap-2"
                             >
@@ -510,7 +509,7 @@ export default function Dashboard() {
                           <button
                             onClick={() => {
                               handleExport(deck.id, 'xml');
-                              setOpenDropdown(null);
+                              setUIState(prev => ({ ...prev, openDropdown: null }));
                             }}
                             className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-zinc-700 transition-colors flex items-center gap-2"
                           >
@@ -522,7 +521,7 @@ export default function Dashboard() {
                           <button
                             onClick={() => {
                               handleExport(deck.id, 'csv');
-                              setOpenDropdown(null);
+                              setUIState(prev => ({ ...prev, openDropdown: null }));
                             }}
                             className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-zinc-700 transition-colors flex items-center gap-2"
                           >
@@ -535,15 +534,15 @@ export default function Dashboard() {
                           <button
                             onClick={() => {
                               handleDelete(deck.id);
-                              setOpenDropdown(null);
+                              setUIState(prev => ({ ...prev, openDropdown: null }));
                             }}
-                            disabled={deleting === deck.id}
+                            disabled={operations.deleting === deck.id}
                             className="w-full text-left px-4 py-3 text-red-400 hover:bg-red-900/30 transition-colors disabled:opacity-50 flex items-center gap-2"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
-                            {deleting === deck.id
+                            {operations.deleting === deck.id
                               ? (deck.isImported ? 'Retrait...' : 'Suppression...')
                               : (deck.isImported ? 'Retirer le deck' : 'Supprimer')}
                           </button>
@@ -580,23 +579,23 @@ export default function Dashboard() {
         )}
 
         {/* Edit Deck Name Modal */}
-        {editingDeck && (
+        {uiState.editingDeck && (
           <EditDeckNameModal
             isOpen={true}
-            deckId={editingDeck.id}
-            currentName={editingDeck.name}
-            onClose={() => setEditingDeck(null)}
+            deckId={uiState.editingDeck.id}
+            currentName={uiState.editingDeck.name}
+            onClose={() => setUIState(prev => ({ ...prev, editingDeck: null }))}
             onSuccess={(newName) => {
-              handleRenameSuccess(editingDeck.id, newName);
-              setEditingDeck(null);
+              handleRenameSuccess(uiState.editingDeck!.id, newName);
+              setUIState(prev => ({ ...prev, editingDeck: null }));
             }}
           />
         )}
 
         {/* Create Deck Modal */}
         <CreateDeckModal
-          isOpen={isCreatingDeck}
-          onClose={() => setIsCreatingDeck(false)}
+          isOpen={uiState.isCreatingDeck}
+          onClose={() => setUIState(prev => ({ ...prev, isCreatingDeck: false }))}
           onSuccess={handleCreateSuccess}
         />
       </main>

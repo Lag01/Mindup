@@ -1,5 +1,10 @@
 import { useState, useCallback } from 'react';
 
+// Cache global pour les requêtes GET
+// Clé: URL → Valeur: { data, timestamp }
+const cache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 interface UseFetchOptions<T> {
   onSuccess?: (data: T) => void;
   onError?: (error: Error) => void;
@@ -52,6 +57,26 @@ export function useFetch<T = unknown>(
 
   const execute = useCallback(
     async (url: string, fetchOptions?: RequestInit): Promise<T | null> => {
+      const method = fetchOptions?.method?.toUpperCase() || 'GET';
+
+      // Vérifier le cache pour les requêtes GET uniquement
+      if (method === 'GET') {
+        const cached = cache.get(url);
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+          // Cache hit - retourner les données sans fetch
+          setData(cached.data);
+          setLoading(false);
+          setError(null);
+
+          // Callback de succès avec données cachées
+          if (onSuccess) {
+            onSuccess(cached.data);
+          }
+
+          return cached.data;
+        }
+      }
+
       setLoading(true);
       setError(null);
 
@@ -69,6 +94,11 @@ export function useFetch<T = unknown>(
         // Parser la réponse JSON
         const result = await response.json();
         setData(result);
+
+        // Mettre en cache si requête GET
+        if (method === 'GET') {
+          cache.set(url, { data: result, timestamp: Date.now() });
+        }
 
         // Callback de succès
         if (onSuccess) {

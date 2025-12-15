@@ -73,9 +73,12 @@ export default function AddCards() {
     }
   }, [loading]);
 
-  // Raccourcis clavier
+  // Raccourcis clavier - Optimisé pour éviter re-création du listener
+  const handleKeyboardRef = useRef<(e: KeyboardEvent) => void>();
+
+  // Mettre à jour la référence à chaque rendu (capture les dernières valeurs)
   useEffect(() => {
-    const handleKeyboard = (e: KeyboardEvent) => {
+    handleKeyboardRef.current = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
         createAndContinue();
@@ -85,10 +88,14 @@ export default function AddCards() {
         resetForm();
       }
     };
+  });
 
-    window.addEventListener('keydown', handleKeyboard);
-    return () => window.removeEventListener('keydown', handleKeyboard);
-  }, [cardForm, saving]);
+  // Créer le listener UNE SEULE FOIS
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => handleKeyboardRef.current?.(e);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []); // ✅ Dépendances vides = listener créé une seule fois
 
   // Afficher un toast temporaire
   const showToastMessage = useCallback((message: string) => {
