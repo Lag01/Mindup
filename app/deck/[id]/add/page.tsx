@@ -74,7 +74,7 @@ export default function AddCards() {
   }, [loading]);
 
   // Raccourcis clavier - Optimisé pour éviter re-création du listener
-  const handleKeyboardRef = useRef<(e: KeyboardEvent) => void>();
+  const handleKeyboardRef = useRef<((e: KeyboardEvent) => void) | null>(null);
 
   // Mettre à jour la référence à chaque rendu (capture les dernières valeurs)
   useEffect(() => {
