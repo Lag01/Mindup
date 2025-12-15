@@ -281,8 +281,7 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={() => {
-                  setIsCreatingDeck(true);
-                  setUIState(prev => ({ ...prev, isMobileMenuOpen: false }));
+                  setUIState(prev => ({ ...prev, isCreatingDeck: true, isMobileMenuOpen: false }));
                 }}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
               >
