@@ -4,6 +4,7 @@ import { unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join, basename, resolve } from 'path';
 import { requireAdmin } from '@/lib/auth';
+import { validateImageUrl } from '@/lib/security';
 
 const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'cards');
 
@@ -32,8 +33,13 @@ export async function DELETE(request: NextRequest) {
 
     // Vérifier si c'est une URL Vercel Blob ou un chemin local
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      // URL externe - vérifier HTTPS (recommandé mais pas bloquant pour suppression)
+      if (!validateImageUrl(imagePath)) {
+        console.warn('[Delete] ⚠️  Image non-HTTPS ou domaine non autorisé:', imagePath.substring(0, 50));
+      }
+
       // URL Vercel Blob - utiliser la fonction del
-      console.log('[Delete] Suppression depuis Vercel Blob:', imagePath);
+      console.log('[Delete] Suppression depuis Vercel Blob');
       await del(imagePath);
       console.log('[Delete] Fichier supprimé avec succès de Vercel Blob');
     } else if (imagePath.startsWith('/uploads/cards/')) {

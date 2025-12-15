@@ -12,12 +12,15 @@ import {
   markOrphanAsDeleted
 } from '@/lib/image-cleanup';
 import { prisma } from '@/lib/prisma';
+import { verifyBearerToken } from '@/lib/security';
 
 export async function GET(request: NextRequest) {
   try {
-    // Vérifier l'authentification Vercel Cron (sécurité)
+    // Vérifier l'authentification Vercel Cron (sécurité renforcée anti timing-attack)
     const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const isAuthorized = verifyBearerToken(authHeader, process.env.CRON_SECRET);
+
+    if (!isAuthorized) {
       console.error('[CRON] Tentative d\'accès non autorisée à la tâche de nettoyage');
       return NextResponse.json(
         { error: 'Non autorisé' },
@@ -49,7 +52,7 @@ export async function GET(request: NextRequest) {
     // Traiter chaque image
     for (const orphanedImage of orphanedImages) {
       try {
-        console.log(`[CRON] Tentative ${orphanedImage.retryCount + 1}/3 pour: ${orphanedImage.imagePath}`);
+        console.log(`[CRON] Tentative ${orphanedImage.retryCount + 1}/3 pour image ID: ${orphanedImage.id}`);
 
         // Tenter de supprimer l'image
         const success = await deleteImageAsync(orphanedImage.imagePath);
@@ -58,7 +61,7 @@ export async function GET(request: NextRequest) {
           // Suppression réussie, retirer de la queue
           await markOrphanAsDeleted(orphanedImage.imagePath);
           deleted++;
-          console.log(`[CRON] ✅ Image supprimée avec succès: ${orphanedImage.imagePath}`);
+          console.log(`[CRON] ✅ Image ID ${orphanedImage.id} supprimée avec succès`);
         } else {
           // Échec, incrémenter le compteur
           await prisma.orphanedImage.update({
@@ -71,14 +74,14 @@ export async function GET(request: NextRequest) {
             }
           });
           failed++;
-          console.log(`[CRON] ❌ Échec de suppression: ${orphanedImage.imagePath}`);
+          console.log(`[CRON] ❌ Échec de suppression pour image ID: ${orphanedImage.id}`);
         }
 
         // Petit délai entre les suppressions pour ne pas surcharger
         await new Promise(resolve => setTimeout(resolve, 100));
 
       } catch (error) {
-        console.error(`[CRON] Erreur lors du traitement de ${orphanedImage.imagePath}:`, error);
+        console.error(`[CRON] Erreur lors du traitement de l'image ID ${orphanedImage.id}:`, error);
 
         // Incrémenter le compteur d'erreur
         try {
@@ -113,7 +116,7 @@ export async function GET(request: NextRequest) {
 
       // Garder une trace dans les logs avant suppression
       for (const img of abandonedImages) {
-        console.warn(`[CRON] Image abandonnée: ${img.imagePath} - Dernière erreur: ${img.lastError}`);
+        console.warn(`[CRON] Image ID ${img.id} abandonnée - Dernière erreur: ${img.lastError}`);
       }
 
       // Supprimer les entrées abandonnées de la queue

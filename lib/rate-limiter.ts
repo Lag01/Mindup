@@ -89,14 +89,14 @@ export default rateLimiter;
 
 // Configuration des limites par type d'endpoint
 export const RATE_LIMITS = {
-  // Authentification : limites strictes
+  // Authentification : limites strictes renforcées
   LOGIN: {
-    maxRequests: 5,
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    maxRequests: 3,        // 5 → 3 (réduit attaques par dictionnaire)
+    windowMs: 30 * 60 * 1000, // 15min → 30min (fenêtre élargie)
   },
   SIGNUP: {
-    maxRequests: 3,
-    windowMs: 60 * 60 * 1000, // 1 heure
+    maxRequests: 2,        // 3 → 2 (limite créations de comptes)
+    windowMs: 60 * 60 * 1000, // 1 heure (maintenu)
   },
   // API : limites plus souples
   REVIEW: {
@@ -119,23 +119,29 @@ export const RATE_LIMITS = {
 };
 
 /**
- * Extrait l'adresse IP d'une requête
+ * Extrait l'adresse IP d'une requête de manière sécurisée
  * Supporte les headers x-forwarded-for (proxy/load balancer)
+ *
+ * Note : Sur Vercel, x-real-ip est fourni de manière fiable et contient l'IP
+ * réelle du client. En cas d'absence, on utilise x-forwarded-for en prenant
+ * la DERNIÈRE IP de la chaîne (celle du client, pas du proxy).
  */
 export function getClientIp(request: Request): string {
-  // Vérifier les headers de proxy
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    // Prendre la première IP de la liste
-    return forwardedFor.split(',')[0].trim();
-  }
-
+  // Vercel fournit x-real-ip de manière fiable
   const realIp = request.headers.get('x-real-ip');
   if (realIp) {
     return realIp;
   }
 
-  // Fallback (ne devrait pas arriver en production)
+  // Fallback sur x-forwarded-for
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    const ips = forwardedFor.split(',').map(ip => ip.trim());
+    // Prendre la DERNIÈRE IP (client réel, pas le proxy)
+    return ips[ips.length - 1];
+  }
+
+  // Fallback ultime (ne devrait pas arriver en production)
   return 'unknown';
 }
 
