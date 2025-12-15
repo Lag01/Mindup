@@ -11,6 +11,10 @@ interface MathTextProps {
   maxHeight?: number;
 }
 
+// Cache global pour les tailles de police calculées
+// Clé: "text_contentType_maxHeight" → Valeur: fontSize
+const fontSizeCache = new Map<string, number>();
+
 function MathText({
   text,
   contentType,
@@ -72,7 +76,26 @@ function MathText({
     const adjustFontSize = () => {
       if (!containerRef.current || !autoResize) return;
 
-      // Start with a reasonable font size
+      // Générer clé de cache basée sur le contenu
+      const cacheKey = `${text.substring(0, 100)}_${contentType}_${maxHeight}`;
+
+      // Vérifier si la taille est déjà en cache
+      const cachedSize = fontSizeCache.get(cacheKey);
+      if (cachedSize !== undefined) {
+        // Utiliser la taille en cache - évite la recherche binaire !
+        containerRef.current.style.fontSize = `${cachedSize}px`;
+        setFontSize(cachedSize);
+        renderContent();
+
+        // Vérifier si le contenu déborde
+        const finalScrollHeight = containerRef.current.scrollHeight;
+        const finalScrollWidth = containerRef.current.scrollWidth;
+        const finalClientWidth = containerRef.current.clientWidth;
+        setNeedsScroll(finalScrollHeight > maxHeight || finalScrollWidth > finalClientWidth);
+        return;
+      }
+
+      // Pas en cache : effectuer la recherche binaire
       let currentSize = 14;
       const minSize = 11;
       const maxSize = 20;
@@ -107,6 +130,9 @@ function MathText({
 
         iteration++;
       }
+
+      // Mettre en cache la taille calculée
+      fontSizeCache.set(cacheKey, bestSize);
 
       setFontSize(bestSize);
       containerRef.current.style.fontSize = `${bestSize}px`;
