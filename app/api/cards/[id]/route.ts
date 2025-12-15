@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { syncImportedDecks } from '@/lib/sync-decks';
 import { deleteImagesAsync } from '@/lib/image-cleanup';
+import { validateImageUrl } from '@/lib/security';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -41,27 +42,25 @@ export async function PATCH(
       );
     }
 
-    // Validation des chemins d'images (accepter URLs locales et Vercel Blob)
+    // Validation des chemins d'images (HTTPS uniquement pour URLs externes)
     if (frontImage !== undefined && frontImage !== null) {
-      const isValidPath =
-        frontImage.startsWith('/uploads/cards/') ||
-        frontImage.startsWith('https://') ||
-        frontImage.startsWith('http://');
-      if (!isValidPath) {
+      const isLocalPath = frontImage.startsWith('/uploads/cards/');
+      const isValidUrl = validateImageUrl(frontImage);
+
+      if (!isLocalPath && !isValidUrl) {
         return NextResponse.json(
-          { error: 'Chemin image recto invalide' },
+          { error: 'Chemin image recto invalide (HTTPS requis pour URLs externes)' },
           { status: 400 }
         );
       }
     }
     if (backImage !== undefined && backImage !== null) {
-      const isValidPath =
-        backImage.startsWith('/uploads/cards/') ||
-        backImage.startsWith('https://') ||
-        backImage.startsWith('http://');
-      if (!isValidPath) {
+      const isLocalPath = backImage.startsWith('/uploads/cards/');
+      const isValidUrl = validateImageUrl(backImage);
+
+      if (!isLocalPath && !isValidUrl) {
         return NextResponse.json(
-          { error: 'Chemin image verso invalide' },
+          { error: 'Chemin image verso invalide (HTTPS requis pour URLs externes)' },
           { status: 400 }
         );
       }
