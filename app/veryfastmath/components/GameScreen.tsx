@@ -149,13 +149,13 @@ export default function GameScreen({ mode, onGameEnd }: GameScreenProps) {
     <div className="flex flex-col min-h-screen">
       {/* Opération - flex-grow pour occuper l'espace disponible */}
       <div className="flex-grow flex items-center justify-center">
-        <div className="text-4xl md:text-6xl font-bold">
+        <div className="text-3xl sm:text-4xl md:text-6xl font-bold">
           {currentOp.num1} {currentOp.operator} {currentOp.num2} = ?
         </div>
       </div>
 
       {/* Timer et score */}
-      <div className="py-4 flex justify-around text-xl md:text-2xl">
+      <div className="py-4 flex justify-around text-lg sm:text-xl md:text-2xl">
         <div className={timeRemaining <= 10 ? 'text-red-500 font-bold' : ''}>
           Temps : {timeRemaining}s
         </div>
@@ -164,7 +164,7 @@ export default function GameScreen({ mode, onGameEnd }: GameScreenProps) {
 
       {/* Réponse en cours */}
       <div className="py-6 text-center">
-        <div className="text-3xl min-h-[60px] bg-zinc-800 rounded-lg p-4 max-w-sm mx-auto flex items-center justify-center">
+        <div className="text-2xl sm:text-3xl min-h-[60px] bg-zinc-800 rounded-xl p-4 max-w-sm mx-auto flex items-center justify-center border border-zinc-700 shadow-lg">
           {userAnswer || <span className="text-zinc-600">...</span>}
         </div>
       </div>

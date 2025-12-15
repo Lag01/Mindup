@@ -82,7 +82,7 @@ export default function VeryFastMathPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-zinc-950 text-white">
       {/* Header visible uniquement en mode sélection et résultats */}
       {(screen === 'selection' || screen === 'finished') && (
         <header className="bg-zinc-900 border-b border-zinc-800">

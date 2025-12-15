@@ -26,7 +26,7 @@ export default function CountdownScreen({ onCountdownEnd }: CountdownScreenProps
 
   return (
     <div className="flex items-center justify-center h-[70vh]">
-      <div className="text-9xl font-bold text-blue-500 animate-pulse">
+      <div className="text-7xl sm:text-9xl font-bold text-blue-500 animate-pulse">
         {count > 0 ? count : 'GO !'}
       </div>
     </div>

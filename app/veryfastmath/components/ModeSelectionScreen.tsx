@@ -25,22 +25,22 @@ export default function ModeSelectionScreen({
 
   return (
     <div className="text-center">
-      <h2 className="text-3xl font-bold mb-4">Choisissez votre mode</h2>
-      <p className="text-zinc-400 mb-8">
+      <h2 className="text-2xl sm:text-3xl font-bold mb-4">Choisissez votre mode</h2>
+      <p className="text-sm sm:text-base text-zinc-400 mb-8">
         Vous avez 1 minute pour résoudre un maximum d'opérations !
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
         {modes.map(({ mode, label, color, emoji }) => (
           <button
             key={mode}
             onClick={() => onSelectMode(mode)}
-            className={`${color} text-white p-6 rounded-lg transition-colors font-bold text-xl relative`}
+            className={`${color} text-white p-6 rounded-xl border-2 border-zinc-700 transition-all font-bold text-xl relative shadow-lg hover:shadow-xl hover:border-zinc-600`}
           >
-            <div className="text-4xl mb-2">{emoji}</div>
-            <div>{label}</div>
+            <div className="text-5xl sm:text-6xl mb-3">{emoji}</div>
+            <div className="text-lg sm:text-xl">{label}</div>
             {bestScores[mode] !== null && (
-              <div className="text-sm font-normal mt-2 opacity-90">
+              <div className="text-xs sm:text-sm font-normal mt-2 opacity-90">
                 Meilleur score : {bestScores[mode]}
               </div>
             )}
