@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, memo } from 'react';
+import { flushSync } from 'react-dom';
 
 interface NumPadProps {
   onInput: (digit: string) => void;
@@ -48,9 +49,13 @@ function NumPad({ onInput, onDelete, userAnswer }: NumPadProps) {
 
     // Traiter l'input
     if (key === 'delete') {
-      onDelete();
+      flushSync(() => {
+        onDelete();
+      });
     } else {
-      onInput(key);
+      flushSync(() => {
+        onInput(key);
+      });
     }
   }, [onInput, onDelete]);
 
