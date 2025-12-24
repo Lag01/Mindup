@@ -330,18 +330,12 @@ export default function EditDeck() {
     }, 100);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-foreground text-lg">Chargement...</div>
-      </div>
-    );
-  }
-
   // Debounce de la recherche pour éviter les recalculs trop fréquents
+  // ✅ Hook déplacé AVANT le return conditionnel pour respecter les Rules of Hooks
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // Mémoriser le filtrage pour éviter les recalculs inutiles
+  // ✅ Hook déplacé AVANT le return conditionnel pour respecter les Rules of Hooks
   const filteredCards = useMemo(() => {
     if (!deck) return [];
     if (!debouncedSearchQuery.trim()) {
@@ -353,6 +347,14 @@ export default function EditDeck() {
       card.back.toLowerCase().includes(query)
     );
   }, [deck, debouncedSearchQuery]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-foreground text-lg">Chargement...</div>
+      </div>
+    );
+  }
 
   if (!deck) {
     return (
