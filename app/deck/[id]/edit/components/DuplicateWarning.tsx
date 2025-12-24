@@ -11,11 +11,13 @@ interface DuplicateWarningProps {
  * Affiche un résumé collapsible avec possibilité de rechercher chaque doublon
  */
 export function DuplicateWarning({ duplicates, onSearchDuplicate }: DuplicateWarningProps) {
-  const [showDetails, setShowDetails] = useState(false);
-
+  // Retour précoce AVANT les hooks pour respecter les Rules of Hooks de React
   if (duplicates.length === 0) {
     return null;
   }
+
+  // Hook appelé seulement si le composant sera effectivement rendu
+  const [showDetails, setShowDetails] = useState(false);
 
   const uniqueCardsCount = new Set(duplicates.flatMap(d => d.locations.map(l => l.cardId))).size;
 
