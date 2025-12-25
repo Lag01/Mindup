@@ -53,7 +53,7 @@ export function isValidImageUrl(url: string | null | undefined): boolean {
 
     // Fallback: extraction classique pour URLs sans suffixe
     const ext = pathname.split('.').pop();
-    const isValidExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '');
+    const isValidExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'blob'].includes(ext || '');
 
     if (!isValidExt) {
       console.error('[Validate Image URL] Rejeté: Extension invalide:', ext, 'pathname:', pathname);
