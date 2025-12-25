@@ -141,11 +141,27 @@ export async function POST(
     }
 
     // Validation stricte des URLs d'images
+    // Log pour débogage
+    if (frontImage) {
+      console.log('[Create Card] Validation image recto:', {
+        url: frontImage,
+        isValid: isValidImageUrl(frontImage)
+      });
+    }
+
     if (frontImage && !isValidImageUrl(frontImage)) {
       return NextResponse.json(
         { error: 'URL d\'image recto invalide ou domaine non autorisé' },
         { status: 400 }
       );
+    }
+
+    // Log pour débogage
+    if (backImage) {
+      console.log('[Create Card] Validation image verso:', {
+        url: backImage,
+        isValid: isValidImageUrl(backImage)
+      });
     }
 
     if (backImage && !isValidImageUrl(backImage)) {
@@ -156,8 +172,17 @@ export async function POST(
     }
 
     // Validation du contenu (longueur et LaTeX)
+    // Log pour débogage
+    console.log('[Create Card] Validation contenu:', {
+      frontLength: (front || '').length,
+      backLength: (back || '').length,
+      frontType,
+      backType
+    });
+
     const contentValidation = validateCardContent(front || '', back || '', frontType, backType);
     if (!contentValidation.valid) {
+      console.error('[Create Card] Validation échouée:', contentValidation.error);
       return NextResponse.json(
         { error: contentValidation.error },
         { status: 400 }

@@ -305,14 +305,31 @@ export default function AddCards() {
         body: JSON.stringify(oldCardForm),
       });
 
-      if (!response.ok) throw new Error('Failed to create card');
+      if (!response.ok) {
+        // Lire le message d'erreur réel de l'API
+        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+        const errorMessage = errorData.error || 'Erreur lors de la création';
+
+        // Logger l'erreur complète pour débogage
+        console.error('[Add Card] API Error:', {
+          status: response.status,
+          message: errorMessage,
+          cardForm: oldCardForm,
+          url: `/api/decks/${deckId}/cards`
+        });
+
+        throw new Error(errorMessage);
+      }
     } catch (error) {
       console.error('Error creating card:', error);
+
+      // Afficher le message d'erreur réel
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la création';
 
       // Rollback en cas d'erreur
       setCardsCreated(oldCardsCreated);
       setCardForm(oldCardForm);
-      showToastMessage('❌ Erreur lors de la création');
+      showToastMessage(`❌ ${errorMessage}`);
     }
   }, [cardForm, cardsCreated, deckId, resetForm, showToastMessage,
       showFrontText, showFrontLatex, showFrontImage,
