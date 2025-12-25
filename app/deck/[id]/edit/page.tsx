@@ -1,18 +1,19 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/hooks/useUser';
 import { useDuplicateDetection } from '@/hooks/useDuplicateDetection';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useDebounce } from '@/hooks/useDebounce';
-import { DeckWithCards, CardFormData, FieldsVisibility, ContentType } from '@/lib/types';
+import { DeckWithCards, CardFormData, FieldsVisibility, ContentType, PaginationMeta, DeckCardsApiResponse } from '@/lib/types';
 import { SearchBar } from './components/SearchBar';
 import { DuplicateWarning } from './components/DuplicateWarning';
 import { BulkActions } from './components/BulkActions';
 import { CardEditor } from './components/CardEditor';
 import { CardListItem } from './components/CardListItem';
+import { LoadMoreButton } from './components/LoadMoreButton';
 
 export default function EditDeck() {
   const params = useParams();
@@ -22,6 +23,9 @@ export default function EditDeck() {
 
   // État principal
   const [deck, setDeck] = useState<DeckWithCards | null>(null);
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingCard, setEditingCard] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -70,9 +74,17 @@ export default function EditDeck() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const fetchDeck = async () => {
+  const fetchDeck = async (page: number = 1, append: boolean = false) => {
     try {
-      const response = await fetch(`/api/decks/${deckId}/cards`);
+      // Loading différencié : global pour page 1, local pour "Charger plus"
+      if (!append) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const response = await fetch(`/api/decks/${deckId}/cards?page=${page}&limit=50`);
+
       if (!response.ok) {
         if (response.status === 401) {
           router.push('/');
@@ -80,7 +92,8 @@ export default function EditDeck() {
         }
         throw new Error('Failed to fetch deck');
       }
-      const data = await response.json();
+
+      const data: DeckCardsApiResponse = await response.json();
 
       // Bloquer l'accès si le deck est importé
       if (data.deck.originalDeckId) {
@@ -89,13 +102,38 @@ export default function EditDeck() {
         return;
       }
 
-      setDeck(data.deck);
+      // Accumuler les cartes si append = true, sinon remplacer
+      if (append && deck) {
+        setDeck(prev => ({
+          ...data.deck,
+          cards: [...(prev?.cards ?? []), ...data.deck.cards],
+        }));
+      } else {
+        setDeck(data.deck);
+      }
+
+      // Sauvegarder métadonnées pagination
+      setPaginationMeta(data.pagination);
+      setCurrentPage(page);
+
     } catch (error) {
       console.error('Error fetching deck:', error);
+      alert('Erreur lors du chargement des cartes');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
+
+  /**
+   * Charge la page suivante et ajoute les cartes à la liste
+   */
+  const loadMoreCards = useCallback(async () => {
+    if (!paginationMeta?.hasNextPage || loadingMore) return;
+
+    const nextPage = currentPage + 1;
+    await fetchDeck(nextPage, true); // append = true
+  }, [paginationMeta, currentPage, loadingMore, fetchDeck]);
 
   const startEdit = (cardId: string) => {
     const card = deck?.cards.find(c => c.id === cardId);
@@ -404,7 +442,7 @@ export default function EditDeck() {
         <div className="mb-6">
           <Link
             href={`/deck/${deckId}/add`}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-cyan-500 hover:bg-cyan-400 text-white font-medium py-4 px-6 rounded-lg shadow-lg shadow-cyan-500/20 transition-all duration-200 ease-out hover:-translate-y-0.5 flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -427,8 +465,9 @@ export default function EditDeck() {
             </button>
           </div>
         ) : (
-          <div className="space-y-3" data-cards-list>
-            {filteredCards.map((card, index) => {
+          <>
+            <div className="space-y-3" data-cards-list>
+              {filteredCards.map((card, index) => {
               // Vérifier si la carte est en doublon
               const isCardDuplicate = duplicates.some(d =>
                 d.locations.some(loc => loc.cardId === card.id)
@@ -471,8 +510,26 @@ export default function EditDeck() {
                   )}
                 </div>
               );
-            })}
-          </div>
+              })}
+            </div>
+
+            {/* Bouton "Charger plus" */}
+            {!debouncedSearchQuery.trim() && paginationMeta && paginationMeta.hasNextPage && (
+              <LoadMoreButton
+                loading={loadingMore}
+                disabled={loadingMore}
+                remainingCards={paginationMeta.totalCards - deck!.cards.length}
+                onClick={loadMoreCards}
+              />
+            )}
+
+            {/* Indicateur de progression */}
+            {!debouncedSearchQuery.trim() && paginationMeta && (
+              <div className="text-center py-4 text-zinc-400 text-sm">
+                {deck!.cards.length} / {paginationMeta.totalCards} cartes chargées
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -480,7 +537,7 @@ export default function EditDeck() {
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 rounded-full shadow-lg transition-all duration-300 z-50 flex items-center justify-center"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-cyan-500 hover:bg-cyan-400 text-white p-3 sm:p-4 rounded-full shadow-lg shadow-cyan-500/30 transition-all duration-200 ease-out hover:-translate-y-1 z-50 flex items-center justify-center"
           aria-label="Retour en haut"
         >
           <svg
