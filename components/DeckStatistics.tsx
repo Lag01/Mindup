@@ -133,7 +133,7 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
           label="Aujourd'hui"
           value={stats.reviewsToday}
           description="révisions"
-          colorClass="text-cyan-400"
+          colorClass="text-blue-400"
         />
       </div>
 
