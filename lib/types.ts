@@ -162,3 +162,23 @@ export interface FieldsVisibility {
   showLatex: boolean;
   showImage: boolean;
 }
+
+/**
+ * Métadonnées de pagination retournées par l'API
+ */
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  totalCards: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+/**
+ * Réponse API pour GET /api/decks/[id]/cards
+ */
+export interface DeckCardsApiResponse {
+  deck: DeckWithCards;
+  pagination: PaginationMeta;
+}
