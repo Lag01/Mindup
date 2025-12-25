@@ -38,7 +38,7 @@ export function CardListItem({
         <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
           <button
             onClick={onEdit}
-            className="bg-cyan-500 hover:bg-cyan-400 text-white font-medium px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg shadow-sm shadow-cyan-500/20 transition-all duration-200 ease-out text-xs sm:text-sm whitespace-nowrap"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap"
           >
             Modifier
           </button>

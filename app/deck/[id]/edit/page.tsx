@@ -442,7 +442,7 @@ export default function EditDeck() {
         <div className="mb-6">
           <Link
             href={`/deck/${deckId}/add`}
-            className="w-full bg-cyan-500 hover:bg-cyan-400 text-white font-medium py-4 px-6 rounded-lg shadow-lg shadow-cyan-500/20 transition-all duration-200 ease-out hover:-translate-y-0.5 flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -537,7 +537,7 @@ export default function EditDeck() {
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-cyan-500 hover:bg-cyan-400 text-white p-3 sm:p-4 rounded-full shadow-lg shadow-cyan-500/30 transition-all duration-200 ease-out hover:-translate-y-1 z-50 flex items-center justify-center"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 rounded-full shadow-lg transition-all duration-300 z-50 flex items-center justify-center"
           aria-label="Retour en haut"
         >
           <svg
