@@ -21,7 +21,7 @@ export function LoadMoreButton({
       <p className="text-zinc-300 text-sm">
         {remainingCards > 0 && (
           <span>
-            Encore <span className="font-semibold text-cyan-400">{remainingCards}</span> carte{remainingCards > 1 ? 's' : ''} à charger
+            Encore <span className="font-semibold text-blue-400">{remainingCards}</span> carte{remainingCards > 1 ? 's' : ''} à charger
           </span>
         )}
       </p>
@@ -32,11 +32,11 @@ export function LoadMoreButton({
         disabled={disabled || loading}
         className={`
           px-6 py-3 rounded-lg font-medium
-          transition-all duration-200 ease-out
+          transition-colors
           flex items-center gap-2
           ${disabled || loading
             ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50'
-            : 'bg-cyan-500 hover:bg-cyan-400 text-white shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:scale-98'
+            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg'
           }
         `}
       >
