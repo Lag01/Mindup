@@ -3,6 +3,7 @@ import "./globals.css";
 import 'katex/dist/katex.min.css';
 import RegisterServiceWorker from './register-sw';
 import { Providers } from '@/components/Providers';
+import SplashScreen from '@/components/SplashScreen';
 
 export const metadata: Metadata = {
   title: "Mindup - Révision",
@@ -38,10 +39,12 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <head>
+        <link rel="preload" href="/logo-animation.mp4" as="video" type="video/mp4" />
         <link rel="icon" href="/favicon.ico" type="image/x-icon" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className="antialiased">
+        <SplashScreen />
         <RegisterServiceWorker />
         <Providers>
           {children}
