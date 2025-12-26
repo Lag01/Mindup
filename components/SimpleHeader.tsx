@@ -25,11 +25,13 @@ export default function SimpleHeader({
         {/* Logo + Titre */}
         <div className="flex items-center gap-4">
           {showLogo && (
-            <Logo
-              variant="icon"
-              size={48}
-              onClick={() => router.push('/dashboard')}
-            />
+            <div className="hidden md:block">
+              <Logo
+                variant="icon"
+                size={48}
+                onClick={() => router.push('/dashboard')}
+              />
+            </div>
           )}
           <h1 className="text-2xl font-bold text-foreground">{title}</h1>
         </div>

@@ -239,7 +239,7 @@ export default function AdminDashboard() {
   };
 
   if (loading) {
-    return <LoadingAnimation fullScreen message="Chargement..." />;
+    return <LoadingAnimation fullScreen />;
   }
 
   return (

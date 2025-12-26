@@ -75,7 +75,7 @@ export default function PublicDecksPage() {
   );
 
   if (loading) {
-    return <LoadingAnimation fullScreen message="Chargement..." />;
+    return <LoadingAnimation fullScreen />;
   }
 
   return (

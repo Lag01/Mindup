@@ -77,7 +77,7 @@ export default function DeckStatsPage() {
   };
 
   if (loading) {
-    return <LoadingAnimation fullScreen message="Chargement..." />;
+    return <LoadingAnimation fullScreen />;
   }
 
   return (

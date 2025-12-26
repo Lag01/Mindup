@@ -420,7 +420,7 @@ export default function Review() {
   }, [isFlipped, submitting, currentCard, router, isStudyMode, handleRating, handleFlip]);
 
   if (loading) {
-    return <LoadingAnimation fullScreen message="Chargement..." />;
+    return <LoadingAnimation fullScreen />;
   }
 
   if (allCards.length === 0) {

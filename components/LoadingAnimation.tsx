@@ -1,20 +1,21 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Lottie, { LottieRefCurrentProps } from 'lottie-react';
+import logoAnimation from '@/public/logo-animation.json';
 
 interface LoadingAnimationProps {
   size?: 'small' | 'medium' | 'large';
-  message?: string;
+  message?: string; // Garder pour compatibilité mais ne pas l'utiliser
   fullScreen?: boolean;
 }
 
 export default function LoadingAnimation({
   size = 'medium',
-  message,
   fullScreen = false,
 }: LoadingAnimationProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoError, setVideoError] = useState(false);
+  const lottieRef = useRef<LottieRefCurrentProps>(null);
+  const [animationError, setAnimationError] = useState(false);
 
   // Déterminer la taille en pixels
   const getSize = () => {
@@ -31,31 +32,43 @@ export default function LoadingAnimation({
 
   const sizeInPx = getSize();
 
-  // Configurer la vitesse de la vidéo à x2
+  // Configurer la vitesse de l'animation à x2
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.playbackRate = 2.0;
+    if (lottieRef.current) {
+      lottieRef.current.setSpeed(2);
     }
   }, []);
 
-  // Composant vidéo d'animation
-  const VideoAnimation = () => (
-    <video
-      ref={videoRef}
-      autoPlay
-      loop
-      muted
-      playsInline
-      preload="auto"
-      onError={() => setVideoError(true)}
-      className="object-contain"
-      style={{ width: sizeInPx, height: sizeInPx }}
-    >
-      <source src="/logo-animation.mp4" type="video/mp4" />
-    </video>
-  );
+  // Composant Lottie
+  const LottieAnimation = () => {
+    if (animationError) {
+      return <SpinnerFallback />;
+    }
 
-  // Fallback spinner CSS si la vidéo ne charge pas
+    return (
+      <div style={{ width: sizeInPx, height: sizeInPx }}>
+        <Lottie
+          lottieRef={lottieRef}
+          animationData={logoAnimation}
+          loop={true}
+          autoplay={true}
+          style={{ width: '100%', height: '100%' }}
+          onLoadedImages={() => {
+            // Animation chargée avec succès
+            if (lottieRef.current) {
+              lottieRef.current.setSpeed(2);
+            }
+          }}
+          onError={() => setAnimationError(true)}
+          rendererSettings={{
+            preserveAspectRatio: 'xMidYMid slice'
+          }}
+        />
+      </div>
+    );
+  };
+
+  // Fallback spinner CSS si Lottie échoue
   const SpinnerFallback = () => (
     <div
       className="animate-spin rounded-full border-b-2 border-blue-500"
@@ -63,15 +76,10 @@ export default function LoadingAnimation({
     />
   );
 
-  // Contenu de l'animation
+  // Contenu de l'animation (SANS message)
   const AnimationContent = () => (
-    <div className="flex flex-col items-center justify-center gap-4">
-      {videoError ? <SpinnerFallback /> : <VideoAnimation />}
-      {message && (
-        <p className="text-foreground text-lg font-medium animate-pulse">
-          {message}
-        </p>
-      )}
+    <div className="flex flex-col items-center justify-center">
+      <LottieAnimation />
     </div>
   );
 
