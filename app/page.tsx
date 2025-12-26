@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Logo from '@/components/Logo';
 
 export default function Home() {
   const [isLogin, setIsLogin] = useState(true);
@@ -47,9 +48,9 @@ export default function Home() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="w-full max-w-md">
         <div className="bg-zinc-900 rounded-lg shadow-xl p-8">
-          <h1 className="text-3xl font-bold text-center mb-8 text-foreground">
-            Flashcards
-          </h1>
+          <div className="flex justify-center mb-8">
+            <Logo variant="full" size={200} priority />
+          </div>
 
           <div className="flex gap-2 mb-6">
             <button

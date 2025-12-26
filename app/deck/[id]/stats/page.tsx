@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/Skeleton';
+import LoadingAnimation from '@/components/LoadingAnimation';
 
 // Lazy-load DeckStatistics avec Recharts pour réduire le bundle initial
 const DeckStatistics = dynamic(() => import('@/components/DeckStatistics'), {
@@ -76,11 +77,7 @@ export default function DeckStatsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-foreground text-lg">Chargement...</div>
-      </div>
-    );
+    return <LoadingAnimation fullScreen message="Chargement..." />;
   }
 
   return (

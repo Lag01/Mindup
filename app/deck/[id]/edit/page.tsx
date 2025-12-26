@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import LoadingAnimation from '@/components/LoadingAnimation';
 import { useUser } from '@/hooks/useUser';
 import { useDuplicateDetection } from '@/hooks/useDuplicateDetection';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -387,11 +388,7 @@ export default function EditDeck() {
   }, [deck, debouncedSearchQuery]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-foreground text-lg">Chargement...</div>
-      </div>
-    );
+    return <LoadingAnimation fullScreen message="Chargement..." />;
   }
 
   if (!deck) {
