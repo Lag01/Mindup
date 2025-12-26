@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import SimpleHeader from '@/components/SimpleHeader';
+import LoadingAnimation from '@/components/LoadingAnimation';
 
 type TimePeriod = 'today' | 'week' | 'month' | 'year';
 type LeaderboardCategory = 'flashcards' | 'veryfastmath';
@@ -158,31 +160,17 @@ export default function LeaderboardPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-xl">Chargement du leaderboard...</div>
-      </div>
-    );
+    return <LoadingAnimation fullScreen message="Chargement du leaderboard..." />;
   }
 
   const currentData = category === 'flashcards' ? flashcardsData : mathData;
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <header className="bg-zinc-900 border-b border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl sm:text-3xl font-bold">Classements</h1>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-            >
-              Retour au dashboard
-            </button>
-          </div>
-        </div>
-      </header>
+      <SimpleHeader
+        title="Classements"
+        backButton={{ label: "Retour au dashboard", href: "/dashboard" }}
+      />
 
       <main className="max-w-5xl mx-auto px-4 py-8">
         {/* Niveau 1 - Catégorie */}

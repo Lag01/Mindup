@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import SimpleHeader from '@/components/SimpleHeader';
 
 export default function Import() {
   const [file, setFile] = useState<File | null>(null);
@@ -74,17 +75,10 @@ export default function Import() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-zinc-900 border-b border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-foreground">Importer un deck</h1>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            Retour
-          </button>
-        </div>
-      </header>
+      <SimpleHeader
+        title="Importer un deck"
+        backButton={{ label: "Retour", href: "/dashboard" }}
+      />
 
       <main className="max-w-2xl mx-auto px-4 py-8">
         <div className="bg-zinc-900 rounded-lg p-8 border border-zinc-800">

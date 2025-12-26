@@ -5,6 +5,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import MathText from '@/components/MathText';
 import CardContentDisplay from '@/components/CardContentDisplay';
 import ImageOverlay from '@/components/ImageOverlay';
+import LoadingAnimation from '@/components/LoadingAnimation';
 import { insertCardInQueue, Rating } from '@/lib/revision';
 import { Card, SessionState } from '@/lib/types';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -419,11 +420,7 @@ export default function Review() {
   }, [isFlipped, submitting, currentCard, router, isStudyMode, handleRating, handleFlip]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-foreground text-lg">Chargement...</div>
-      </div>
-    );
+    return <LoadingAnimation fullScreen message="Chargement..." />;
   }
 
   if (allCards.length === 0) {

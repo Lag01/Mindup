@@ -6,6 +6,7 @@ import MathText from '@/components/MathText';
 import ImageUploader from '@/components/ImageUploader';
 import CardContentDisplay from '@/components/CardContentDisplay';
 import ImageOverlay from '@/components/ImageOverlay';
+import LoadingAnimation from '@/components/LoadingAnimation';
 import { useUser } from '@/hooks/useUser';
 import { Deck, CardFormData } from '@/lib/types';
 
@@ -336,11 +337,7 @@ export default function AddCards() {
       showBackText, showBackLatex, showBackImage]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-zinc-400">Chargement...</div>
-      </div>
-    );
+    return <LoadingAnimation fullScreen message="Chargement..." />;
   }
 
   if (!deck) {

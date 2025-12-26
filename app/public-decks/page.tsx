@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import SimpleHeader from '@/components/SimpleHeader';
+import LoadingAnimation from '@/components/LoadingAnimation';
 
 interface PublicDeck {
   id: string;
@@ -73,31 +75,15 @@ export default function PublicDecksPage() {
   );
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-lg">Chargement...</div>
-      </div>
-    );
+    return <LoadingAnimation fullScreen message="Chargement..." />;
   }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Decks Publics
-            </h1>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-            >
-              Retour au Dashboard
-            </button>
-          </div>
-        </div>
-      </div>
+      <SimpleHeader
+        title="Decks Publics"
+        backButton={{ label: "Retour au Dashboard", href: "/dashboard" }}
+      />
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
