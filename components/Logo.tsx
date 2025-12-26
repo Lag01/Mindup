@@ -10,6 +10,7 @@ interface LogoProps {
   className?: string;
   onClick?: () => void;
   priority?: boolean;
+  disableResponsive?: boolean;
 }
 
 export default function Logo({
@@ -18,12 +19,13 @@ export default function Logo({
   className = '',
   onClick,
   priority = false,
+  disableResponsive = false,
 }: LogoProps) {
   const router = useRouter();
   const isMobile = useIsMobile();
 
-  // Adapter automatiquement pour mobile si variant='full'
-  const effectiveVariant = variant === 'full' && isMobile ? 'icon' : variant;
+  // Adapter automatiquement pour mobile si variant='full' ET si responsive activé
+  const effectiveVariant = !disableResponsive && variant === 'full' && isMobile ? 'icon' : variant;
 
   // Déterminer le chemin de l'image selon le variant
   const getImagePath = () => {

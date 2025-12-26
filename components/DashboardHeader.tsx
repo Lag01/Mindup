@@ -30,7 +30,9 @@ export default function DashboardHeader({
         <div className="flex justify-between items-center mb-4">
           {/* Logo + Titre */}
           <div className="flex items-center gap-4">
-            <Logo variant="icon" size={48} />
+            <div className="hidden md:block">
+              <Logo variant="icon" size={48} />
+            </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               Mes Decks
             </h1>

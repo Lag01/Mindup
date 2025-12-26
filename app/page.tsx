@@ -49,7 +49,7 @@ export default function Home() {
       <div className="w-full max-w-md">
         <div className="bg-zinc-900 rounded-lg shadow-xl p-8">
           <div className="flex justify-center mb-8">
-            <Logo variant="full" size={200} priority />
+            <Logo variant="full" size={200} priority disableResponsive />
           </div>
 
           <div className="flex gap-2 mb-6">

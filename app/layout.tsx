@@ -39,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <head>
-        <link rel="preload" href="/logo-animation.mp4" as="video" type="video/mp4" />
+        <link rel="preload" href="/logo-animation.json" as="fetch" crossOrigin="anonymous" />
         <link rel="icon" href="/favicon.ico" type="image/x-icon" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>

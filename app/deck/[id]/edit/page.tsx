@@ -388,7 +388,7 @@ export default function EditDeck() {
   }, [deck, debouncedSearchQuery]);
 
   if (loading) {
-    return <LoadingAnimation fullScreen message="Chargement..." />;
+    return <LoadingAnimation fullScreen />;
   }
 
   if (!deck) {

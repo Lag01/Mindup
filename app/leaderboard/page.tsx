@@ -160,7 +160,7 @@ export default function LeaderboardPage() {
   };
 
   if (loading) {
-    return <LoadingAnimation fullScreen message="Chargement du leaderboard..." />;
+    return <LoadingAnimation fullScreen />;
   }
 
   const currentData = category === 'flashcards' ? flashcardsData : mathData;

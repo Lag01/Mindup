@@ -174,7 +174,7 @@ export default function Dashboard() {
   }, [decks, debouncedSearchQuery]);
 
   if (loading) {
-    return <LoadingAnimation fullScreen message="Chargement..." />;
+    return <LoadingAnimation fullScreen />;
   }
 
   return (

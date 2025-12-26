@@ -337,7 +337,7 @@ export default function AddCards() {
       showBackText, showBackLatex, showBackImage]);
 
   if (loading) {
-    return <LoadingAnimation fullScreen message="Chargement..." />;
+    return <LoadingAnimation fullScreen />;
   }
 
   if (!deck) {
