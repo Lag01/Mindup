@@ -19,7 +19,10 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.png",
+    icon: [
+      { url: "/favicon.ico", type: "image/x-icon" },
+      { url: "/favicon.png", type: "image/png" },
+    ],
     apple: "/apple-touch-icon.png",
   },
 };
@@ -40,8 +43,6 @@ export default function RootLayout({
     <html lang="fr">
       <head>
         <link rel="preload" href="/logo-animation.json" as="fetch" crossOrigin="anonymous" />
-        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className="antialiased">
         <SplashScreen />
