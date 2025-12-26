@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Logo from '@/components/Logo';
+import Image from 'next/image';
 
 export default function Home() {
   const [isLogin, setIsLogin] = useState(true);
@@ -49,7 +49,14 @@ export default function Home() {
       <div className="w-full max-w-md">
         <div className="bg-zinc-900 rounded-lg shadow-xl p-8">
           <div className="flex justify-center mb-8">
-            <Logo variant="full" size={200} priority disableResponsive />
+            <Image
+              src="/logo-full.png"
+              alt="Logo MindUp"
+              width={200}
+              height={200}
+              priority
+              className="object-contain"
+            />
           </div>
 
           <div className="flex gap-2 mb-6">
