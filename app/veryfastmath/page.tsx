@@ -68,6 +68,11 @@ export default function VeryFastMathPage() {
   };
 
   const handlePlayAgain = () => {
+    setFinalScore(0);
+    setScreen('countdown');
+  };
+
+  const handleBackToMenu = () => {
     setSelectedMode(null);
     setFinalScore(0);
     setScreen('selection');
@@ -137,6 +142,7 @@ export default function VeryFastMathPage() {
             mode={selectedMode}
             score={finalScore}
             onPlayAgain={handlePlayAgain}
+            onBackToMenu={handleBackToMenu}
             onViewLeaderboard={() => router.push('/leaderboard')}
           />
         )}
