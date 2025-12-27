@@ -8,6 +8,7 @@ interface ResultsScreenProps {
   mode: MathMode;
   score: number;
   onPlayAgain: () => void;
+  onBackToMenu: () => void;
   onViewLeaderboard: () => void;
 }
 
@@ -15,6 +16,7 @@ export default function ResultsScreen({
   mode,
   score,
   onPlayAgain,
+  onBackToMenu,
   onViewLeaderboard,
 }: ResultsScreenProps) {
   const [result, setResult] = useState<{
@@ -136,9 +138,15 @@ export default function ResultsScreen({
           </button>
           <button
             onClick={onViewLeaderboard}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl transition-all font-bold shadow-lg hover:shadow-xl"
+          >
+            Classement
+          </button>
+          <button
+            onClick={onBackToMenu}
             className="bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-xl transition-all font-bold shadow-lg hover:shadow-xl"
           >
-            Voir le classement
+            Menu VeryFastMaths
           </button>
         </div>
       </div>
