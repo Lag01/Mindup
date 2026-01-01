@@ -22,6 +22,17 @@ enum MathMode {
   DIVISION
 }
 
+enum LearningMethod {
+  IMMEDIATE
+  ANKI
+}
+
+enum CardStatus {
+  NEW
+  LEARNING
+  REVIEW
+}
+
 model User {
   id                 String   @id @default(cuid())
   email              String   @unique
@@ -40,10 +51,11 @@ model User {
 }
 
 model Deck {
-  id             String   @id @default(cuid())
+  id             String          @id @default(cuid())
   userId         String
   name           String
-  createdAt      DateTime @default(now())
+  createdAt      DateTime        @default(now())
+  learningMethod LearningMethod  @default(IMMEDIATE)
 
   // Champs pour les decks publics
   isPublic       Boolean  @default(false)     // Indique si le deck est public
@@ -92,6 +104,12 @@ model Review {
   easyCount   Int       @default(0)        // Number of "Easy" responses
   lastReview  DateTime?                    // Last review timestamp
 
+  // Anki-specific fields
+  interval    Int?                         // Current interval in days (Anki)
+  nextReview  DateTime?                    // Next review date (Anki)
+  easeFactor  Float     @default(2.5)      // Ease factor (Anki)
+  status      CardStatus @default(NEW)     // Card status (Anki)
+
   // Metadata
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -103,6 +121,7 @@ model Review {
 
   @@unique([cardId, userId])
   @@index([userId])
+  @@index([nextReview])
 }
 
 model AppSettings {

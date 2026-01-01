@@ -1,15 +1,5 @@
 import { create } from 'zustand';
-
-export interface DeckWithStats {
-  id: string;
-  name: string;
-  createdAt: Date;
-  isPublic: boolean;
-  originalDeckId: string | null;
-  importCount: number;
-  totalCards: number;
-  totalReviews: number;
-}
+import { DeckWithStats, AnkiStats } from '../types';
 
 interface DecksState {
   decks: DeckWithStats[];

@@ -44,10 +44,22 @@ export interface Deck {
   updatedAt?: string;
 }
 
+// Interface pour les statistiques Anki
+export interface AnkiStats {
+  new: number;       // Cartes nouvelles (reps = 0)
+  learning: number;  // Cartes en apprentissage (taux < 50%)
+  review: number;    // Cartes apprises (taux >= 50%)
+  due: number;       // Cartes dues aujourd'hui
+}
+
 // Interface pour le Deck avec statistiques (utilisé dans le Dashboard)
 export interface DeckWithStats extends Deck {
   totalCards: number;
-  dueCards: number;
+  notStarted: number;      // Pour IMMEDIATE
+  totalReviews: number;    // Pour les deux méthodes
+  learningMethod: 'IMMEDIATE' | 'ANKI';
+  ankiStats: AnkiStats | null;  // null si IMMEDIATE
+  dueCards?: number;  // Deprecated, remplacé par ankiStats.due
 }
 
 // Interface pour le Deck avec cartes (utilisé dans Edit)

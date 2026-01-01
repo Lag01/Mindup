@@ -165,6 +165,8 @@ export default function Review() {
   const [submitting, setSubmitting] = useState(false);
   const [sessionStats, setSessionStats] = useState({ total: 0, again: 0, hard: 0, good: 0, easy: 0 });
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [learningMethod, setLearningMethod] = useState<'IMMEDIATE' | 'ANKI'>('IMMEDIATE');
+  const [noDueCards, setNoDueCards] = useState(false);
   const router = useRouter();
   const isMobile = useIsMobile();
 
@@ -194,7 +196,18 @@ export default function Review() {
         throw new Error('Failed to fetch cards');
       }
       const data = await response.json();
+
+      // Récupérer la méthode d'apprentissage
+      const method = data.learningMethod || 'IMMEDIATE';
+      setLearningMethod(method);
       setAllCards(data.cards);
+
+      // Si méthode ANKI et aucune carte due, afficher message
+      if (method === 'ANKI' && data.cards.length === 0 && !isStudyMode) {
+        setNoDueCards(true);
+        setLoading(false);
+        return;
+      }
 
       // Restore session if it exists, otherwise start fresh
       if (savedSession && savedSession.cardQueue.length > 0) {
@@ -226,13 +239,20 @@ export default function Review() {
         );
         setCurrentCard(currentCardFromSaved || syncedQueue[0]);
       } else {
-        // Initialize the queue with all cards shuffled randomly
-        const shuffledCards = shuffleArray<Card>(data.cards);
-        setCardQueue(shuffledCards);
-
-        // Set the first card as current
-        if (shuffledCards.length > 0) {
-          setCurrentCard(shuffledCards[0]);
+        // Initialize the queue
+        if (method === 'ANKI' && !isStudyMode) {
+          // ANKI : Pas de shuffle, ordre du deck
+          setCardQueue(data.cards);
+          if (data.cards.length > 0) {
+            setCurrentCard(data.cards[0]);
+          }
+        } else {
+          // IMMEDIATE ou mode étude : Shuffle aléatoire
+          const shuffledCards = shuffleArray<Card>(data.cards);
+          setCardQueue(shuffledCards);
+          if (shuffledCards.length > 0) {
+            setCurrentCard(shuffledCards[0]);
+          }
         }
       }
     } catch (error) {
@@ -273,7 +293,56 @@ export default function Review() {
         return;
       }
 
-      // Mode révision normal : OPTIMISTIC UPDATE
+      // Mode ANKI : pas de réinsertion, juste passer à la suivante
+      if (learningMethod === 'ANKI') {
+        // Calculer les nouvelles stats
+        const updatedStats = {
+          total: sessionStats.total + 1,
+          again: sessionStats.again + (rating === 'again' ? 1 : 0),
+          hard: sessionStats.hard + (rating === 'hard' ? 1 : 0),
+          good: sessionStats.good + (rating === 'good' ? 1 : 0),
+          easy: sessionStats.easy + (rating === 'easy' ? 1 : 0),
+        };
+        setSessionStats(updatedStats);
+
+        // Remove current card from queue
+        const remainingQueue = cardQueue.slice(1);
+
+        if (remainingQueue.length === 0) {
+          // Plus de cartes dues aujourd'hui
+          setNoDueCards(true);
+          setCardQueue([]);
+          setCurrentCard(null);
+          clearSessionState(deckId);
+        } else {
+          setCardQueue(remainingQueue);
+          setCurrentCard(remainingQueue[0]);
+
+          // Save session state
+          saveSessionState(deckId, {
+            cardQueue: remainingQueue,
+            currentCardId: remainingQueue[0].id,
+            sessionStats: updatedStats,
+          });
+        }
+
+        // Reset flip state
+        setIsFlipped(false);
+        setSubmitting(false);
+
+        // API call en arrière-plan (pas de rollback en mode ANKI)
+        fetch('/api/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cardId: currentCard.id, rating }),
+        }).catch(error => {
+          console.error('Error saving review:', error);
+        });
+
+        return;
+      }
+
+      // Mode révision IMMEDIATE : OPTIMISTIC UPDATE
       // Sauvegarder l'ancien état pour rollback en cas d'erreur
       const oldCardQueue = cardQueue;
       const oldCurrentCard = currentCard;
@@ -423,6 +492,41 @@ export default function Review() {
     return <LoadingAnimation fullScreen />;
   }
 
+  // Écran "Aucune carte due" pour le mode ANKI
+  if (noDueCards && learningMethod === 'ANKI') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="text-center max-w-md">
+          <div className="mb-6">
+            <svg className="w-24 h-24 mx-auto text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-foreground mb-2">
+            Toutes les cartes sont révisées !
+          </h2>
+          <p className="text-zinc-400 mb-6">
+            Vous avez terminé vos révisions pour aujourd'hui. Revenez demain pour de nouvelles cartes.
+          </p>
+          <div className="flex gap-3 justify-center flex-wrap">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
+            >
+              Retour au dashboard
+            </button>
+            <button
+              onClick={() => router.push(`/deck/${deckId}/review?mode=study`)}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
+            >
+              Mode étude (toutes les cartes)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (allCards.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -458,7 +562,12 @@ export default function Review() {
                 </span>
               )}
               <div className="text-zinc-400 text-sm">
-                {isStudyMode ? 'Navigation libre' : `Session continue • ${sessionStats.total} cartes révisées`}
+                {isStudyMode
+                  ? 'Navigation libre'
+                  : learningMethod === 'ANKI'
+                    ? `${cardQueue.length} carte${cardQueue.length > 1 ? 's' : ''} à réviser aujourd'hui`
+                    : `Session continue • ${sessionStats.total} cartes révisées`
+                }
               </div>
             </div>
             <button
