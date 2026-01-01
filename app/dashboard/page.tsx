@@ -235,22 +235,65 @@ export default function Dashboard() {
                       <h2 className="text-xl font-semibold text-foreground line-clamp-2 flex-1">
                         {deck.name}
                       </h2>
-                      {deck.isImported && (
+                      {deck.learningMethod === 'ANKI' && (
                         <span className="px-2 py-1 bg-purple-900/50 text-purple-300 text-xs rounded-md border border-purple-700 whitespace-nowrap">
+                          Anki
+                        </span>
+                      )}
+                      {deck.isImported && (
+                        <span className="px-2 py-1 bg-blue-900/50 text-blue-300 text-xs rounded-md border border-blue-700 whitespace-nowrap">
                           Deck Importé
                         </span>
                       )}
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-blue-400 text-sm font-medium">
-                        {deck.totalCards} carte{deck.totalCards > 1 ? 's' : ''}
-                      </p>
-                      {deck.isImported && (
-                        <p className="text-purple-400 text-xs">
-                          Synchronisé avec le deck public
+
+                    {/* Statistiques selon la méthode d'apprentissage */}
+                    {deck.learningMethod === 'ANKI' && deck.ankiStats ? (
+                      <div className="space-y-1">
+                        <p className="text-blue-400 text-sm font-medium">
+                          {deck.totalCards} carte{deck.totalCards > 1 ? 's' : ''}
                         </p>
-                      )}
-                    </div>
+                        <div className="flex gap-3 text-xs flex-wrap">
+                          <span className="text-orange-400">
+                            {deck.ankiStats.new} nouvelle{deck.ankiStats.new > 1 ? 's' : ''}
+                          </span>
+                          <span className="text-yellow-400">
+                            {deck.ankiStats.learning} en apprentissage
+                          </span>
+                          <span className="text-green-400">
+                            {deck.ankiStats.review} apprise{deck.ankiStats.review > 1 ? 's' : ''}
+                          </span>
+                        </div>
+
+                        {/* Cartes dues aujourd'hui (highlight si > 0) */}
+                        {deck.ankiStats.due > 0 ? (
+                          <div className="mt-2 inline-block px-2 py-1 bg-red-900/30 border border-red-700 rounded text-red-400 text-sm font-medium">
+                            {deck.ankiStats.due} carte{deck.ankiStats.due > 1 ? 's' : ''} à réviser
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-zinc-500 text-sm">
+                            Aucune révision aujourd'hui
+                          </div>
+                        )}
+
+                        {deck.isImported && (
+                          <p className="text-purple-400 text-xs mt-2">
+                            Synchronisé avec le deck public
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <p className="text-blue-400 text-sm font-medium">
+                          {deck.totalCards} carte{deck.totalCards > 1 ? 's' : ''}
+                        </p>
+                        {deck.isImported && (
+                          <p className="text-purple-400 text-xs">
+                            Synchronisé avec le deck public
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Menu dropdown */}
@@ -407,9 +450,13 @@ export default function Dashboard() {
                 <div className="flex gap-2 mt-4">
                   <button
                     onClick={() => router.push(`/deck/${deck.id}/review`)}
-                    className={deck.isImported ? "flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors" : "flex-[3] bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"}
+                    disabled={deck.learningMethod === 'ANKI' && deck.ankiStats?.due === 0}
+                    className={`${deck.isImported ? 'flex-1' : 'flex-[3]'} bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50`}
                   >
-                    Réviser
+                    {deck.learningMethod === 'ANKI'
+                      ? `Réviser (${deck.ankiStats?.due || 0})`
+                      : 'Réviser'
+                    }
                   </button>
 
                   {!deck.isImported && (
