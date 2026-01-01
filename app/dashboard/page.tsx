@@ -226,10 +226,10 @@ export default function Dashboard() {
             {filteredDecks.map(deck => (
               <div
                 key={deck.id}
-                className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 hover:border-zinc-700 transition-all shadow-lg hover:shadow-xl"
+                className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 hover:border-zinc-700 transition-all shadow-lg hover:shadow-xl flex flex-col"
               >
                 {/* En-tête avec titre et menu dropdown */}
-                <div className="flex items-start justify-between mb-4">
+                <div className="flex items-start justify-between mb-4 flex-1">
                   <div className="flex-1">
                     <div className="flex items-start gap-2 mb-2">
                       <h2 className="text-xl font-semibold text-foreground line-clamp-2 flex-1">
@@ -447,16 +447,13 @@ export default function Dashboard() {
                 </div>
 
                 {/* Boutons principaux */}
-                <div className="flex gap-2 mt-4">
+                <div className="flex gap-2 mt-auto pt-4">
                   <button
                     onClick={() => router.push(`/deck/${deck.id}/review`)}
                     disabled={deck.learningMethod === 'ANKI' && deck.ankiStats?.due === 0}
                     className={`${deck.isImported ? 'flex-1' : 'flex-[3]'} bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50`}
                   >
-                    {deck.learningMethod === 'ANKI'
-                      ? `Réviser (${deck.ankiStats?.due || 0})`
-                      : 'Réviser'
-                    }
+                    Réviser
                   </button>
 
                   {!deck.isImported && (
