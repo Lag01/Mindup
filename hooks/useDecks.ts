@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { useDecksStore, DeckWithStats } from '@/lib/store/decks';
+import { useDecksStore } from '@/lib/store/decks';
+import { DeckWithStats } from '@/lib/types';
 import { useToast } from './useToast';
 
 /**
