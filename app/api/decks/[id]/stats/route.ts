@@ -22,11 +22,15 @@ export async function GET(
 
     const { id: deckId } = await context.params;
 
-    // Verify deck belongs to user
+    // Verify deck belongs to user and get learning method
     const deck = await prisma.deck.findFirst({
       where: {
         id: deckId,
         userId: user.id,
+      },
+      select: {
+        id: true,
+        learningMethod: true,
       },
     });
 
@@ -58,6 +62,11 @@ export async function GET(
       masteredCards: bigint;
       reviewsToday: bigint;
       reviewsThisWeek: bigint;
+      ankiNew: bigint;
+      ankiLearning: bigint;
+      ankiReview: bigint;
+      ankiDueToday: bigint;
+      avgInterval: number | null;
     }>>`
       SELECT
         COUNT(*) as "totalCards",
@@ -78,7 +87,14 @@ export async function GET(
           THEN 1
         END) as "masteredCards",
         COUNT(CASE WHEN r."lastReview" >= ${today} THEN 1 END) as "reviewsToday",
-        COUNT(CASE WHEN r."lastReview" >= ${weekAgo} THEN 1 END) as "reviewsThisWeek"
+        COUNT(CASE WHEN r."lastReview" >= ${weekAgo} THEN 1 END) as "reviewsThisWeek",
+
+        -- Stats ANKI
+        COUNT(CASE WHEN r."status" = 'NEW' THEN 1 END) as "ankiNew",
+        COUNT(CASE WHEN r."status" = 'LEARNING' THEN 1 END) as "ankiLearning",
+        COUNT(CASE WHEN r."status" = 'REVIEW' THEN 1 END) as "ankiReview",
+        COUNT(CASE WHEN r."nextReview" <= CURRENT_DATE THEN 1 END) as "ankiDueToday",
+        AVG(r."interval") as "avgInterval"
       FROM "Card" c
       LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
       WHERE c."deckId" = ${deckId}
@@ -148,6 +164,15 @@ export async function GET(
       reviewsToday: Number(mainStats.reviewsToday),
       reviewsThisWeek: Number(mainStats.reviewsThisWeek),
       reviewHistory,
+      learningMethod: deck.learningMethod,
+      // Stats Anki (null si méthode IMMEDIATE)
+      ankiStats: deck.learningMethod === 'ANKI' ? {
+        new: Number(mainStats.ankiNew),
+        learning: Number(mainStats.ankiLearning),
+        review: Number(mainStats.ankiReview),
+        dueToday: Number(mainStats.ankiDueToday),
+        avgInterval: mainStats.avgInterval ? Math.round(mainStats.avgInterval) : 0,
+      } : null,
     };
 
     return NextResponse.json(stats);

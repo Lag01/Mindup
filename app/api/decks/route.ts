@@ -24,9 +24,14 @@ export async function GET() {
       createdAt: Date;
       isPublic: boolean;
       originalDeckId: string | null;
+      learningMethod: string;
       totalCards: bigint;
       notStarted: bigint;
       totalReviews: bigint | null;
+      ankiNew: bigint | null;
+      ankiLearning: bigint | null;
+      ankiReview: bigint | null;
+      ankiDue: bigint | null;
     }>>`
       SELECT
         d.id,
@@ -34,14 +39,25 @@ export async function GET() {
         d."createdAt",
         d."isPublic",
         d."originalDeckId",
+        d."learningMethod",
         COUNT(DISTINCT c.id) as "totalCards",
         COUNT(DISTINCT CASE WHEN r.reps IS NULL OR r.reps = 0 THEN c.id END) as "notStarted",
-        COALESCE(SUM(r.reps), 0) as "totalReviews"
+        COALESCE(SUM(r.reps), 0) as "totalReviews",
+
+        -- Stats ANKI
+        COUNT(DISTINCT CASE WHEN d."learningMethod" = 'ANKI' AND r."status" = 'NEW' THEN c.id END) as "ankiNew",
+        COUNT(DISTINCT CASE WHEN d."learningMethod" = 'ANKI' AND r."status" = 'LEARNING' THEN c.id END) as "ankiLearning",
+        COUNT(DISTINCT CASE WHEN d."learningMethod" = 'ANKI' AND r."status" = 'REVIEW' THEN c.id END) as "ankiReview",
+        COUNT(DISTINCT CASE
+          WHEN d."learningMethod" = 'ANKI' AND (r."nextReview" IS NULL OR r."nextReview" <= CURRENT_DATE)
+          THEN c.id
+        END) as "ankiDue"
+
       FROM "Deck" d
       LEFT JOIN "Card" c ON c."deckId" = d.id
       LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
       WHERE d."userId" = ${user.id}
-      GROUP BY d.id, d.name, d."createdAt", d."isPublic", d."originalDeckId"
+      GROUP BY d.id, d.name, d."createdAt", d."isPublic", d."originalDeckId", d."learningMethod"
       ORDER BY d."createdAt" DESC
     `;
 
@@ -50,12 +66,20 @@ export async function GET() {
       id: deck.id,
       name: deck.name,
       createdAt: deck.createdAt,
+      learningMethod: deck.learningMethod,
       totalCards: Number(deck.totalCards),
       notStarted: Number(deck.notStarted),
       totalReviews: Number(deck.totalReviews),
       isPublic: deck.isPublic,
       originalDeckId: deck.originalDeckId,
       isImported: !!deck.originalDeckId,
+      // Stats Anki (null si méthode IMMEDIATE)
+      ankiStats: deck.learningMethod === 'ANKI' ? {
+        new: Number(deck.ankiNew),
+        learning: Number(deck.ankiLearning),
+        review: Number(deck.ankiReview),
+        due: Number(deck.ankiDue),
+      } : null,
     }));
 
     return NextResponse.json({ decks });
@@ -93,7 +117,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name } = body;
+    const { name, learningMethod } = body;
 
     // Valider le nom du deck
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -110,11 +134,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Valider la méthode d'apprentissage
+    if (learningMethod && !['IMMEDIATE', 'ANKI'].includes(learningMethod)) {
+      return NextResponse.json(
+        { error: 'Méthode d\'apprentissage invalide' },
+        { status: 400 }
+      );
+    }
+
     // Créer le deck vide
     const deck = await prisma.deck.create({
       data: {
         name: name.trim(),
         userId: user.id,
+        learningMethod: learningMethod || 'IMMEDIATE', // Par défaut IMMEDIATE
       },
     });
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { updateReviewStats, Rating } from '@/lib/revision';
+import { updateAnkiReviewStats, AnkiRating, CardStatus } from '@/lib/anki';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,11 +25,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify deck belongs to user
+    // Verify deck belongs to user and get learning method
     const deck = await prisma.deck.findFirst({
       where: {
         id: deckId,
         userId: user.id,
+      },
+      select: {
+        id: true,
+        learningMethod: true,
       },
     });
 
@@ -39,23 +44,63 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get ALL cards from the deck (not filtered by due date)
-    const cards = await prisma.card.findMany({
-      where: {
-        deckId: deckId,
-      },
-      include: {
-        reviews: {
-          where: {
-            userId: user.id,
-          },
-          take: 1,
+    // Get cards from the deck
+    // For ANKI method: filter by cards due (nextReview <= today OR never reviewed)
+    // For IMMEDIATE method: get all cards
+    let cards;
+
+    if (deck.learningMethod === 'ANKI') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      cards = await prisma.card.findMany({
+        where: {
+          deckId: deckId,
         },
-      },
-      orderBy: {
-        order: 'asc', // Keep the original card order
-      },
-    });
+        include: {
+          reviews: {
+            where: {
+              userId: user.id,
+              OR: [
+                { nextReview: null },           // Cartes jamais révisées
+                { nextReview: { lte: today } }, // Cartes dues
+              ],
+            },
+            take: 1,
+          },
+        },
+        orderBy: {
+          order: 'asc',
+        },
+      });
+
+      // Filter to only keep cards with matching reviews
+      cards = cards.filter(
+        (card) =>
+          card.reviews.length === 0 || // Carte jamais révisée
+          (card.reviews[0] &&
+            (card.reviews[0].nextReview === null ||
+              card.reviews[0].nextReview <= today))
+      );
+    } else {
+      // IMMEDIATE method: Get ALL cards (not filtered by due date)
+      cards = await prisma.card.findMany({
+        where: {
+          deckId: deckId,
+        },
+        include: {
+          reviews: {
+            where: {
+              userId: user.id,
+            },
+            take: 1,
+          },
+        },
+        orderBy: {
+          order: 'asc', // Keep the original card order
+        },
+      });
+    }
 
     return NextResponse.json({
       cards: cards.map(card => ({
@@ -68,6 +113,7 @@ export async function GET(request: NextRequest) {
         backImage: card.backImage,
         review: card.reviews[0] || null,
       })),
+      learningMethod: deck.learningMethod,
     });
   } catch (error) {
     console.error('Get review cards error:', error);
@@ -166,38 +212,96 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate new review stats
-    const newStats = updateReviewStats(
-      {
-        reps: currentReview.reps,
-        againCount: currentReview.againCount,
-        hardCount: currentReview.hardCount,
-        goodCount: currentReview.goodCount,
-        easyCount: currentReview.easyCount,
-        lastReview: currentReview.lastReview,
-      },
-      rating as Rating
-    );
+    // Determine which algorithm to use based on deck's learning method
+    const learningMethod = currentReview.card.deck.learningMethod;
 
     // Utiliser une transaction pour garantir la cohérence des données
     await prisma.$transaction(async (tx) => {
-      // Update review in database
-      const updatedReview = await tx.review.update({
+      if (learningMethod === 'ANKI') {
+        // Use Anki algorithm
+        const ankiStats = updateAnkiReviewStats(
+          {
+            reps: currentReview.reps,
+            againCount: currentReview.againCount,
+            hardCount: currentReview.hardCount,
+            goodCount: currentReview.goodCount,
+            easyCount: currentReview.easyCount,
+            lastReview: currentReview.lastReview,
+            interval: currentReview.interval,
+            nextReview: currentReview.nextReview,
+            easeFactor: currentReview.easeFactor,
+            status: (currentReview.status as CardStatus) || 'NEW',
+          },
+          rating as AnkiRating
+        );
+
+        // Update review with Anki-specific fields
+        await tx.review.update({
+          where: {
+            cardId_userId: {
+              cardId,
+              userId: user.id,
+            },
+          },
+          data: {
+            reps: ankiStats.reps,
+            againCount: ankiStats.againCount,
+            hardCount: ankiStats.hardCount,
+            goodCount: ankiStats.goodCount,
+            easyCount: ankiStats.easyCount,
+            lastReview: ankiStats.lastReview,
+            interval: ankiStats.interval,
+            nextReview: ankiStats.nextReview,
+            easeFactor: ankiStats.easeFactor,
+            status: ankiStats.status,
+          },
+        });
+      } else {
+        // Use IMMEDIATE algorithm (current behavior)
+        const newStats = updateReviewStats(
+          {
+            reps: currentReview.reps,
+            againCount: currentReview.againCount,
+            hardCount: currentReview.hardCount,
+            goodCount: currentReview.goodCount,
+            easyCount: currentReview.easyCount,
+            lastReview: currentReview.lastReview,
+          },
+          rating as Rating
+        );
+
+        // Update review in database
+        await tx.review.update({
+          where: {
+            cardId_userId: {
+              cardId,
+              userId: user.id,
+            },
+          },
+          data: {
+            reps: newStats.reps,
+            againCount: newStats.againCount,
+            hardCount: newStats.hardCount,
+            goodCount: newStats.goodCount,
+            easyCount: newStats.easyCount,
+            lastReview: newStats.lastReview,
+          },
+        });
+      }
+
+      // Common code for both methods
+      const updatedReview = await tx.review.findUnique({
         where: {
           cardId_userId: {
             cardId,
             userId: user.id,
           },
         },
-        data: {
-          reps: newStats.reps,
-          againCount: newStats.againCount,
-          hardCount: newStats.hardCount,
-          goodCount: newStats.goodCount,
-          easyCount: newStats.easyCount,
-          lastReview: newStats.lastReview,
-        },
       });
+
+      if (!updatedReview) {
+        throw new Error('Review not found after update');
+      }
 
       // Créer un événement de révision pour le tracking du leaderboard
       await tx.reviewEvent.create({
