@@ -253,21 +253,21 @@ export default function Dashboard() {
                         <p className="text-blue-400 text-sm font-medium">
                           {deck.totalCards} carte{deck.totalCards > 1 ? 's' : ''}
                         </p>
-                        <div className="flex gap-3 text-xs flex-wrap">
-                          <span className="text-orange-400">
-                            {deck.ankiStats.new} nouvelle{deck.ankiStats.new > 1 ? 's' : ''}
+                        <div className="flex gap-2 text-xs flex-wrap max-w-full">
+                          <span className="text-orange-400 whitespace-nowrap">
+                            {deck.ankiStats.new} nouv.
                           </span>
-                          <span className="text-yellow-400">
-                            {deck.ankiStats.learning} en apprentissage
+                          <span className="text-yellow-400 whitespace-nowrap">
+                            {deck.ankiStats.learning} appr.
                           </span>
-                          <span className="text-green-400">
-                            {deck.ankiStats.review} apprise{deck.ankiStats.review > 1 ? 's' : ''}
+                          <span className="text-green-400 whitespace-nowrap">
+                            {deck.ankiStats.review} maît.
                           </span>
                         </div>
 
                         {/* Cartes dues aujourd'hui (highlight si > 0) */}
                         {deck.ankiStats.due > 0 ? (
-                          <div className="mt-2 inline-block px-2 py-1 bg-red-900/30 border border-red-700 rounded text-red-400 text-sm font-medium">
+                          <div className="mt-2 inline-block px-2 py-1 bg-red-900/30 border border-red-700 rounded text-red-400 text-sm font-medium max-w-full truncate">
                             {deck.ankiStats.due} carte{deck.ankiStats.due > 1 ? 's' : ''} à réviser
                           </div>
                         ) : (

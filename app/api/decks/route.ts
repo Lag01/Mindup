@@ -44,10 +44,19 @@ export async function GET() {
         COUNT(DISTINCT CASE WHEN r.reps IS NULL OR r.reps = 0 THEN c.id END) as "notStarted",
         COALESCE(SUM(r.reps), 0) as "totalReviews",
 
-        -- Stats ANKI
-        COUNT(DISTINCT CASE WHEN d."learningMethod" = 'ANKI' AND r."status" = 'NEW' THEN c.id END) as "ankiNew",
-        COUNT(DISTINCT CASE WHEN d."learningMethod" = 'ANKI' AND r."status" = 'LEARNING' THEN c.id END) as "ankiLearning",
-        COUNT(DISTINCT CASE WHEN d."learningMethod" = 'ANKI' AND r."status" = 'REVIEW' THEN c.id END) as "ankiReview",
+        -- Stats ANKI (les cartes sans review sont comptées comme NEW)
+        COUNT(DISTINCT CASE
+          WHEN d."learningMethod" = 'ANKI' AND (r."status" IS NULL OR r."status" = 'NEW')
+          THEN c.id
+        END) as "ankiNew",
+        COUNT(DISTINCT CASE
+          WHEN d."learningMethod" = 'ANKI' AND r."status" = 'LEARNING'
+          THEN c.id
+        END) as "ankiLearning",
+        COUNT(DISTINCT CASE
+          WHEN d."learningMethod" = 'ANKI' AND r."status" = 'REVIEW'
+          THEN c.id
+        END) as "ankiReview",
         COUNT(DISTINCT CASE
           WHEN d."learningMethod" = 'ANKI' AND (r."nextReview" IS NULL OR r."nextReview" <= CURRENT_DATE)
           THEN c.id
