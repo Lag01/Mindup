@@ -1,6 +1,17 @@
 /**
  * Système de répétition espacée Anki
- * Basé sur les intervalles : 1j, 3j, 7j, 14j, 30j
+ * Algorithme SM-2 (SuperMemo 2) - Version Anki
+ *
+ * Règles :
+ * - Premier intervalle : 1 jour
+ * - Deuxième intervalle : 6 jours
+ * - Intervalles suivants : intervalle précédent × ease factor
+ * - Ease factor par défaut : 2.5
+ * - Ajustement ease factor :
+ *   - Again : -0.2 (minimum 1.3)
+ *   - Hard : -0.15 (minimum 1.3)
+ *   - Good : pas de changement
+ *   - Easy : +0.15
  */
 
 export type AnkiRating = 'again' | 'hard' | 'good' | 'easy';
@@ -20,68 +31,104 @@ export interface AnkiReviewStats {
 }
 
 /**
- * Intervalles Anki prédéfinis (en jours)
+ * Constantes de l'algorithme SM-2
  */
-const ANKI_INTERVALS = [1, 3, 7, 14, 30];
+const MIN_EASE_FACTOR = 1.3;  // 130% minimum (recherche SuperMemo)
+const DEFAULT_EASE_FACTOR = 2.5;  // 250% par défaut
+const FIRST_INTERVAL = 1;  // Premier intervalle : 1 jour
+const SECOND_INTERVAL = 6;  // Deuxième intervalle : 6 jours
 
 /**
- * Calcule le prochain intervalle selon le rating
+ * Ajuste le ease factor selon le rating
  *
- * Règles :
- * - Again : Retour à 1 jour (intervalle[0])
- * - Hard : Même intervalle OU intervalle précédent si possible
- * - Good : Intervalle suivant dans la séquence
- * - Easy : Saute un intervalle (ex: 1j -> 7j)
+ * @param currentEaseFactor Le ease factor actuel
+ * @param rating L'évaluation de l'utilisateur
+ * @returns Le nouveau ease factor (minimum 1.3)
+ */
+function adjustEaseFactor(
+  currentEaseFactor: number,
+  rating: AnkiRating
+): number {
+  let newEaseFactor = currentEaseFactor;
+
+  switch (rating) {
+    case 'again':
+      newEaseFactor -= 0.2;
+      break;
+    case 'hard':
+      newEaseFactor -= 0.15;
+      break;
+    case 'good':
+      // Pas de changement
+      break;
+    case 'easy':
+      newEaseFactor += 0.15;
+      break;
+  }
+
+  // Appliquer le minimum (recherche SuperMemo : jamais en dessous de 130%)
+  return Math.max(MIN_EASE_FACTOR, newEaseFactor);
+}
+
+/**
+ * Calcule le prochain intervalle selon SM-2
  *
- * @param currentInterval L'intervalle actuel (null pour une carte nouvelle)
+ * @param currentInterval L'intervalle actuel (null pour carte nouvelle)
+ * @param reps Nombre total de révisions effectuées
+ * @param easeFactor Le ease factor ACTUEL (après ajustement)
  * @param rating L'évaluation de l'utilisateur
  * @returns Le prochain intervalle en jours
  */
 function calculateNextInterval(
   currentInterval: number | null,
+  reps: number,
+  easeFactor: number,
   rating: AnkiRating
 ): number {
-  // Carte nouvelle (première révision)
-  if (currentInterval === null) {
+  // Again : toujours retour à 1 jour (réinitialisation)
+  if (rating === 'again') {
+    return FIRST_INTERVAL;
+  }
+
+  // Première révision (carte jamais vue)
+  if (currentInterval === null || reps === 0) {
     switch (rating) {
-      case 'again':
       case 'hard':
-        return ANKI_INTERVALS[0]; // 1 jour
+        return FIRST_INTERVAL;  // 1 jour
       case 'good':
-        return ANKI_INTERVALS[1]; // 3 jours
+        return FIRST_INTERVAL;  // 1 jour
       case 'easy':
-        return ANKI_INTERVALS[2]; // 7 jours (saute 3j)
+        return SECOND_INTERVAL;  // 6 jours (saute directement)
     }
   }
 
-  // Carte existante
-  const currentIndex = ANKI_INTERVALS.indexOf(currentInterval);
-
-  // Si l'intervalle actuel n'est pas dans la liste (cas edge), on part du début
-  if (currentIndex === -1) {
-    return ANKI_INTERVALS[0];
+  // Deuxième révision (intervalle actuel = 1j)
+  if (currentInterval === FIRST_INTERVAL) {
+    switch (rating) {
+      case 'hard':
+        return FIRST_INTERVAL;  // Reste à 1j
+      case 'good':
+        return SECOND_INTERVAL;  // Passe à 6j
+      case 'easy':
+        return Math.round(SECOND_INTERVAL * 1.5);  // ~9j
+    }
   }
 
-  switch (rating) {
-    case 'again':
-      // Retour au début
-      return ANKI_INTERVALS[0]; // 1 jour
+  // Révisions suivantes : appliquer l'algorithme SM-2
+  let newInterval = currentInterval * easeFactor;
 
-    case 'hard':
-      // Reste au même intervalle ou recule d'un cran
-      const hardIndex = Math.max(0, currentIndex - 1);
-      return ANKI_INTERVALS[hardIndex];
-
-    case 'good':
-      // Passe à l'intervalle suivant (plafonne à 30j)
-      const goodIndex = Math.min(ANKI_INTERVALS.length - 1, currentIndex + 1);
-      return ANKI_INTERVALS[goodIndex];
-
-    case 'easy':
-      // Saute un intervalle (plafonne à 30j)
-      const easyIndex = Math.min(ANKI_INTERVALS.length - 1, currentIndex + 2);
-      return ANKI_INTERVALS[easyIndex];
+  // Hard : augmente légèrement mais moins que good
+  if (rating === 'hard') {
+    newInterval = currentInterval * 1.2;
   }
+
+  // Easy : bonus supplémentaire de 30%
+  if (rating === 'easy') {
+    newInterval = currentInterval * easeFactor * 1.3;
+  }
+
+  // Arrondir et garantir minimum 1 jour
+  return Math.max(1, Math.round(newInterval));
 }
 
 /**
@@ -123,10 +170,10 @@ function calculateStatus(
   const totalSuccesses = goodCount + easyCount;
   const successRate = totalSuccesses / reps;
 
-  // Carte maîtrisée : taux >= 50%
-  if (successRate >= 0.5) return 'REVIEW';
+  // Carte apprise : taux >= 70%
+  if (successRate >= 0.7) return 'REVIEW';
 
-  // Carte en apprentissage
+  // Carte en apprentissage : taux < 70%
   return 'LEARNING';
 }
 
@@ -150,8 +197,16 @@ export function updateAnkiReviewStats(
   const newGoodCount = currentStats.goodCount + (rating === 'good' ? 1 : 0);
   const newEasyCount = currentStats.easyCount + (rating === 'easy' ? 1 : 0);
 
-  // Calcul du nouvel intervalle
-  const newInterval = calculateNextInterval(currentStats.interval, rating);
+  // IMPORTANT : Ajuster le ease factor AVANT de calculer l'intervalle
+  const newEaseFactor = adjustEaseFactor(currentStats.easeFactor, rating);
+
+  // Calcul du nouvel intervalle avec le NOUVEAU ease factor
+  const newInterval = calculateNextInterval(
+    currentStats.interval,
+    currentStats.reps,  // Utiliser ANCIEN reps (avant incrémentation)
+    newEaseFactor,      // Utiliser NOUVEAU ease factor
+    rating
+  );
 
   // Calcul de la prochaine révision
   const newNextReview = calculateNextReviewDate(newInterval);
@@ -174,7 +229,7 @@ export function updateAnkiReviewStats(
     lastReview: now,
     interval: newInterval,
     nextReview: newNextReview,
-    easeFactor: currentStats.easeFactor, // Pour l'instant, non modifié (extension future possible)
+    easeFactor: newEaseFactor,  // ✅ MISE À JOUR du ease factor
     status: newStatus,
   };
 }
@@ -219,40 +274,7 @@ export function isCardDue(nextReview: Date | null): boolean {
  */
 export interface AnkiCardCounts {
   new: number;       // reps = 0
-  learning: number;  // reps > 0, taux < 50%
-  review: number;    // taux >= 50%
+  learning: number;  // reps > 0, taux < 70%
+  review: number;    // taux >= 70%
   due: number;       // nextReview <= aujourd'hui
-}
-
-/**
- * Catégorise une carte selon les critères Anki
- *
- * @param stats Statistiques de la carte
- * @returns Catégorie et statut de carte due
- */
-export function categorizeAnkiCard(stats: AnkiReviewStats): {
-  category: 'new' | 'learning' | 'review';
-  isDue: boolean;
-} {
-  const isDue = isCardDue(stats.nextReview);
-
-  if (stats.reps === 0) {
-    return { category: 'new', isDue };
-  }
-
-  const totalSuccesses = stats.goodCount + stats.easyCount;
-  const successRate = totalSuccesses / stats.reps;
-
-  // Apprise : taux >= 70%
-  if (successRate >= 0.7) {
-    return { category: 'review', isDue };
-  }
-
-  // En apprentissage : taux < 50%
-  if (successRate < 0.5) {
-    return { category: 'learning', isDue };
-  }
-
-  // Cas intermédiaire (50% <= taux < 70%) : considéré comme review
-  return { category: 'review', isDue };
 }
