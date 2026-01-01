@@ -34,6 +34,16 @@ interface DeckStats {
   reviewsThisWeek: number;
 
   reviewHistory: { date: string; count: number }[];
+
+  // Anki-specific fields
+  learningMethod?: 'IMMEDIATE' | 'ANKI';
+  ankiStats?: {
+    new: number;
+    learning: number;
+    review: number;
+    dueToday: number;
+    avgInterval: number;
+  } | null;
 }
 
 interface DeckStatisticsProps {
