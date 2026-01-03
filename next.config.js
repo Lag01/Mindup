@@ -39,7 +39,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               "font-src 'self' https://cdn.jsdelivr.net data:",
               "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://*.vercel.app https://*.vercel-insights.com",
-              "connect-src 'self'",
+              "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.vercel-insights.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
