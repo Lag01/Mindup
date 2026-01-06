@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { calculateStreakOptimized } from '@/lib/streak';
 
 export async function GET(request: NextRequest) {
   try {
@@ -71,7 +72,13 @@ export async function GET(request: NextRequest) {
     });
 
     // Requête 4 : Calculer le streak de manière optimisée
-    const streak = await calculateStreakOptimized(user.id);
+    const streakData = await calculateStreakOptimized(user.id);
+
+    // Requête 5 : Récupérer currentStreak et maxStreak depuis la DB
+    const userData = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { currentStreak: true, maxStreak: true },
+    });
 
     // Convertir BigInt en Number et calculer le taux de succès
     const totalReviews = Number(stats.total_reviews);
@@ -97,7 +104,9 @@ export async function GET(request: NextRequest) {
         easy: Number(stats.easy_count),
       },
       successRate,
-      streak,
+      currentStreak: userData?.currentStreak || 0,
+      maxStreak: userData?.maxStreak || 0,
+      streakIncludesToday: streakData.includesCurrentDay,
     });
   } catch (error) {
     console.error('Get global stats error:', error);
@@ -108,52 +117,3 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * Calcule le streak de l'utilisateur de manière optimisée
- * Utilise ReviewEvent au lieu de Review pour plus de précision
- */
-async function calculateStreakOptimized(userId: string): Promise<number> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // Récupérer les 365 derniers jours de reviews en une seule requête
-  const oneYearAgo = new Date(today);
-  oneYearAgo.setDate(oneYearAgo.getDate() - 365);
-
-  const reviewDates = await prisma.$queryRaw<Array<{ review_date: Date }>>`
-    SELECT DISTINCT DATE("createdAt") as review_date
-    FROM "ReviewEvent"
-    WHERE "userId" = ${userId}
-      AND "createdAt" >= ${oneYearAgo}
-      AND "createdAt" < ${today.toISOString()}
-    ORDER BY review_date DESC
-  `;
-
-  if (reviewDates.length === 0) {
-    return 0;
-  }
-
-  // Calculer le streak en mémoire (efficace car max 365 dates)
-  let streak = 0;
-  let currentDate = new Date(today);
-  currentDate.setDate(currentDate.getDate() - 1); // Commencer hier
-  currentDate.setHours(0, 0, 0, 0);
-
-  const dateSet = new Set(
-    reviewDates.map(d => new Date(d.review_date).toISOString().split('T')[0])
-  );
-
-  // Vérifier les jours consécutifs
-  for (let i = 0; i < 365; i++) {
-    const dateStr = currentDate.toISOString().split('T')[0];
-
-    if (dateSet.has(dateStr)) {
-      streak++;
-      currentDate.setDate(currentDate.getDate() - 1);
-    } else {
-      break;
-    }
-  }
-
-  return streak;
-}

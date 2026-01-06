@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [decks, setDecks] = useState<DeckWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [userStreak, setUserStreak] = useState<{ current: number; max: number } | null>(null);
 
   // Regroupement des états UI pour réduire les re-renders
   const [uiState, setUIState] = useState({
@@ -36,6 +37,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDecks();
+    fetchUserStreak();
   }, []);
 
   const fetchDecks = async () => {
@@ -54,6 +56,21 @@ export default function Dashboard() {
       console.error('Error fetching decks:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserStreak = async () => {
+    try {
+      const response = await fetch('/api/stats/global');
+      if (response.ok) {
+        const data = await response.json();
+        setUserStreak({
+          current: data.currentStreak || 0,
+          max: data.maxStreak || 0,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching streak:', error);
     }
   };
 
@@ -186,6 +203,8 @@ export default function Dashboard() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         showSearch={decks.length > 0}
+        currentStreak={userStreak?.current}
+        maxStreak={userStreak?.max}
       />
 
       <main className="max-w-7xl mx-auto px-4 py-8">

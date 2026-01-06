@@ -41,6 +41,11 @@ model User {
   isAdmin            Boolean  @default(false)
   reviewedCardsCount Int      @default(0)  // Total number of cards reviewed (increments on each review)
 
+  // Streak fields
+  currentStreak      Int      @default(0)
+  maxStreak          Int      @default(0)
+  lastStreakUpdate   DateTime?
+
   createdAt          DateTime @default(now())
   decks              Deck[]
   reviews            Review[]
@@ -48,6 +53,9 @@ model User {
   veryFastMathScores VeryFastMathScore[]
   refreshTokens      RefreshToken[]
   auditLogs          AuditLog[]
+
+  @@index([currentStreak])
+  @@index([maxStreak])
 }
 
 model Deck {
