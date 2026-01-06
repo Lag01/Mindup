@@ -189,17 +189,16 @@ export default function LeaderboardPage() {
 
   const renderLeaderboard = () => {
     let currentData: any;
-    let dataType: 'flashcards' | 'math' | 'streak';
+    let dataType: 'flashcards' | 'math' | 'streak' =
+      category === 'flashcards' ? 'flashcards' :
+      category === 'veryfastmath' ? 'math' : 'streak';
 
     if (category === 'flashcards' && flashcardsData) {
       currentData = flashcardsData;
-      dataType = 'flashcards';
     } else if (category === 'veryfastmath' && mathData) {
       currentData = mathData;
-      dataType = 'math';
     } else if (category === 'streak' && streakData) {
       currentData = streakData;
-      dataType = 'streak';
     }
 
     if (!currentData || currentData.leaderboard.length === 0) {
