@@ -2,35 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
-type TimePeriod = 'today' | 'week' | 'month' | 'year';
 type MathMode = 'ADDITION' | 'SUBTRACTION' | 'MULTIPLICATION' | 'DIVISION';
-
-function getDateRangeForPeriod(period: TimePeriod): Date {
-  const now = new Date();
-
-  switch (period) {
-    case 'today': {
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-      return start;
-    }
-    case 'week': {
-      const dayOfWeek = now.getDay();
-      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      const start = new Date(now);
-      start.setDate(now.getDate() - diff);
-      start.setHours(0, 0, 0, 0);
-      return start;
-    }
-    case 'month': {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-      return start;
-    }
-    case 'year': {
-      const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
-      return start;
-    }
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,17 +16,9 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const period = (searchParams.get('period') || 'today') as TimePeriod;
     const mode = searchParams.get('mode') as MathMode | null;
 
-    // Validation des paramètres
-    if (!['today', 'week', 'month', 'year'].includes(period)) {
-      return NextResponse.json(
-        { error: 'Période invalide. Utilisez: today, week, month, year' },
-        { status: 400 }
-      );
-    }
-
+    // Validation du mode
     if (!mode || !['ADDITION', 'SUBTRACTION', 'MULTIPLICATION', 'DIVISION'].includes(mode)) {
       return NextResponse.json(
         { error: 'Mode invalide. Utilisez: ADDITION, SUBTRACTION, MULTIPLICATION, DIVISION' },
@@ -62,15 +26,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const startDate = getDateRangeForPeriod(period);
-
-    // Récupérer tous les scores pour ce mode et cette période
+    // Récupérer tous les scores pour ce mode (all-time)
     const scores = await prisma.veryFastMathScore.findMany({
       where: {
         mode,
-        createdAt: {
-          gte: startDate,
-        },
       },
       orderBy: {
         score: 'desc',
@@ -126,8 +85,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       mode,
-      period,
-      startDate: startDate.toISOString(),
       leaderboard,
     });
   } catch (error) {

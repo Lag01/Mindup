@@ -11,6 +11,8 @@ interface DashboardHeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   showSearch?: boolean;
+  currentStreak?: number;
+  maxStreak?: number;
 }
 
 export default function DashboardHeader({
@@ -20,6 +22,8 @@ export default function DashboardHeader({
   searchQuery,
   onSearchChange,
   showSearch = true,
+  currentStreak,
+  maxStreak,
 }: DashboardHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
@@ -28,7 +32,7 @@ export default function DashboardHeader({
     <header className="bg-zinc-900 border-b border-zinc-800">
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex justify-between items-center mb-4">
-          {/* Logo + Titre */}
+          {/* Logo + Titre + Streak */}
           <div className="flex items-center gap-4">
             <div className="hidden md:block">
               <Logo variant="icon" size={48} />
@@ -36,6 +40,19 @@ export default function DashboardHeader({
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               Mes Decks
             </h1>
+            {currentStreak !== undefined && (
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="bg-gradient-to-r from-orange-600 to-red-600 px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg shadow-orange-500/30">
+                  <span className="text-2xl">🔥</span>
+                  <div className="flex flex-col">
+                    <span className="text-white font-bold text-lg">{currentStreak} jours</span>
+                    <span className="text-orange-200 text-xs">
+                      Record : {maxStreak} jours
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Boutons desktop (cachés sur mobile) */}
