@@ -26,6 +26,7 @@ export default function DashboardHeader({
   maxStreak,
 }: DashboardHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const router = useRouter();
 
   return (
@@ -40,8 +41,29 @@ export default function DashboardHeader({
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               Mes Decks
             </h1>
+            {/* Version mobile ultra-compacte */}
             {currentStreak !== undefined && (
-              <div className="hidden sm:flex items-center gap-2">
+              <div className="sm:hidden flex-shrink-0">
+                <div className="bg-gradient-to-r from-orange-600 to-red-600 px-2 py-1 rounded-md flex items-center gap-1">
+                  <span className="text-lg">🔥</span>
+                  <span className="text-white font-bold text-sm">{currentStreak}j</span>
+                </div>
+              </div>
+            )}
+
+            {/* Version tablette compacte */}
+            {currentStreak !== undefined && (
+              <div className="hidden sm:flex md:hidden flex-shrink-0">
+                <div className="bg-gradient-to-r from-orange-600 to-red-600 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                  <span className="text-xl">🔥</span>
+                  <span className="text-white font-bold text-base">{currentStreak} jours</span>
+                </div>
+              </div>
+            )}
+
+            {/* Version desktop complète */}
+            {currentStreak !== undefined && (
+              <div className="hidden md:flex items-center gap-2">
                 <div className="bg-gradient-to-r from-orange-600 to-red-600 px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg shadow-orange-500/30">
                   <span className="text-2xl">🔥</span>
                   <div className="flex flex-col">
@@ -57,12 +79,66 @@ export default function DashboardHeader({
 
           {/* Boutons desktop (cachés sur mobile) */}
           <div className="hidden md:flex gap-2">
-            <button
-              onClick={() => router.push('/public-decks')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
-            >
-              Decks Publics
-            </button>
+            {/* Nouveau dropdown Créer/Importer/Decks Publics */}
+            <div className="relative">
+              <button
+                onClick={() => setIsCreateMenuOpen(!isCreateMenuOpen)}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
+              >
+                <span className="text-lg">+</span> Créer / Importer
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isCreateMenuOpen && (
+                <>
+                  {/* Overlay */}
+                  <div className="fixed inset-0 z-10" onClick={() => setIsCreateMenuOpen(false)} />
+
+                  {/* Menu */}
+                  <div className="absolute right-0 mt-2 w-56 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl z-20 overflow-hidden">
+                    <button
+                      onClick={() => {
+                        onCreateDeck();
+                        setIsCreateMenuOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-green-700/30 transition-colors flex items-center gap-3"
+                    >
+                      <span className="text-xl">➕</span>
+                      <span>Créer un deck</span>
+                    </button>
+
+                    <div className="border-t border-zinc-700"></div>
+
+                    <button
+                      onClick={() => {
+                        router.push('/import');
+                        setIsCreateMenuOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-indigo-700/30 transition-colors flex items-center gap-3"
+                    >
+                      <span className="text-xl">📥</span>
+                      <span>Importer un deck</span>
+                    </button>
+
+                    <div className="border-t border-zinc-700"></div>
+
+                    <button
+                      onClick={() => {
+                        router.push('/public-decks');
+                        setIsCreateMenuOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-blue-700/30 transition-colors flex items-center gap-3"
+                    >
+                      <span className="text-xl">🌐</span>
+                      <span>Decks Publics</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
             <button
               onClick={() => router.push('/leaderboard')}
               className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
@@ -74,18 +150,6 @@ export default function DashboardHeader({
               className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
             >
               Défis VeryFastMath
-            </button>
-            <button
-              onClick={onCreateDeck}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm whitespace-nowrap"
-            >
-              <span className="text-lg">+</span> Créer un deck
-            </button>
-            <button
-              onClick={() => router.push('/import')}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
-            >
-              Importer un deck
             </button>
             {isAdmin && (
               <button
