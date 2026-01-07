@@ -62,13 +62,34 @@ async function calculateStreakOptimized(userId: string): Promise<StreakCalculati
 }
 
 export async function updateUserStreak(userId: string) {
-  const { currentStreak } = await calculateStreakOptimized(userId);
-
+  // Vérifier si le streak a déjà été mis à jour aujourd'hui
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { maxStreak: true },
+    select: {
+      maxStreak: true,
+      lastStreakUpdate: true,
+    },
   });
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const lastUpdate = currentUser?.lastStreakUpdate;
+  if (lastUpdate) {
+    const lastUpdateDate = new Date(lastUpdate);
+    lastUpdateDate.setHours(0, 0, 0, 0);
+
+    // Si déjà mis à jour aujourd'hui, ne rien faire
+    if (lastUpdateDate.getTime() === today.getTime()) {
+      return {
+        currentStreak: 0,
+        maxStreak: currentUser?.maxStreak || 0,
+        alreadyUpdatedToday: true
+      };
+    }
+  }
+
+  const { currentStreak } = await calculateStreakOptimized(userId);
   const newMaxStreak = Math.max(currentStreak, currentUser?.maxStreak || 0);
 
   await prisma.user.update({
@@ -80,7 +101,7 @@ export async function updateUserStreak(userId: string) {
     },
   });
 
-  return { currentStreak, maxStreak: newMaxStreak };
+  return { currentStreak, maxStreak: newMaxStreak, alreadyUpdatedToday: false };
 }
 
 export { calculateStreakOptimized };
