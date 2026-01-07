@@ -73,7 +73,9 @@ export async function deleteImageAsync(imagePath: string): Promise<boolean> {
   try {
     // Cas 1 : URL Vercel Blob (HTTPS)
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      await del(imagePath);
+      // Nettoyer les query params (cache busting) avant la suppression
+      const cleanUrl = imagePath.split('?')[0];
+      await del(cleanUrl);
       console.log(`[CLEANUP] ✅ Image Vercel Blob supprimée: ${imagePath}`);
       return true;
     }
