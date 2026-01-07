@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { updateUserStreak } from '@/lib/streak';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -71,6 +72,13 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           },
         }),
       ]);
+
+      // Recalculer le streak après changement de méthode (ReviewEvent supprimés)
+      try {
+        await updateUserStreak(user.id);
+      } catch (streakError) {
+        console.error('Erreur lors de la mise à jour du streak après changement de méthode:', streakError);
+      }
 
       return NextResponse.json({
         success: true,
