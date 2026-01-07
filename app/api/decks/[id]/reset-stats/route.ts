@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { updateUserStreak } from '@/lib/streak';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -46,6 +47,13 @@ export async function POST(
         },
       },
     });
+
+    // Recalculer le streak après suppression des ReviewEvent (cascade delete)
+    try {
+      await updateUserStreak(user.id);
+    } catch (streakError) {
+      console.error('Erreur lors de la mise à jour du streak après reset:', streakError);
+    }
 
     return NextResponse.json({
       success: true,

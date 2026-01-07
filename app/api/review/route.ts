@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { updateReviewStats, Rating } from '@/lib/revision';
 import { updateAnkiReviewStats, AnkiRating, CardStatus } from '@/lib/anki';
+import { updateUserStreak } from '@/lib/streak';
 
 export async function GET(request: NextRequest) {
   try {
@@ -325,6 +326,13 @@ export async function POST(request: NextRequest) {
         },
       });
     });
+
+    // Mettre à jour le streak de l'utilisateur après la révision
+    try {
+      await updateUserStreak(user.id);
+    } catch (streakError) {
+      console.error('Erreur lors de la mise à jour du streak:', streakError);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
