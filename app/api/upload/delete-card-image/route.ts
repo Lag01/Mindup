@@ -39,8 +39,10 @@ export async function DELETE(request: NextRequest) {
       }
 
       // URL Vercel Blob - utiliser la fonction del
-      console.log('[Delete] Suppression depuis Vercel Blob');
-      await del(imagePath);
+      // Nettoyer les query params (cache busting) avant la suppression
+      const cleanUrl = imagePath.split('?')[0];
+      console.log('[Delete] Suppression depuis Vercel Blob:', cleanUrl);
+      await del(cleanUrl);
       console.log('[Delete] Fichier supprimé avec succès de Vercel Blob');
     } else if (imagePath.startsWith('/uploads/cards/')) {
       // Chemin local - utiliser unlink (pour compatibilité avec les anciennes images)

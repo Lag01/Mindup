@@ -116,12 +116,15 @@ export async function POST(request: NextRequest) {
 
     console.log('[Upload] Fichier uploadé avec succès:', blob.url);
 
-    // Retourner l'URL publique du blob
+    // Ajouter un timestamp pour le cache busting (forcer le rechargement dans le navigateur)
+    const urlWithCacheBusting = `${blob.url}?v=${Date.now()}`;
+
+    // Retourner l'URL publique du blob avec cache busting
     return NextResponse.json({
       success: true,
-      path: blob.url,
+      path: urlWithCacheBusting,
       filename: filename,
-      url: blob.url,
+      url: urlWithCacheBusting,
     });
   } catch (error) {
     console.error('[Upload] Erreur lors de l\'upload:', error);
