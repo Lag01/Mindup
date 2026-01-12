@@ -9,8 +9,8 @@ import LoadingAnimation from '@/components/LoadingAnimation';
 const TrophyIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="48"
-    height="48"
+    width="32"
+    height="32"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -31,8 +31,8 @@ const TrophyIcon = () => (
 const SilverMedalIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="48"
-    height="48"
+    width="32"
+    height="32"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -53,15 +53,15 @@ const SilverMedalIcon = () => (
 const BronzeMedalIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="48"
-    height="48"
+    width="32"
+    height="32"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
-    className="text-orange-600"
+    className="text-amber-700"
   >
     <path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"></path>
     <path d="M11 12 5.12 2.2"></path>
@@ -189,8 +189,8 @@ const LeaderboardCard: React.FC<LeaderboardCardProps> = ({ entry, dataType, isCu
         return <BronzeMedalIcon />;
       default:
         return (
-          <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center">
-            <span className="text-zinc-400 font-semibold text-sm">
+          <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center">
+            <span className="text-zinc-400 font-semibold text-xs">
               {getInitials(entry.displayName)}
             </span>
           </div>
