@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       mode,
       leaderboard,
+      currentUserId: user.id,
     });
   } catch (error) {
     console.error('Streak leaderboard error:', error);

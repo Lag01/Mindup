@@ -71,13 +71,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Requête 4 : Calculer le streak de manière optimisée
+    // Requête 4 : Calculer le streak en temps réel
     const streakData = await calculateStreakOptimized(user.id);
 
-    // Requête 5 : Récupérer currentStreak et maxStreak depuis la DB
+    // Requête 5 : Récupérer maxStreak depuis la DB (le streak temps réel peut être différent)
     const userData = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { currentStreak: true, maxStreak: true },
+      select: {
+        maxStreak: true,
+      },
     });
 
     // Convertir BigInt en Number et calculer le taux de succès
@@ -104,7 +106,7 @@ export async function GET(request: NextRequest) {
         easy: Number(stats.easy_count),
       },
       successRate,
-      currentStreak: userData?.currentStreak || 0,
+      currentStreak: streakData.currentStreak,
       maxStreak: userData?.maxStreak || 0,
       streakIncludesToday: streakData.includesCurrentDay,
     });

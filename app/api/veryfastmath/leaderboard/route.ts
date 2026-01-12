@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       mode,
       leaderboard,
+      currentUserId: user.id,
     });
   } catch (error) {
     console.error('Leaderboard error:', error);
