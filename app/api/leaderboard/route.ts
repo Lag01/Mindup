@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       leaderboard,
+      currentUserId: user.id,
       pagination: {
         page,
         limit,

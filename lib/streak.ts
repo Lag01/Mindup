@@ -21,14 +21,14 @@ async function calculateStreakOptimized(userId: string): Promise<StreakCalculati
     },
   });
 
-  const oneYearAgo = new Date(today);
-  oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+  const twoYearsAgo = new Date(today);
+  twoYearsAgo.setDate(twoYearsAgo.getDate() - 730);
 
   const reviewDates = await prisma.$queryRaw<Array<{ review_date: Date }>>`
     SELECT DISTINCT DATE("createdAt") as review_date
     FROM "ReviewEvent"
     WHERE "userId" = ${userId}
-      AND "createdAt" >= ${oneYearAgo}
+      AND "createdAt" >= ${twoYearsAgo}
     ORDER BY review_date DESC
   `;
 
@@ -48,7 +48,7 @@ async function calculateStreakOptimized(userId: string): Promise<StreakCalculati
     currentDate.setDate(currentDate.getDate() - 1);
   }
 
-  for (let i = 0; i < 365; i++) {
+  for (let i = 0; i < 730; i++) {
     const dateStr = currentDate.toISOString().split('T')[0];
     if (dateSet.has(dateStr)) {
       streak++;
@@ -66,6 +66,7 @@ export async function updateUserStreak(userId: string) {
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      currentStreak: true,
       maxStreak: true,
       lastStreakUpdate: true,
     },
@@ -82,7 +83,7 @@ export async function updateUserStreak(userId: string) {
     // Si déjà mis à jour aujourd'hui, ne rien faire
     if (lastUpdateDate.getTime() === today.getTime()) {
       return {
-        currentStreak: 0,
+        currentStreak: currentUser?.currentStreak || 0,
         maxStreak: currentUser?.maxStreak || 0,
         alreadyUpdatedToday: true
       };
@@ -90,16 +91,57 @@ export async function updateUserStreak(userId: string) {
   }
 
   const { currentStreak } = await calculateStreakOptimized(userId);
+
+  // Validation : le streak ne peut pas être négatif
+  if (currentStreak < 0) {
+    console.error(`Streak invalide calculé pour l'utilisateur ${userId}: ${currentStreak}`);
+    return {
+      currentStreak: currentUser?.currentStreak || 0,
+      maxStreak: currentUser?.maxStreak || 0,
+      alreadyUpdatedToday: false
+    };
+  }
+
   const newMaxStreak = Math.max(currentStreak, currentUser?.maxStreak || 0);
 
-  await prisma.user.update({
-    where: { id: userId },
+  // Vérification de l'invariant : currentStreak <= maxStreak
+  if (currentStreak > newMaxStreak) {
+    console.error(`Violation d'invariant pour l'utilisateur ${userId}: currentStreak (${currentStreak}) > maxStreak (${newMaxStreak})`);
+  }
+
+  // Mise à jour atomique pour éviter les race conditions
+  const result = await prisma.user.updateMany({
+    where: {
+      id: userId,
+      OR: [
+        { lastStreakUpdate: null },
+        {
+          lastStreakUpdate: {
+            lt: today
+          }
+        }
+      ]
+    },
     data: {
       currentStreak,
       maxStreak: newMaxStreak,
       lastStreakUpdate: new Date(),
     },
   });
+
+  // Si aucune mise à jour n'a été effectuée, un autre process a déjà mis à jour aujourd'hui
+  if (result.count === 0) {
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { currentStreak: true, maxStreak: true },
+    });
+
+    return {
+      currentStreak: updatedUser?.currentStreak || 0,
+      maxStreak: updatedUser?.maxStreak || 0,
+      alreadyUpdatedToday: true
+    };
+  }
 
   return { currentStreak, maxStreak: newMaxStreak, alreadyUpdatedToday: false };
 }
