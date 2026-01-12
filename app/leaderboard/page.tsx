@@ -7,51 +7,68 @@ import LoadingAnimation from '@/components/LoadingAnimation';
 
 // Composants d'icônes SVG pour le top 3
 const TrophyIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="goldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#FFD700" />
-        <stop offset="100%" stopColor="#FFA500" />
-      </linearGradient>
-    </defs>
-    <path d="M24 8C20 8 16 10 16 14V18C16 22 20 24 24 24C28 24 32 22 32 18V14C32 10 28 8 24 8Z" fill="url(#goldGradient)" />
-    <path d="M14 14H10C8.89543 14 8 14.8954 8 16V18C8 20.2091 9.79086 22 12 22H14" stroke="url(#goldGradient)" strokeWidth="2" strokeLinecap="round" />
-    <path d="M34 14H38C39.1046 14 40 14.8954 40 16V18C40 20.2091 38.2091 22 36 22H34" stroke="url(#goldGradient)" strokeWidth="2" strokeLinecap="round" />
-    <path d="M18 24V28C18 30 20 32 24 32C28 32 30 30 30 28V24" stroke="url(#goldGradient)" strokeWidth="2" />
-    <rect x="16" y="32" width="16" height="6" rx="1" fill="url(#goldGradient)" />
-    <rect x="20" y="38" width="8" height="2" fill="url(#goldGradient)" />
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="48"
+    height="48"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="text-yellow-400"
+  >
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+    <path d="M4 22h16"></path>
+    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
   </svg>
 );
 
 const SilverMedalIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="silverGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#E8E8E8" />
-        <stop offset="100%" stopColor="#A0A0A0" />
-      </linearGradient>
-    </defs>
-    <circle cx="24" cy="26" r="14" fill="url(#silverGradient)" />
-    <circle cx="24" cy="26" r="11" fill="#1a1a1a" />
-    <text x="24" y="31" textAnchor="middle" fill="url(#silverGradient)" fontSize="14" fontWeight="bold">2</text>
-    <path d="M18 8L22 18" stroke="url(#silverGradient)" strokeWidth="2" strokeLinecap="round" />
-    <path d="M30 8L26 18" stroke="url(#silverGradient)" strokeWidth="2" strokeLinecap="round" />
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="48"
+    height="48"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="text-gray-400"
+  >
+    <path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"></path>
+    <path d="M11 12 5.12 2.2"></path>
+    <path d="m13 12 5.88-9.8"></path>
+    <path d="M8 7h8"></path>
+    <circle cx="12" cy="17" r="5"></circle>
+    <path d="M12 18v-2h-.5"></path>
   </svg>
 );
 
 const BronzeMedalIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="bronzeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#CD7F32" />
-        <stop offset="100%" stopColor="#8B4513" />
-      </linearGradient>
-    </defs>
-    <circle cx="24" cy="26" r="14" fill="url(#bronzeGradient)" />
-    <circle cx="24" cy="26" r="11" fill="#1a1a1a" />
-    <text x="24" y="31" textAnchor="middle" fill="url(#bronzeGradient)" fontSize="14" fontWeight="bold">3</text>
-    <path d="M18 8L22 18" stroke="url(#bronzeGradient)" strokeWidth="2" strokeLinecap="round" />
-    <path d="M30 8L26 18" stroke="url(#bronzeGradient)" strokeWidth="2" strokeLinecap="round" />
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="48"
+    height="48"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="text-orange-600"
+  >
+    <path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"></path>
+    <path d="M11 12 5.12 2.2"></path>
+    <path d="m13 12 5.88-9.8"></path>
+    <path d="M8 7h8"></path>
+    <circle cx="12" cy="17" r="5"></circle>
+    <path d="M12 18v-2h-.5"></path>
   </svg>
 );
 
