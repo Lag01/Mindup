@@ -4,6 +4,7 @@ import 'katex/dist/katex.min.css';
 import RegisterServiceWorker from './register-sw';
 import { Providers } from '@/components/Providers';
 import SplashScreen from '@/components/SplashScreen';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: "Mindup - Révision",
@@ -50,6 +51,7 @@ export default function RootLayout({
         <Providers>
           {children}
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
