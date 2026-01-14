@@ -155,7 +155,7 @@ function MathText({
   return (
     <div
       ref={containerRef}
-      className={className}
+      className={`${className} ${needsScroll ? 'needs-scroll' : ''}`}
       style={{
         fontSize: autoResize ? `${fontSize}px` : undefined,
         maxHeight: autoResize ? `${maxHeight}px` : undefined,
@@ -166,9 +166,13 @@ function MathText({
         justifyContent: 'flex-start',
         whiteSpace: 'pre-wrap',
         lineHeight: '1.5',
-        padding: '8px 8px 8px 16px',
+        padding: '12px',
         width: '100%',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        ...(needsScroll && {
+          scrollbarColor: '#3f3f46 transparent',
+          scrollbarWidth: 'thin',
+        }),
       }}
     />
   );

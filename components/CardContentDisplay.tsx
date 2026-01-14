@@ -66,7 +66,14 @@ export default function CardContentDisplay({
     const imageMaxHeight = Math.floor(maxHeight * 0.6); // 60% pour l'image
 
     return (
-      <div className={`flex flex-col gap-3 ${className}`}>
+      <div
+        className={`flex flex-col gap-3 ${className}`}
+        style={{
+          maxHeight: `${maxHeight}px`,
+          overflow: 'auto',
+          width: '100%',
+        }}
+      >
         {/* Texte en haut */}
         <div className="flex-shrink-0">
           <MathText

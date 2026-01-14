@@ -44,3 +44,7 @@ next-env.d.ts
 # Claude Code settings locaux
 .claude/settings.local.json
 backups/
+
+# Fichiers temporaires Claude Code Router
+tmpclaude-*
+nul

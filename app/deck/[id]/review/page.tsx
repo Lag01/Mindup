@@ -49,7 +49,7 @@ const CardDisplay = memo(({
 
   return (
     <div
-      className={`bg-zinc-900 rounded-lg p-6 md:p-8 border border-zinc-800 min-h-[300px] md:min-h-[400px] flex flex-col justify-center transition-colors ${
+      className={`bg-zinc-900 rounded-lg p-6 md:p-8 border border-zinc-800 min-h-[300px] md:min-h-[400px] max-h-[500px] md:max-h-[650px] flex flex-col justify-center overflow-auto transition-colors ${
         !isFlipped && onCardClick ? 'cursor-pointer hover:border-zinc-700' : ''
       }`}
       onClick={handleClick}
