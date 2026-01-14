@@ -4,6 +4,10 @@ import { useState } from 'react';
 import MathText from './MathText';
 import { addCacheBusting } from '@/lib/image-service';
 
+// Ratios de distribution de l'espace pour texte+image
+const TEXT_HEIGHT_RATIO = 0.4;  // 40% pour le texte
+const IMAGE_HEIGHT_RATIO = 0.6; // 60% pour l'image
+
 interface CardContentDisplayProps {
   text: string;
   textType: 'TEXT' | 'LATEX';
@@ -62,8 +66,8 @@ export default function CardContentDisplay({
 
   // Cas 3 : Texte + Image - Afficher les deux
   if (hasText && hasImage) {
-    const textMaxHeight = Math.floor(maxHeight * 0.4); // 40% pour le texte
-    const imageMaxHeight = Math.floor(maxHeight * 0.6); // 60% pour l'image
+    const textMaxHeight = Math.floor(maxHeight * TEXT_HEIGHT_RATIO);
+    const imageMaxHeight = Math.floor(maxHeight * IMAGE_HEIGHT_RATIO);
 
     return (
       <div

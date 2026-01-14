@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState, memo } from 'react';
 import katex from 'katex';
 
+// Configuration du redimensionnement automatique de police
+const DEFAULT_FONT_SIZE = 14;
+const MIN_FONT_SIZE = 11;
+const MAX_FONT_SIZE = 20;
+const MAX_BINARY_SEARCH_ITERATIONS = 20;
+const CONTENT_PADDING = '12px';
+
 interface MathTextProps {
   text: string;
   contentType: 'TEXT' | 'LATEX';
@@ -14,6 +21,14 @@ interface MathTextProps {
 // Cache global pour les tailles de police calculées
 // Clé: "text_contentType_maxHeight" → Valeur: fontSize
 const fontSizeCache = new Map<string, number>();
+
+/**
+ * Vérifie si le contenu déborde horizontalement ou verticalement
+ */
+function checkOverflow(element: HTMLElement, maxHeight: number): boolean {
+  return element.scrollHeight > maxHeight ||
+         element.scrollWidth > element.clientWidth;
+}
 
 function MathText({
   text,
@@ -88,23 +103,20 @@ function MathText({
         renderContent();
 
         // Vérifier si le contenu déborde
-        const finalScrollHeight = containerRef.current.scrollHeight;
-        const finalScrollWidth = containerRef.current.scrollWidth;
-        const finalClientWidth = containerRef.current.clientWidth;
-        setNeedsScroll(finalScrollHeight > maxHeight || finalScrollWidth > finalClientWidth);
+        setNeedsScroll(checkOverflow(containerRef.current, maxHeight));
         return;
       }
 
       // Pas en cache : effectuer la recherche binaire
-      let currentSize = 14;
-      const minSize = 11;
-      const maxSize = 20;
+      let currentSize = DEFAULT_FONT_SIZE;
+      const minSize = MIN_FONT_SIZE;
+      const maxSize = MAX_FONT_SIZE;
 
       // Binary search for optimal font size with more iterations for precision
       let low = minSize;
       let high = maxSize;
       let bestSize = currentSize;
-      const maxIterations = 20; // Increase iterations for better accuracy
+      const maxIterations = MAX_BINARY_SEARCH_ITERATIONS; // Increase iterations for better accuracy
       let iteration = 0;
 
       while (low <= high && iteration < maxIterations) {
@@ -139,10 +151,7 @@ function MathText({
 
       // Check if content still overflows even at minimum size
       renderContent();
-      const finalScrollHeight = containerRef.current.scrollHeight;
-      const finalScrollWidth = containerRef.current.scrollWidth;
-      const finalClientWidth = containerRef.current.clientWidth;
-      setNeedsScroll(finalScrollHeight > maxHeight || finalScrollWidth > finalClientWidth);
+      setNeedsScroll(checkOverflow(containerRef.current, maxHeight));
     };
 
     if (autoResize) {
@@ -166,7 +175,7 @@ function MathText({
         justifyContent: 'flex-start',
         whiteSpace: 'pre-wrap',
         lineHeight: '1.5',
-        padding: '12px',
+        padding: CONTENT_PADDING,
         width: '100%',
         boxSizing: 'border-box',
         ...(needsScroll && {
