@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import MathText from './MathText';
+import { addCacheBusting } from '@/lib/image-service';
 
 interface CardContentDisplayProps {
   text: string;
@@ -21,6 +23,9 @@ export default function CardContentDisplay({
   maxHeight = 400,
   onImageClick,
 }: CardContentDisplayProps) {
+  // Timestamp de session pour cache busting (évite les re-renders)
+  const [sessionTimestamp] = useState(() => Date.now());
+
   const hasText = text && text.trim().length > 0;
   const hasImage = imagePath && imagePath.length > 0;
 
@@ -29,7 +34,7 @@ export default function CardContentDisplay({
     return (
       <div className={`flex items-center justify-center ${className}`}>
         <img
-          src={imagePath}
+          src={addCacheBusting(imagePath, sessionTimestamp) || imagePath}
           alt="Contenu de la carte"
           className="max-w-full max-h-full object-contain cursor-pointer hover:opacity-80 transition-opacity"
           style={{ maxHeight: `${maxHeight}px` }}
@@ -76,7 +81,7 @@ export default function CardContentDisplay({
         {/* Image en bas */}
         <div className="flex-shrink-0 flex items-center justify-center">
           <img
-            src={imagePath}
+            src={addCacheBusting(imagePath, sessionTimestamp) || imagePath}
             alt="Illustration de la carte"
             className="max-w-full object-contain rounded cursor-pointer hover:opacity-80 transition-opacity"
             style={{ maxHeight: `${imageMaxHeight}px` }}

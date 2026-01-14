@@ -95,6 +95,36 @@ export async function deleteCardImageSilent(imagePath: string | null): Promise<v
 }
 
 /**
+ * Ajoute un paramètre de cache busting à une URL d'image
+ * @param imagePath - URL ou chemin de l'image
+ * @param timestamp - Timestamp optionnel (par défaut: Date.now())
+ * @returns URL avec cache busting
+ */
+export function addCacheBusting(
+  imagePath: string | null,
+  timestamp?: number
+): string | null {
+  if (!imagePath) return null;
+
+  const cb = timestamp || Date.now();
+  const separator = imagePath.includes('?') ? '&' : '?';
+  return `${imagePath}${separator}cb=${cb}`;
+}
+
+/**
+ * Nettoie les paramètres de cache busting d'une URL
+ * Utile pour comparaisons ou stockage
+ * @param imagePath - URL avec potentiellement du cache busting
+ * @returns URL propre
+ */
+export function cleanCacheBusting(imagePath: string | null): string | null {
+  if (!imagePath) return null;
+
+  // Retirer tous les query params de cache busting
+  return imagePath.split('?')[0].split('&cb=')[0];
+}
+
+/**
  * Valider un fichier image
  * @param file - Le fichier à valider
  * @param maxSizeMB - Taille maximale en MB (par défaut 5MB)

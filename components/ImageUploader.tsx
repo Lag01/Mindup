@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import imageCompression from 'browser-image-compression';
+import { addCacheBusting } from '@/lib/image-service';
 
 interface ImageUploaderProps {
   currentImage: string | null;
@@ -96,7 +97,7 @@ export default function ImageUploader({
       {currentImage ? (
         <div className="relative">
           <img
-            src={currentImage}
+            src={addCacheBusting(currentImage) || currentImage}
             alt={`Aperçu ${label}`}
             className="w-full h-48 object-contain bg-zinc-800 rounded-lg border border-zinc-700"
           />

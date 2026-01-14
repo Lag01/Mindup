@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import { requireAdmin } from '@/lib/auth';
 import sharp from 'sharp';
+import { randomUUID } from 'crypto';
 
 const MAX_FILE_SIZE = 4.5 * 1024 * 1024; // 4.5MB (limite Vercel Blob)
 // Note : SVG est explicitement exclu pour des raisons de sécurité (risque XSS)
@@ -76,11 +77,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Générer un nom de fichier unique
+    // Générer un nom de fichier unique avec UUID pour éviter les collisions
     const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(2, 8);
+    const uuid = randomUUID();
     const extension = file.name.split('.').pop()?.toLowerCase() || 'png';
-    const filename = `cards/${timestamp}_${randomId}.${extension}`;
+    const filename = `cards/${timestamp}_${uuid}.${extension}`;
 
     console.log('[Upload] Upload vers Vercel Blob:', filename);
 
@@ -116,15 +117,13 @@ export async function POST(request: NextRequest) {
 
     console.log('[Upload] Fichier uploadé avec succès:', blob.url);
 
-    // Ajouter un timestamp pour le cache busting (forcer le rechargement dans le navigateur)
-    const urlWithCacheBusting = `${blob.url}?v=${Date.now()}`;
-
-    // Retourner l'URL publique du blob avec cache busting
+    // Retourner l'URL propre sans cache busting pour stockage cohérent en BD
+    // Le cache busting sera appliqué dynamiquement lors de l'affichage
     return NextResponse.json({
       success: true,
-      path: urlWithCacheBusting,
+      path: blob.url,
       filename: filename,
-      url: urlWithCacheBusting,
+      url: blob.url,
     });
   } catch (error) {
     console.error('[Upload] Erreur lors de l\'upload:', error);
