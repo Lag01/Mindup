@@ -194,3 +194,10 @@ export interface DeckCardsApiResponse {
   deck: DeckWithCards;
   pagination: PaginationMeta;
 }
+
+/**
+ * Réponse API pour GET /api/decks/[id]/search
+ */
+export interface DeckSearchApiResponse extends DeckCardsApiResponse {
+  searchQuery: string;
+}

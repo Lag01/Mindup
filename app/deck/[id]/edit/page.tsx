@@ -8,7 +8,7 @@ import { useUser } from '@/hooks/useUser';
 import { useDuplicateDetection } from '@/hooks/useDuplicateDetection';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useDebounce } from '@/hooks/useDebounce';
-import { DeckWithCards, CardFormData, FieldsVisibility, ContentType, PaginationMeta, DeckCardsApiResponse } from '@/lib/types';
+import { DeckWithCards, CardFormData, FieldsVisibility, ContentType, PaginationMeta, DeckCardsApiResponse, DeckSearchApiResponse, Card } from '@/lib/types';
 import { SearchBar } from './components/SearchBar';
 import { DuplicateWarning } from './components/DuplicateWarning';
 import { BulkActions } from './components/BulkActions';
@@ -35,6 +35,12 @@ export default function EditDeck() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // États pour la recherche globale
+  const [searchMode, setSearchMode] = useState<'local' | 'global'>('local');
+  const [isSearchingGlobally, setIsSearchingGlobally] = useState(false);
+  const [globalSearchResults, setGlobalSearchResults] = useState<Card[] | null>(null);
+  const [globalSearchMeta, setGlobalSearchMeta] = useState<PaginationMeta | null>(null);
+
   // Formulaire d'édition
   const [editForm, setEditForm] = useState<CardFormData>({
     front: '',
@@ -57,6 +63,9 @@ export default function EditDeck() {
     showImage: false,
   });
 
+  // Debounce de la recherche pour éviter les recalculs trop fréquents
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
   // Détection des doublons avec hook mémoïsé
   const duplicates = useDuplicateDetection(deck?.cards ?? []);
 
@@ -74,6 +83,20 @@ export default function EditDeck() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Déclencher la recherche globale automatiquement
+  useEffect(() => {
+    // Si la query est vide, revenir en mode local
+    if (!debouncedSearchQuery.trim()) {
+      setSearchMode('local');
+      setGlobalSearchResults(null);
+      setGlobalSearchMeta(null);
+      return;
+    }
+
+    // Lancer la recherche globale après le debounce
+    searchGlobally(debouncedSearchQuery);
+  }, [debouncedSearchQuery]);
 
   const fetchDeck = async (page: number = 1, append: boolean = false) => {
     try {
@@ -135,6 +158,70 @@ export default function EditDeck() {
     const nextPage = currentPage + 1;
     await fetchDeck(nextPage, true); // append = true
   }, [paginationMeta, currentPage, loadingMore, fetchDeck]);
+
+  /**
+   * Recherche globale dans toutes les cartes du deck
+   */
+  const searchGlobally = async (query: string, page: number = 1) => {
+    if (!query.trim() || query.trim().length < 2) {
+      setSearchMode('local');
+      setGlobalSearchResults(null);
+      setGlobalSearchMeta(null);
+      return;
+    }
+
+    setIsSearchingGlobally(true);
+    try {
+      const response = await fetch(
+        `/api/decks/${deckId}/search?q=${encodeURIComponent(query)}&page=${page}&limit=50`
+      );
+
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
+
+      const data: DeckSearchApiResponse = await response.json();
+
+      setSearchMode('global');
+      setGlobalSearchResults(data.deck.cards);
+      setGlobalSearchMeta(data.pagination);
+    } catch (error) {
+      console.error('Global search error:', error);
+      alert('Erreur lors de la recherche globale');
+    } finally {
+      setIsSearchingGlobally(false);
+    }
+  };
+
+  /**
+   * Charge plus de résultats de recherche globale
+   */
+  const loadMoreSearchResults = useCallback(async () => {
+    if (!globalSearchMeta?.hasNextPage || isSearchingGlobally) return;
+
+    const nextPage = globalSearchMeta.page + 1;
+
+    setIsSearchingGlobally(true);
+    try {
+      const response = await fetch(
+        `/api/decks/${deckId}/search?q=${encodeURIComponent(debouncedSearchQuery)}&page=${nextPage}&limit=50`
+      );
+
+      if (!response.ok) {
+        throw new Error('Search pagination failed');
+      }
+
+      const data: DeckSearchApiResponse = await response.json();
+
+      // Accumuler les résultats
+      setGlobalSearchResults(prev => [...(prev || []), ...data.deck.cards]);
+      setGlobalSearchMeta(data.pagination);
+    } catch (error) {
+      console.error('Search pagination error:', error);
+    } finally {
+      setIsSearchingGlobally(false);
+    }
+  }, [globalSearchMeta, debouncedSearchQuery, isSearchingGlobally, deckId]);
 
   const startEdit = (cardId: string) => {
     const card = deck?.cards.find(c => c.id === cardId);
@@ -234,6 +321,11 @@ export default function EditDeck() {
         };
       });
 
+      // Si en mode recherche globale, rafraîchir les résultats
+      if (searchMode === 'global' && debouncedSearchQuery) {
+        await searchGlobally(debouncedSearchQuery);
+      }
+
       cancelEdit();
     } catch (error) {
       console.error('Error updating card:', error);
@@ -273,6 +365,11 @@ export default function EditDeck() {
           cards: prev.cards.filter(card => card.id !== cardId),
         };
       });
+
+      // Si en mode recherche globale, rafraîchir les résultats
+      if (searchMode === 'global' && debouncedSearchQuery) {
+        await searchGlobally(debouncedSearchQuery);
+      }
     } catch (error) {
       console.error('Error deleting card:', error);
       alert('Erreur lors de la suppression de la carte');
@@ -369,14 +466,16 @@ export default function EditDeck() {
     }, 100);
   };
 
-  // Debounce de la recherche pour éviter les recalculs trop fréquents
-  // ✅ Hook déplacé AVANT le return conditionnel pour respecter les Rules of Hooks
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
-
   // Mémoriser le filtrage pour éviter les recalculs inutiles
-  // ✅ Hook déplacé AVANT le return conditionnel pour respecter les Rules of Hooks
   const filteredCards = useMemo(() => {
     if (!deck) return [];
+
+    // Mode recherche globale : afficher les résultats du serveur
+    if (searchMode === 'global' && globalSearchResults) {
+      return globalSearchResults;
+    }
+
+    // Mode local : filtrer les cartes en mémoire
     if (!debouncedSearchQuery.trim()) {
       return deck.cards;
     }
@@ -385,7 +484,7 @@ export default function EditDeck() {
       card.front.toLowerCase().includes(query) ||
       card.back.toLowerCase().includes(query)
     );
-  }, [deck, debouncedSearchQuery]);
+  }, [deck, debouncedSearchQuery, searchMode, globalSearchResults]);
 
   if (loading) {
     return <LoadingAnimation fullScreen />;
@@ -418,7 +517,13 @@ export default function EditDeck() {
 
           {/* Barre de recherche */}
           {deck.cards.length > 0 && (
-            <SearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+            <SearchBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchMode={searchMode}
+              isSearching={isSearchingGlobally}
+              totalResults={globalSearchMeta?.totalCards}
+            />
           )}
         </div>
       </header>
@@ -451,9 +556,17 @@ export default function EditDeck() {
         {/* Cards List */}
         {filteredCards.length === 0 && deck.cards.length > 0 ? (
           <div className="text-center py-12">
-            <p className="text-zinc-400 text-lg mb-4">
+            <svg className="mx-auto h-12 w-12 text-zinc-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-zinc-400 text-lg mb-2">
               Aucune carte trouvée pour "{searchQuery}"
             </p>
+            {searchMode === 'global' && globalSearchMeta && (
+              <p className="text-zinc-500 text-sm mb-4">
+                Recherche effectuée dans les {globalSearchMeta.totalCards > 0 ? globalSearchMeta.totalCards : paginationMeta?.totalCards || 0} cartes du deck
+              </p>
+            )}
             <button
               onClick={() => setSearchQuery('')}
               className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-6 py-3 rounded-lg transition-colors"
@@ -510,8 +623,18 @@ export default function EditDeck() {
               })}
             </div>
 
-            {/* Bouton "Charger plus" */}
-            {!debouncedSearchQuery.trim() && paginationMeta && paginationMeta.hasNextPage && (
+            {/* Bouton "Charger plus" - Mode recherche globale */}
+            {searchMode === 'global' && globalSearchMeta && globalSearchMeta.hasNextPage && (
+              <LoadMoreButton
+                loading={isSearchingGlobally}
+                disabled={isSearchingGlobally}
+                remainingCards={globalSearchMeta.totalCards - (globalSearchResults?.length || 0)}
+                onClick={loadMoreSearchResults}
+              />
+            )}
+
+            {/* Bouton "Charger plus" - Mode local */}
+            {searchMode === 'local' && !debouncedSearchQuery.trim() && paginationMeta && paginationMeta.hasNextPage && (
               <LoadMoreButton
                 loading={loadingMore}
                 disabled={loadingMore}
@@ -520,10 +643,17 @@ export default function EditDeck() {
               />
             )}
 
-            {/* Indicateur de progression */}
-            {!debouncedSearchQuery.trim() && paginationMeta && (
+            {/* Indicateur de progression - Mode local */}
+            {searchMode === 'local' && !debouncedSearchQuery.trim() && paginationMeta && (
               <div className="text-center py-4 text-zinc-400 text-sm">
                 {deck!.cards.length} / {paginationMeta.totalCards} cartes chargées
+              </div>
+            )}
+
+            {/* Indicateur de progression - Mode recherche globale */}
+            {searchMode === 'global' && globalSearchMeta && (
+              <div className="text-center py-4 text-zinc-400 text-sm">
+                {globalSearchResults?.length || 0} / {globalSearchMeta.totalCards} résultat{globalSearchMeta.totalCards > 1 ? 's' : ''} affiché{globalSearchMeta.totalCards > 1 ? 's' : ''}
               </div>
             )}
           </>
