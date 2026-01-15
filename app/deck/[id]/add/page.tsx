@@ -388,7 +388,7 @@ export default function AddCards() {
                 <div className="flex gap-2">
                   <button
                     onClick={handleToggleFrontText}
-                    className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
+                    className={`px-3 py-1.5 sm:py-0.5 rounded text-xs transition-colors min-h-[32px] sm:min-h-0 ${
                       showFrontText
                         ? 'bg-blue-600 text-white'
                         : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -398,7 +398,7 @@ export default function AddCards() {
                   </button>
                   <button
                     onClick={handleToggleFrontLatex}
-                    className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
+                    className={`px-3 py-1.5 sm:py-0.5 rounded text-xs transition-colors min-h-[32px] sm:min-h-0 ${
                       showFrontLatex
                         ? 'bg-blue-600 text-white'
                         : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -409,7 +409,7 @@ export default function AddCards() {
                   {isAdmin && (
                     <button
                       onClick={handleToggleFrontImage}
-                      className={`px-2.5 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${
+                      className={`px-3 py-1.5 sm:py-0.5 rounded text-xs transition-colors flex items-center gap-1 min-h-[32px] sm:min-h-0 ${
                         showFrontImage
                           ? 'bg-blue-600 text-white'
                           : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -467,7 +467,7 @@ export default function AddCards() {
             </div>
 
             {/* Bouton d'inversion */}
-            <div className="flex justify-center -my-2">
+            <div className="flex justify-center my-1 sm:-my-2">
               <button
                 type="button"
                 onClick={swapFrontBack}
@@ -487,7 +487,7 @@ export default function AddCards() {
                 <div className="flex gap-2">
                   <button
                     onClick={handleToggleBackText}
-                    className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
+                    className={`px-3 py-1.5 sm:py-0.5 rounded text-xs transition-colors min-h-[32px] sm:min-h-0 ${
                       showBackText
                         ? 'bg-blue-600 text-white'
                         : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -497,7 +497,7 @@ export default function AddCards() {
                   </button>
                   <button
                     onClick={handleToggleBackLatex}
-                    className={`px-2.5 py-0.5 rounded text-xs transition-colors ${
+                    className={`px-3 py-1.5 sm:py-0.5 rounded text-xs transition-colors min-h-[32px] sm:min-h-0 ${
                       showBackLatex
                         ? 'bg-blue-600 text-white'
                         : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
@@ -508,7 +508,7 @@ export default function AddCards() {
                   {isAdmin && (
                     <button
                       onClick={handleToggleBackImage}
-                      className={`px-2.5 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${
+                      className={`px-3 py-1.5 sm:py-0.5 rounded text-xs transition-colors flex items-center gap-1 min-h-[32px] sm:min-h-0 ${
                         showBackImage
                           ? 'bg-blue-600 text-white'
                           : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
