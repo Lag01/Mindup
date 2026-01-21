@@ -1,6 +1,6 @@
 'use client';
 
-export type FilterType = 'all' | 'anki' | 'due' | 'imported';
+import type { FilterType } from '../hooks/useDeckFilters';
 
 interface QuickFiltersProps {
   activeFilter: FilterType;
