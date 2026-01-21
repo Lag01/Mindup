@@ -223,8 +223,21 @@ export default function EditDeck() {
     }
   }, [globalSearchMeta, debouncedSearchQuery, isSearchingGlobally, deckId]);
 
+  /**
+   * Trouve une carte par son ID dans la source appropriée selon le mode de recherche
+   */
+  const findCardById = useCallback((cardId: string): Card | undefined => {
+    // En mode recherche globale, chercher dans les résultats globaux
+    if (searchMode === 'global' && globalSearchResults) {
+      return globalSearchResults.find(c => c.id === cardId);
+    }
+
+    // En mode local, chercher dans les cartes chargées
+    return deck?.cards.find(c => c.id === cardId);
+  }, [searchMode, globalSearchResults, deck?.cards]);
+
   const startEdit = (cardId: string) => {
-    const card = deck?.cards.find(c => c.id === cardId);
+    const card = findCardById(cardId);
     if (!card) return;
 
     setEditingCard(card.id);
