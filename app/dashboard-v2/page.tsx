@@ -133,8 +133,10 @@ export default function DashboardV2() {
     }
   };
 
-  const handleRenameSuccess = (deckId: string, newName: string) => {
-    setDecks(decks.map((d) => (d.id === deckId ? { ...d, name: newName } : d)));
+  const handleRenameSuccess = (newName: string) => {
+    if (editingDeck) {
+      setDecks(decks.map((d) => (d.id === editingDeck.id ? { ...d, name: newName } : d)));
+    }
   };
 
   const handleExport = async (deckId: string, format: 'xml' | 'csv') => {
