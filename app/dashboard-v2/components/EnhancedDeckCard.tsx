@@ -37,7 +37,9 @@ export default function EnhancedDeckCard({
   const isAnki = deck.learningMethod === 'ANKI';
   const dueCount = deck.ankiStats?.due || 0;
   const hasDueCards = isAnki && dueCount > 0;
-  const canReview = isAnki && dueCount > 0;
+  // Bouton disabled SEULEMENT pour Anki avec 0 cartes dues
+  // Pour IMMEDIATE : toujours enabled
+  const canReview = deck.learningMethod === 'IMMEDIATE' || (isAnki && dueCount > 0);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -73,7 +75,7 @@ export default function EnhancedDeckCard({
 
   return (
     <article
-      className="group relative bg-zinc-900/50 backdrop-blur-md rounded-lg p-5 border border-zinc-700/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/10 hover:border-cyan-500/30"
+      className={`group relative bg-zinc-900/50 backdrop-blur-md rounded-lg p-5 border border-zinc-700/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/10 hover:border-cyan-500/30 ${isMenuOpen ? 'z-[60]' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
