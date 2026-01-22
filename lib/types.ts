@@ -95,6 +95,9 @@ export interface SessionState {
   cardQueue: Card[];
   currentCardId: string | null;
   sessionStats: SessionStats;
+  mode?: 'study' | 'review';
+  learningMethod?: 'IMMEDIATE' | 'ANKI';
+  version?: number;
 }
 
 // ============================================================================

@@ -120,23 +120,65 @@ const CardPreloader = memo(({ card }: { card: Card | null }) => {
 CardPreloader.displayName = 'CardPreloader';
 
 // Functions to manage session state in localStorage
-function getSessionKey(deckId: string): string {
+function getSessionKey(
+  deckId: string,
+  mode: 'study' | 'review',
+  learningMethod?: 'IMMEDIATE' | 'ANKI'
+): string {
+  if (mode === 'study') {
+    return `study-session-${deckId}`;
+  }
+  if (learningMethod === 'ANKI') {
+    return `review-anki-session-${deckId}`;
+  }
   return `review-session-${deckId}`;
 }
 
-function saveSessionState(deckId: string, state: SessionState): void {
+function saveSessionState(
+  deckId: string,
+  state: SessionState,
+  mode: 'study' | 'review',
+  learningMethod: 'IMMEDIATE' | 'ANKI'
+): void {
   try {
-    localStorage.setItem(getSessionKey(deckId), JSON.stringify(state));
+    const extendedState: SessionState = {
+      ...state,
+      mode,
+      learningMethod,
+      version: 1
+    };
+    const key = getSessionKey(deckId, mode, learningMethod);
+    localStorage.setItem(key, JSON.stringify(extendedState));
   } catch (error) {
     console.error('Error saving session state:', error);
   }
 }
 
-function loadSessionState(deckId: string): SessionState | null {
+function loadSessionState(
+  deckId: string,
+  mode: 'study' | 'review',
+  learningMethod: 'IMMEDIATE' | 'ANKI'
+): SessionState | null {
   try {
-    const saved = localStorage.getItem(getSessionKey(deckId));
+    const key = getSessionKey(deckId, mode, learningMethod);
+    const saved = localStorage.getItem(key);
+
     if (saved) {
-      return JSON.parse(saved);
+      const parsed: SessionState = JSON.parse(saved);
+
+      // Validation : vérifier que la session correspond au mode actuel
+      if (parsed.mode && parsed.mode !== mode) {
+        console.warn(`Session mode mismatch: expected ${mode}, got ${parsed.mode}. Ignoring.`);
+        return null;
+      }
+
+      // Validation : vérifier que la méthode correspond (pour mode révision)
+      if (mode === 'review' && parsed.learningMethod && parsed.learningMethod !== learningMethod) {
+        console.warn(`Learning method mismatch: expected ${learningMethod}, got ${parsed.learningMethod}. Ignoring.`);
+        return null;
+      }
+
+      return parsed;
     }
   } catch (error) {
     console.error('Error loading session state:', error);
@@ -144,9 +186,14 @@ function loadSessionState(deckId: string): SessionState | null {
   return null;
 }
 
-function clearSessionState(deckId: string): void {
+function clearSessionState(
+  deckId: string,
+  mode: 'study' | 'review',
+  learningMethod?: 'IMMEDIATE' | 'ANKI'
+): void {
   try {
-    localStorage.removeItem(getSessionKey(deckId));
+    const key = getSessionKey(deckId, mode, learningMethod || 'IMMEDIATE');
+    localStorage.removeItem(key);
   } catch (error) {
     console.error('Error clearing session state:', error);
   }
@@ -184,8 +231,8 @@ export default function Review() {
 
   const fetchCards = async () => {
     try {
-      // Check if there's a saved session
-      const savedSession = loadSessionState(deckId);
+      // Déterminer le mode avant de charger la session
+      const mode: 'study' | 'review' = isStudyMode ? 'study' : 'review';
 
       const response = await fetch(`/api/review?deckId=${deckId}`);
       if (!response.ok) {
@@ -208,6 +255,9 @@ export default function Review() {
         setLoading(false);
         return;
       }
+
+      // Check if there's a saved session (après avoir récupéré la méthode)
+      const savedSession = loadSessionState(deckId, mode, method);
 
       // Restore session if it exists, otherwise start fresh
       if (savedSession && savedSession.cardQueue.length > 0) {
@@ -313,7 +363,7 @@ export default function Review() {
           setNoDueCards(true);
           setCardQueue([]);
           setCurrentCard(null);
-          clearSessionState(deckId);
+          clearSessionState(deckId, 'review', learningMethod);
         } else {
           setCardQueue(remainingQueue);
           setCurrentCard(remainingQueue[0]);
@@ -323,7 +373,7 @@ export default function Review() {
             cardQueue: remainingQueue,
             currentCardId: remainingQueue[0].id,
             sessionStats: updatedStats,
-          });
+          }, 'review', learningMethod);
         }
 
         // Reset flip state
@@ -379,7 +429,7 @@ export default function Review() {
           cardQueue: shuffledCards,
           currentCardId: shuffledCards[0].id,
           sessionStats: updatedStats,
-        });
+        }, 'review', learningMethod);
       } else {
         setCardQueue(newQueue);
         setCurrentCard(newQueue[0]);
@@ -389,7 +439,7 @@ export default function Review() {
           cardQueue: newQueue,
           currentCardId: newQueue[0].id,
           sessionStats: updatedStats,
-        });
+        }, 'review', learningMethod);
       }
 
       // Reset flip state immédiatement
