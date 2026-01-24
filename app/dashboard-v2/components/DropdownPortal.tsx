@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 
 interface DropdownPortalProps {
   children: ReactNode;
-  buttonRef: React.RefObject<HTMLButtonElement>;
+  buttonRef: React.RefObject<HTMLButtonElement | null>;
   isOpen: boolean;
   onClose: () => void;
   align?: 'right' | 'left';
