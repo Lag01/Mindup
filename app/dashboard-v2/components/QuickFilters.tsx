@@ -50,7 +50,7 @@ export default function QuickFilters({
     },
     {
       type: 'due',
-      label: 'DUE',
+      label: 'À RÉVISER',
       icon: '⚡',
       color: {
         border: dueDecksCount > 0 ? 'border-red-500/50' : 'border-green-500/50',
