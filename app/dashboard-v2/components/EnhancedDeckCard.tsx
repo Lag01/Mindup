@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { DeckWithStats } from '@/lib/types';
+import DropdownPortal from './DropdownPortal';
 
 interface EnhancedDeckCardProps {
   deck: DeckWithStats;
@@ -32,7 +33,7 @@ export default function EnhancedDeckCard({
 }: EnhancedDeckCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const isAnki = deck.learningMethod === 'ANKI';
   const dueCount = deck.ankiStats?.due || 0;
@@ -41,19 +42,6 @@ export default function EnhancedDeckCard({
   // Pour IMMEDIATE : toujours enabled
   const canReview = deck.learningMethod === 'IMMEDIATE' || (isAnki && dueCount > 0);
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    };
-
-    if (isMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isMenuOpen]);
 
   // Calculate progress bar segments
   const getProgressSegments = () => {
@@ -75,7 +63,7 @@ export default function EnhancedDeckCard({
 
   return (
     <article
-      className={`group relative bg-zinc-900/50 backdrop-blur-md rounded-lg p-5 border border-zinc-700/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/10 hover:border-cyan-500/30 ${isMenuOpen ? 'z-[60]' : ''}`}
+      className="group relative bg-zinc-900/50 backdrop-blur-md rounded-lg p-5 border border-zinc-700/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/10 hover:border-cyan-500/30"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
@@ -111,8 +99,9 @@ export default function EnhancedDeckCard({
         </div>
 
         {/* Dropdown Menu */}
-        <div className="relative" ref={menuRef}>
+        <div className="relative">
           <button
+            ref={menuButtonRef}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="p-1.5 text-zinc-400 hover:text-cyan-400 hover:bg-zinc-800/50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
             aria-label="Menu d'actions du deck"
@@ -123,12 +112,13 @@ export default function EnhancedDeckCard({
             </svg>
           </button>
 
-          {/* Dropdown Menu Overlay */}
-          {isMenuOpen && (
-            <div
-              className="absolute right-0 top-full mt-2 w-56 bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-xl shadow-black/50 z-50 overflow-hidden animate-[slideDown_0.2s_ease-out]"
-              style={{ fontFamily: 'JetBrains Mono, monospace' }}
-            >
+          <DropdownPortal
+            buttonRef={menuButtonRef}
+            isOpen={isMenuOpen}
+            onClose={() => setIsMenuOpen(false)}
+            align="right"
+          >
+            <div className="w-56 bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-xl shadow-black/50 overflow-hidden animate-[slideDown_0.2s_ease-out]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
               <button
                 onClick={() => { onStudy(deck.id); setIsMenuOpen(false); }}
                 className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-colors flex items-center gap-2"
@@ -209,7 +199,7 @@ export default function EnhancedDeckCard({
                 Supprimer
               </button>
             </div>
-          )}
+          </DropdownPortal>
         </div>
       </div>
 

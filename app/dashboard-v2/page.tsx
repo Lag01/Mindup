@@ -242,7 +242,7 @@ export default function DashboardV2() {
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950"
+      className="min-h-screen pb-32 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950"
       style={{ fontFamily: 'JetBrains Mono, monospace' }}
     >
       {/* Header */}
