@@ -1,18 +1,18 @@
 /**
  * Tâche CRON pour l'envoi automatique des notifications push
- * Exécutée toutes les heures
+ * Exécutée quotidiennement à 18h
  *
- * Envoie des notifications aux utilisateurs selon leurs préférences :
- * - Alertes de streak en danger (prioritaire)
- * - Messages de motivation sans streak (prioritaire)
- * - Rappels quotidiens à heure fixe (opt-in)
+ * Envoie UNE notification par jour aux utilisateurs qui n'ont pas encore révisé :
+ * - Si streak actif → message pour continuer le streak
+ * - Si pas de streak → message de motivation
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyBearerToken } from '@/lib/security';
 import { calculateStreakOptimized } from '@/lib/streak';
-import { sendPushNotification, configureWebPush } from '@/lib/notifications.server';
+import { sendPushNotification, configureWebPush } from '@/lib/notifications';
+import { getRandomMotivationMessage } from '@/lib/motivation-messages';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[CRON-NOTIF] 🔔 Démarrage de l\'envoi des notifications quotidiennes...');
+    console.log('[CRON-NOTIF] 🔔 Démarrage de l\'envoi des notifications quotidiennes (18h)...');
 
     // Configurer web-push
     configureWebPush();
@@ -40,6 +40,10 @@ export async function GET(request: NextRequest) {
         pushSubscription: {
           not: null,
         },
+        OR: [
+          { streakAlerts: true },
+          { motivationAlerts: true },
+        ],
       },
       include: {
         user: {
@@ -66,10 +70,6 @@ export async function GET(request: NextRequest) {
 
     console.log(`[CRON-NOTIF] 📝 ${usersWithNotifications.length} utilisateur(s) à traiter`);
 
-    // Heure actuelle
-    const currentHour = new Date().getHours();
-    const currentMinutes = new Date().getMinutes();
-
     let processed = 0;
     let sent = 0;
     let failed = 0;
@@ -90,62 +90,38 @@ export async function GET(request: NextRequest) {
 
         console.log(`[CRON-NOTIF] Streak: ${currentStreak}, Inclut aujourd'hui: ${includesCurrentDay}`);
 
+        // Si l'utilisateur a déjà révisé aujourd'hui, on ne fait rien
+        if (includesCurrentDay) {
+          skipped++;
+          console.log(`[CRON-NOTIF] ⏭️  ${user.displayName} a déjà révisé aujourd'hui, pas de notification`);
+          continue;
+        }
+
         let notificationToSend: { title: string; body: string; tag: string; url: string } | null = null;
 
-        // Priorité 1 : Alerte de streak en danger
-        if (
-          settings.streakAlerts &&
-          currentStreak > 0 &&
-          !includesCurrentDay &&
-          currentHour >= 18
-        ) {
+        // Cas 1 : Utilisateur avec un streak actif
+        if (currentStreak > 0 && settings.streakAlerts) {
+          const motivationMessage = getRandomMotivationMessage(true, currentStreak);
+
           notificationToSend = {
             title: '🔥 Streak en danger !',
-            body: `Ton streak de ${currentStreak} jour${currentStreak > 1 ? 's' : ''} est en danger ! Révise aujourd'hui pour le maintenir.`,
-            tag: 'streak-alert',
+            body: motivationMessage,
+            tag: 'daily-motivation',
             url: '/dashboard',
           };
-          console.log('[CRON-NOTIF] 🔥 Alerte de streak en danger');
+          console.log('[CRON-NOTIF] 🔥 Notification de streak');
         }
-        // Priorité 2 : Message de motivation sans streak
-        else if (
-          settings.motivationAlerts &&
-          currentStreak === 0 &&
-          !includesCurrentDay &&
-          currentHour >= 18 &&
-          !notificationToSend
-        ) {
+        // Cas 2 : Utilisateur sans streak actif
+        else if (currentStreak === 0 && settings.motivationAlerts) {
+          const motivationMessage = getRandomMotivationMessage(false);
+
           notificationToSend = {
-            title: 'Motivation Mindup',
-            body: 'Je croyais que tu voulais t\'améliorer ? 🤔',
-            tag: 'motivation-alert',
+            title: '💪 Motivation du jour',
+            body: motivationMessage,
+            tag: 'daily-motivation',
             url: '/dashboard',
           };
-          console.log('[CRON-NOTIF] 💪 Message de motivation');
-        }
-        // Priorité 3 : Rappel quotidien (opt-in)
-        else if (
-          settings.dailyReminder &&
-          !includesCurrentDay &&
-          !notificationToSend
-        ) {
-          // Parser l'heure du rappel (format "HH:MM")
-          const [reminderHour, reminderMinute] = settings.dailyReminderTime.split(':').map(Number);
-
-          // Vérifier si on est dans la plage horaire (tolérance de ±30 minutes)
-          const hourMatch = currentHour === reminderHour;
-          const minuteDiff = Math.abs(currentMinutes - reminderMinute);
-          const isTimeToRemind = hourMatch && minuteDiff <= 30;
-
-          if (isTimeToRemind) {
-            notificationToSend = {
-              title: '🎯 C\'est l\'heure de réviser !',
-              body: 'Prêt à améliorer tes connaissances aujourd\'hui ?',
-              tag: 'daily-reminder',
-              url: '/dashboard',
-            };
-            console.log('[CRON-NOTIF] 🎯 Rappel quotidien');
-          }
+          console.log('[CRON-NOTIF] 💪 Notification de motivation');
         }
 
         // Envoyer la notification si une a été déterminée

@@ -20,8 +20,6 @@ export default function SettingsPage() {
 
   // États locaux pour les modifications avant sauvegarde
   const [webPushEnabled, setWebPushEnabled] = useState(false);
-  const [dailyReminder, setDailyReminder] = useState(false);
-  const [dailyReminderTime, setDailyReminderTime] = useState('19:00');
   const [streakAlerts, setStreakAlerts] = useState(true);
   const [motivationAlerts, setMotivationAlerts] = useState(true);
 
@@ -33,8 +31,6 @@ export default function SettingsPage() {
   useEffect(() => {
     if (preferences) {
       setWebPushEnabled(preferences.webPushEnabled);
-      setDailyReminder(preferences.dailyReminder);
-      setDailyReminderTime(preferences.dailyReminderTime);
       setStreakAlerts(preferences.streakAlerts);
       setMotivationAlerts(preferences.motivationAlerts);
     }
@@ -86,8 +82,6 @@ export default function SettingsPage() {
 
     try {
       await updatePreferences({
-        dailyReminder,
-        dailyReminderTime,
         streakAlerts,
         motivationAlerts,
       });
@@ -109,8 +103,6 @@ export default function SettingsPage() {
   const hasChanges = () => {
     if (!preferences) return false;
     return (
-      dailyReminder !== preferences.dailyReminder ||
-      dailyReminderTime !== preferences.dailyReminderTime ||
       streakAlerts !== preferences.streakAlerts ||
       motivationAlerts !== preferences.motivationAlerts
     );
@@ -170,7 +162,7 @@ export default function SettingsPage() {
                   Activer les notifications Web Push
                 </div>
                 <div className="text-sm text-zinc-400">
-                  Recevoir des notifications pour rester motivé
+                  Recevoir une notification quotidienne à 18h pour rester motivé
                 </div>
               </div>
               <div className="relative">
@@ -189,14 +181,20 @@ export default function SettingsPage() {
             {/* Options de notifications (visibles seulement si webPushEnabled) */}
             {webPushEnabled && (
               <div className="space-y-3 pl-4 border-l-2 border-zinc-700">
+                <div className="mb-3 p-3 bg-blue-900/20 border border-blue-700/50 rounded-lg">
+                  <p className="text-blue-400 text-xs">
+                    💡 Les notifications sont envoyées automatiquement à 18h chaque jour si tu n&apos;as pas encore révisé.
+                  </p>
+                </div>
+
                 {/* Alertes de streak en danger */}
                 <label className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg cursor-pointer">
                   <div className="flex-1">
                     <div className="font-medium text-foreground text-sm mb-1">
-                      Alertes de streak en danger
+                      Alertes de streak
                     </div>
                     <div className="text-xs text-zinc-400">
-                      Être notifié si ton streak risque de se terminer
+                      Messages pour continuer ton streak actif
                     </div>
                   </div>
                   <div className="relative ml-3">
@@ -232,45 +230,6 @@ export default function SettingsPage() {
                     <div className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-5"></div>
                   </div>
                 </label>
-
-                {/* Rappel quotidien */}
-                <div className="p-3 bg-zinc-800/50 rounded-lg">
-                  <label className="flex items-center justify-between cursor-pointer mb-3">
-                    <div className="flex-1">
-                      <div className="font-medium text-foreground text-sm mb-1">
-                        Rappel quotidien
-                      </div>
-                      <div className="text-xs text-zinc-400">
-                        Recevoir un rappel quotidien à une heure fixe
-                      </div>
-                    </div>
-                    <div className="relative ml-3">
-                      <input
-                        type="checkbox"
-                        checked={dailyReminder}
-                        onChange={(e) => setDailyReminder(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-zinc-700 rounded-full peer peer-checked:bg-blue-600 transition-colors"></div>
-                      <div className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-5"></div>
-                    </div>
-                  </label>
-
-                  {/* Sélecteur d'heure */}
-                  {dailyReminder && (
-                    <div className="pl-3">
-                      <label className="block text-xs text-zinc-400 mb-2">
-                        Heure du rappel
-                      </label>
-                      <input
-                        type="time"
-                        value={dailyReminderTime}
-                        onChange={(e) => setDailyReminderTime(e.target.value)}
-                        className="bg-zinc-700 text-foreground px-3 py-2 rounded border border-zinc-600 focus:border-blue-500 focus:outline-none text-sm"
-                      />
-                    </div>
-                  )}
-                </div>
               </div>
             )}
           </div>
