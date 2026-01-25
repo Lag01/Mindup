@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyBearerToken } from '@/lib/security';
 import { calculateStreakOptimized } from '@/lib/streak';
-import { sendPushNotification, configureWebPush } from '@/lib/notifications';
+import { sendPushNotification, configureWebPush } from '@/lib/notifications.server';
 
 export async function GET(request: NextRequest) {
   try {

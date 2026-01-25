@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUserWithAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import type { PushSubscriptionJSON } from '@/lib/notifications';
+import type { PushSubscriptionJSON } from '@/lib/notifications.types';
 
 export async function POST(request: NextRequest) {
   try {

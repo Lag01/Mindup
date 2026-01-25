@@ -5,7 +5,7 @@ import {
   requestNotificationPermission,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
-} from '@/lib/notifications';
+} from '@/lib/notifications.client';
 
 export interface NotificationPreferences {
   webPushEnabled: boolean;
