@@ -53,31 +53,9 @@ model User {
   veryFastMathScores VeryFastMathScore[]
   refreshTokens      RefreshToken[]
   auditLogs          AuditLog[]
-  notificationSettings NotificationSettings?
 
   @@index([currentStreak])
   @@index([maxStreak])
-}
-
-model NotificationSettings {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Web Push
-  webPushEnabled        Boolean  @default(false)
-  pushSubscription      String?  @db.Text // JSON stringifié
-
-  // Préférences (opt-in)
-  dailyReminder         Boolean  @default(false)
-  dailyReminderTime     String   @default("19:00")
-  streakAlerts          Boolean  @default(true)  // Alertes streak en danger (ON par défaut)
-  motivationAlerts      Boolean  @default(true)  // Motivation si pas de streak (ON par défaut)
-
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@index([webPushEnabled])
 }
 
 model Deck {
