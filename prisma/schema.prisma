@@ -54,8 +54,17 @@ model User {
   refreshTokens      RefreshToken[]
   auditLogs          AuditLog[]
 
+  // Dashboard adoption tracking
+  dashboardVersion         String?   // "v1", "v2", ou null (pas encore choisi)
+  dashboardChoiceDate      DateTime? // Date du choix initial
+  dashboardFeedbackRating  Int?      // Note de 1 à 5 étoiles
+  dashboardFeedbackDate    DateTime? // Date du feedback
+  dashboardFeedbackGiven   Boolean @default(false) // Évite de redemander
+
   @@index([currentStreak])
   @@index([maxStreak])
+  @@index([dashboardVersion])
+  @@index([dashboardChoiceDate])
 }
 
 model Deck {

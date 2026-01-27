@@ -19,7 +19,7 @@ export function middleware(request: NextRequest) {
 
   // If user is logged in and trying to access login/signup page
   if (session && pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.redirect(new URL('/dashboard-entry', request.url));
   }
 
   return NextResponse.next();
