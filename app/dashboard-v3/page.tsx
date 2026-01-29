@@ -25,7 +25,7 @@ interface UserStreak {
 
 export default function DashboardV3Page() {
   const router = useRouter()
-  const { isAdmin } = useUser()
+  const { user, isAdmin } = useUser()
 
   // États données
   const [decks, setDecks] = useState<DeckWithStats[]>([])
@@ -258,6 +258,7 @@ export default function DashboardV3Page() {
       <MobileSidebar
         isOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
+        userName={user?.email}
         isAdmin={isAdmin}
         currentStreak={userStreak?.current ?? 0}
         maxStreak={userStreak?.max ?? 0}
@@ -271,6 +272,7 @@ export default function DashboardV3Page() {
 
       {/* Desktop Sidebar */}
       <Sidebar
+        userName={user?.email}
         isAdmin={isAdmin}
         currentStreak={userStreak?.current ?? 0}
         maxStreak={userStreak?.max ?? 0}

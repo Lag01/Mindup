@@ -80,7 +80,7 @@ export default function Navigation({ isAdmin = false }: NavigationProps) {
             key={item.href}
             href={item.href}
             className={`
-              relative flex items-center gap-3 px-4 py-3 rounded-lg
+              relative flex items-center gap-3 px-4 py-2 rounded-lg
               transition-all duration-200 group
               ${
                 isActive

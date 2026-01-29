@@ -47,7 +47,7 @@ export default function Sidebar({
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity pointer-events-none" />
 
       {/* Content */}
-      <div className="relative flex flex-col h-full p-6 gap-6 overflow-y-auto">
+      <div className="relative flex flex-col h-full p-6 gap-4 overflow-hidden">
         {/* User Profile */}
         <UserProfile
           userName={userName}
