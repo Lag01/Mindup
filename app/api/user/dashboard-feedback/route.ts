@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUserWithDashboard } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -8,12 +8,28 @@ import { prisma } from '@/lib/prisma';
  */
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUserWithDashboard();
 
     if (!user) {
       return NextResponse.json(
         { error: 'Non authentifié' },
         { status: 401 }
+      );
+    }
+
+    // Validation : feedback déjà donné
+    if (user.dashboardFeedbackGiven) {
+      return NextResponse.json(
+        { error: 'Feedback déjà enregistré' },
+        { status: 400 }
+      );
+    }
+
+    // Validation : utilisateur doit être en v2
+    if (user.dashboardVersion !== 'v2') {
+      return NextResponse.json(
+        { error: 'Feedback uniquement disponible pour les utilisateurs v2' },
+        { status: 400 }
       );
     }
 

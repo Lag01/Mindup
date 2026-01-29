@@ -76,6 +76,30 @@ export async function getCurrentUserWithAdmin() {
   }
 }
 
+export async function getCurrentUserWithDashboard() {
+  const userId = await getSession();
+  if (!userId) return null;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        createdAt: true,
+        dashboardVersion: true,
+        dashboardChoiceDate: true,
+        dashboardFeedbackGiven: true,
+        dashboardFeedbackRating: true,
+      },
+    });
+    return user;
+  } catch (error) {
+    console.error('Error fetching user with dashboard:', error);
+    return null;
+  }
+}
+
 export async function requireAdmin() {
   const user = await getCurrentUserWithAdmin();
 

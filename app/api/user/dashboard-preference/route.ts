@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUserWithDashboard } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma';
  */
 export async function GET() {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUserWithDashboard();
 
     if (!user) {
       return NextResponse.json(
@@ -17,28 +17,11 @@ export async function GET() {
       );
     }
 
-    const userData = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: {
-        dashboardVersion: true,
-        dashboardChoiceDate: true,
-        dashboardFeedbackGiven: true,
-        dashboardFeedbackRating: true,
-      },
-    });
-
-    if (!userData) {
-      return NextResponse.json(
-        { error: 'Utilisateur non trouvé' },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json({
-      version: userData.dashboardVersion,
-      choiceDate: userData.dashboardChoiceDate,
-      feedbackGiven: userData.dashboardFeedbackGiven,
-      feedbackRating: userData.dashboardFeedbackRating,
+      version: user.dashboardVersion,
+      choiceDate: user.dashboardChoiceDate,
+      feedbackGiven: user.dashboardFeedbackGiven,
+      feedbackRating: user.dashboardFeedbackRating,
     });
   } catch (error) {
     console.error('Error fetching dashboard preferences:', error);
@@ -55,7 +38,7 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser();
+    const user = await getCurrentUserWithDashboard();
 
     if (!user) {
       return NextResponse.json(
@@ -75,11 +58,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Déterminer si c'est le premier choix
+    const isFirstChoice = user.dashboardVersion === null;
+
     await prisma.user.update({
       where: { id: user.id },
       data: {
         dashboardVersion: version,
-        dashboardChoiceDate: new Date(),
+        // Ne mettre à jour dashboardChoiceDate que si c'est le premier choix
+        ...(isFirstChoice && { dashboardChoiceDate: new Date() }),
       },
     });
 
