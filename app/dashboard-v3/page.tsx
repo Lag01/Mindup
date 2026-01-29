@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -46,8 +46,15 @@ export default function DashboardV3Page() {
   const { filteredDecks, filterCounts } = useDeckFilters(decks, activeFilter, debouncedSearchQuery)
 
   // Calcul des statistiques
-  const totalDueCards = decks.reduce((sum, deck) => sum + (deck.ankiStats?.due ?? 0), 0)
-  const totalReviewedCards = decks.reduce((sum, deck) => sum + (deck.totalReviews ?? 0), 0)
+  const totalDueCards = useMemo(() => {
+    if (!Array.isArray(decks)) return 0
+    return decks.reduce((sum, deck) => sum + (deck.ankiStats?.due ?? 0), 0)
+  }, [decks])
+
+  const totalReviewedCards = useMemo(() => {
+    if (!Array.isArray(decks)) return 0
+    return decks.reduce((sum, deck) => sum + (deck.totalReviews ?? 0), 0)
+  }, [decks])
 
   // Chargement initial des données
   useEffect(() => {
@@ -64,7 +71,8 @@ export default function DashboardV3Page() {
         if (!decksRes.ok) throw new Error('Erreur lors du chargement des decks')
 
         const decksData = await decksRes.json()
-        setDecks(decksData)
+        // Vérifier que decksData est bien un tableau
+        setDecks(Array.isArray(decksData) ? decksData : [])
 
         if (streakRes.ok) {
           const streakData = await streakRes.json()

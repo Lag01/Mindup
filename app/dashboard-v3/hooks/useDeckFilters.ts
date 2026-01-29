@@ -9,6 +9,11 @@ export function useDeckFilters(
   searchQuery: string
 ) {
   const filteredDecks = useMemo(() => {
+    // Vérification de sécurité : s'assurer que decks est un tableau
+    if (!Array.isArray(decks)) {
+      return [];
+    }
+
     let result = [...decks];
 
     // Appliquer le filtre de type
@@ -41,6 +46,16 @@ export function useDeckFilters(
 
   // Calculer les counts pour les badges des filtres
   const filterCounts = useMemo(() => {
+    // Vérification de sécurité : s'assurer que decks est un tableau
+    if (!Array.isArray(decks)) {
+      return {
+        all: 0,
+        anki: 0,
+        due: 0,
+        imported: 0,
+      };
+    }
+
     return {
       all: decks.length,
       anki: decks.filter(d => d.learningMethod === 'ANKI').length,
