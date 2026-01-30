@@ -103,7 +103,7 @@ export default function EnhancedDeckCard({
           <button
             ref={menuButtonRef}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-1.5 text-zinc-400 hover:text-cyan-400 hover:bg-zinc-800/50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+            className="p-3 md:p-1.5 text-zinc-400 hover:text-cyan-400 hover:bg-zinc-800/50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
             aria-label="Menu d'actions du deck"
             aria-expanded={isMenuOpen}
           >
