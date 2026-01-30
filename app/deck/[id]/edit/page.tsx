@@ -122,7 +122,7 @@ export default function EditDeck() {
       // Bloquer l'accès si le deck est importé
       if (data.deck.originalDeckId) {
         alert('Vous ne pouvez pas éditer un deck importé. Il est synchronisé avec le deck public.');
-        router.push('/dashboard');
+        router.push('/dashboard-entry');
         return;
       }
 
@@ -520,7 +520,7 @@ export default function EditDeck() {
               Éditer : {deck.name}
             </h1>
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/dashboard-entry')}
               className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-3 py-2 sm:px-4 rounded-lg transition-colors text-sm sm:text-base whitespace-nowrap"
             >
               <span className="hidden sm:inline">Retour au dashboard</span>

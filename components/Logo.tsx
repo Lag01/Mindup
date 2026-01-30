@@ -70,7 +70,7 @@ export default function Logo({
       onClick();
     } else {
       // Par défaut, rediriger vers le dashboard
-      router.push('/dashboard');
+      router.push('/dashboard-entry');
     }
   };
 

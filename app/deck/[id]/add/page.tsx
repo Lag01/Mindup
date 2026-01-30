@@ -50,7 +50,7 @@ export default function AddCards() {
         // Bloquer l'accès si le deck est importé
         if (data.deck.originalDeckId) {
           alert('Vous ne pouvez pas ajouter de cartes à un deck importé. Il est synchronisé avec le deck public.');
-          router.push('/dashboard');
+          router.push('/dashboard-entry');
           return;
         }
 
@@ -58,7 +58,7 @@ export default function AddCards() {
       } catch (error) {
         console.error('Error fetching deck:', error);
         alert('Erreur lors du chargement du deck');
-        router.push('/dashboard');
+        router.push('/dashboard-entry');
       } finally {
         setLoading(false);
       }
@@ -368,7 +368,7 @@ export default function AddCards() {
               <span className="sm:hidden">Éditer</span>
             </button>
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/dashboard-entry')}
               className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors text-xs sm:text-sm whitespace-nowrap"
             >
               Retour

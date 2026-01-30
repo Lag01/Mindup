@@ -88,7 +88,7 @@ export default function DeckStatsPage() {
           <div className="flex justify-between items-start gap-4">
             <div>
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/dashboard-entry')}
                 className="text-zinc-400 hover:text-foreground text-sm mb-2 transition-colors"
               >
                 ← Retour au dashboard

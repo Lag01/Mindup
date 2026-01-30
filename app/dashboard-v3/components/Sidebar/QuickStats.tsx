@@ -1,8 +1,6 @@
 'use client'
 
 interface QuickStatsProps {
-  currentStreak: number
-  maxStreak: number
   totalDecks: number
   dueCards: number
   reviewedCards: number
@@ -43,8 +41,6 @@ function StatCard({ label, value, icon, gradient }: StatCardProps) {
 }
 
 export default function QuickStats({
-  currentStreak,
-  maxStreak,
   totalDecks,
   dueCards,
   reviewedCards,
@@ -57,14 +53,7 @@ export default function QuickStats({
       </h3>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard
-          label="Série"
-          value={currentStreak}
-          icon="🔥"
-          gradient="from-orange-500 to-red-600"
-        />
-
+      <div className="grid grid-cols-1 gap-3">
         <StatCard
           label="Decks"
           value={totalDecks}

@@ -54,7 +54,7 @@ export default function AdminDashboard() {
       if (!usersResponse.ok) {
         if (usersResponse.status === 403) {
           alert('Accès refusé : droits administrateur requis');
-          router.push('/dashboard');
+          router.push('/dashboard-entry');
           return;
         }
         throw new Error('Failed to fetch users');
@@ -246,7 +246,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-black text-white">
       <SimpleHeader
         title="Tableau de bord administrateur"
-        backButton={{ label: "Retour au dashboard", href: "/dashboard" }}
+        backButton={{ label: "Retour au dashboard", href: "/dashboard-entry" }}
       />
 
       <div className="max-w-7xl mx-auto p-8">

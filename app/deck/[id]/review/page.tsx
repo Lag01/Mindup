@@ -530,7 +530,7 @@ export default function Review() {
       // Quit with Escape
       if (e.code === 'Escape') {
         e.preventDefault();
-        router.push('/dashboard');
+        router.push('/dashboard-entry');
       }
     };
 
@@ -560,7 +560,7 @@ export default function Review() {
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/dashboard-entry')}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
             >
               Retour au dashboard
@@ -585,7 +585,7 @@ export default function Review() {
             Aucune carte dans ce deck
           </p>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/dashboard-entry')}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
           >
             Retour au dashboard
@@ -621,7 +621,7 @@ export default function Review() {
               </div>
             </div>
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/dashboard-entry')}
               className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition-colors text-sm"
             >
               Quitter

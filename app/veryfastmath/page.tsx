@@ -95,7 +95,7 @@ export default function VeryFastMathPage() {
             <div className="flex justify-between items-center">
               <h1 className="text-2xl sm:text-3xl font-bold">Défis VeryFastMath</h1>
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/dashboard-entry')}
                 className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
               >
                 Retour au dashboard

@@ -47,7 +47,7 @@ export default function Sidebar({
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity pointer-events-none" />
 
       {/* Content */}
-      <div className="relative flex flex-col h-full p-6 gap-4 overflow-hidden">
+      <div className="relative flex flex-col h-full p-6 gap-4 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
         {/* User Profile */}
         <UserProfile
           userName={userName}
@@ -60,8 +60,6 @@ export default function Sidebar({
 
         {/* Quick Stats */}
         <QuickStats
-          currentStreak={currentStreak}
-          maxStreak={maxStreak}
           totalDecks={totalDecks}
           dueCards={dueCards}
           reviewedCards={reviewedCards}

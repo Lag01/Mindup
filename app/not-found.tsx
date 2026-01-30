@@ -25,7 +25,7 @@ export default function NotFound() {
 
         <div className="flex gap-4 justify-center">
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/dashboard-entry')}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
           >
             Retour au dashboard

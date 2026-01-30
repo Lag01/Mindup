@@ -29,7 +29,7 @@ export default function SimpleHeader({
               <Logo
                 variant="icon"
                 size={48}
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/dashboard-entry')}
               />
             </div>
           )}

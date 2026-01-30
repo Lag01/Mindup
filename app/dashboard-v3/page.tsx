@@ -71,8 +71,8 @@ export default function DashboardV3Page() {
         if (!decksRes.ok) throw new Error('Erreur lors du chargement des decks')
 
         const decksData = await decksRes.json()
-        // Vérifier que decksData est bien un tableau
-        setDecks(Array.isArray(decksData) ? decksData : [])
+        // Vérifier que decksData.decks est bien un tableau
+        setDecks(decksData.decks || [])
 
         if (streakRes.ok) {
           const streakData = await streakRes.json()

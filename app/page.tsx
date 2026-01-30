@@ -36,8 +36,8 @@ export default function Home() {
         return;
       }
 
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Redirect to dashboard entry
+      router.push('/dashboard-entry');
     } catch (err) {
       setError('Erreur de connexion au serveur');
       setLoading(false);

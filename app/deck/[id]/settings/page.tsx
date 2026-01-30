@@ -42,7 +42,7 @@ export default function DeckSettingsPage() {
 
     // Si la méthode n'a pas changé, pas besoin de sauvegarder
     if (learningMethod === deck.learningMethod) {
-      router.push('/dashboard');
+      router.push('/dashboard-entry');
       return;
     }
 
@@ -72,7 +72,7 @@ export default function DeckSettingsPage() {
       }
 
       // Succès : rediriger vers le dashboard
-      router.push('/dashboard');
+      router.push('/dashboard-entry');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
     } finally {
@@ -94,7 +94,7 @@ export default function DeckSettingsPage() {
         <div className="text-center">
           <p className="text-red-400 mb-4">{error}</p>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/dashboard-entry')}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
           >
             Retour au dashboard
@@ -110,7 +110,7 @@ export default function DeckSettingsPage() {
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/dashboard-entry')}
             className="text-zinc-400 hover:text-foreground transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -197,7 +197,7 @@ export default function DeckSettingsPage() {
               {saving ? 'Enregistrement...' : 'Enregistrer'}
             </button>
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/dashboard-entry')}
               disabled={saving}
               className="bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-medium px-6 py-3 rounded-lg transition-colors disabled:opacity-50"
             >

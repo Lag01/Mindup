@@ -64,7 +64,7 @@ export default function Import() {
 
       // Redirect to dashboard after 2 seconds
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push('/dashboard-entry');
       }, 2000);
     } catch (err) {
       setError('Erreur de connexion au serveur');
@@ -77,7 +77,7 @@ export default function Import() {
     <div className="min-h-screen bg-background">
       <SimpleHeader
         title="Importer un deck"
-        backButton={{ label: "Retour", href: "/dashboard" }}
+        backButton={{ label: "Retour", href: "/dashboard-entry" }}
       />
 
       <main className="max-w-2xl mx-auto px-4 py-8">
