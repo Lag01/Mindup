@@ -434,7 +434,7 @@ export default function LeaderboardPage() {
     <div className="min-h-screen bg-black text-white">
       <SimpleHeader
         title="Classements"
-        backButton={{ label: "Retour au dashboard", href: "/dashboard" }}
+        backButton={{ label: "Retour au dashboard", href: "/dashboard-entry" }}
       />
 
       <main className="max-w-5xl mx-auto px-4 py-8">

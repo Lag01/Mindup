@@ -82,7 +82,7 @@ export default function PublicDecksPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <SimpleHeader
         title="Decks Publics"
-        backButton={{ label: "Retour au Dashboard", href: "/dashboard" }}
+        backButton={{ label: "Retour au Dashboard", href: "/dashboard-entry" }}
       />
 
       {/* Content */}

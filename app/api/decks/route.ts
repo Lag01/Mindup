@@ -42,7 +42,7 @@ export async function GET() {
         d."learningMethod",
         COUNT(DISTINCT c.id) as "totalCards",
         COUNT(DISTINCT CASE WHEN r.reps IS NULL OR r.reps = 0 THEN c.id END) as "notStarted",
-        COALESCE(SUM(r.reps), 0) as "totalReviews",
+        COUNT(DISTINCT re.id) as "totalReviews",
 
         -- Stats ANKI (les cartes sans review sont comptées comme NEW)
         COUNT(DISTINCT CASE
@@ -65,6 +65,7 @@ export async function GET() {
       FROM "Deck" d
       LEFT JOIN "Card" c ON c."deckId" = d.id
       LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
+      LEFT JOIN "ReviewEvent" re ON re."cardId" = c.id AND re."userId" = ${user.id}
       WHERE d."userId" = ${user.id}
       GROUP BY d.id, d.name, d."createdAt", d."isPublic", d."originalDeckId", d."learningMethod"
       ORDER BY d."createdAt" DESC

@@ -14,12 +14,11 @@ export async function GET() {
         email: true,
         displayName: true,
         isAdmin: true,
-        reviewedCardsCount: true,
         createdAt: true,
         _count: {
           select: {
             decks: true,
-            reviews: true,
+            reviewEvents: true,
           },
         },
       },
@@ -36,8 +35,8 @@ export async function GET() {
       isAdmin: user.isAdmin,
       createdAt: user.createdAt,
       decksCount: user._count.decks,
-      reviewsCount: user._count.reviews,
-      reviewedCardsCount: user.reviewedCardsCount,
+      reviewsCount: user._count.reviewEvents,
+      reviewedCardsCount: user._count.reviewEvents,
     }));
 
     return NextResponse.json({ users: formattedUsers });

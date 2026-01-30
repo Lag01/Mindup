@@ -21,12 +21,26 @@ export async function GET(request: NextRequest) {
 
     const orderByField = mode === 'max' ? 'maxStreak' : 'currentStreak';
 
-    const users = await prisma.user.findMany({
-      where: {
-        [orderByField]: {
-          gt: 0,
-        },
+    // Pour le mode current, ne montrer que les streaks récentes (mises à jour dans les 2 derniers jours)
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    twoDaysAgo.setHours(0, 0, 0, 0);
+
+    const whereClause: any = {
+      [orderByField]: {
+        gt: 0,
       },
+    };
+
+    // Filtrer les streaks périmées en mode current
+    if (mode === 'current') {
+      whereClause.lastStreakUpdate = {
+        gte: twoDaysAgo,
+      };
+    }
+
+    const users = await prisma.user.findMany({
+      where: whereClause,
       select: {
         id: true,
         displayName: true,
