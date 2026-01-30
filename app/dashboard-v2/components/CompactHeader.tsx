@@ -80,7 +80,11 @@ export default function CompactHeader({
           {showSearch && (
             <div
               className="relative flex-shrink-0 opacity-0 animate-[fadeIn_0.5s_ease-out_0.1s_forwards]"
-              style={{ width: isSearchExpanded ? '320px' : '180px' }}
+              style={{
+                width: isSearchExpanded
+                  ? 'min(320px, calc(100vw - 10rem))'
+                  : '180px'
+              }}
             >
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg
@@ -157,7 +161,7 @@ export default function CompactHeader({
               {isCreateMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setIsCreateMenuOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-56 bg-zinc-800/95 backdrop-blur-md border border-zinc-700/50 rounded-lg shadow-2xl z-20 overflow-hidden animate-[slideDown_0.2s_ease-out]">
+                  <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] bg-zinc-800/95 backdrop-blur-md border border-zinc-700/50 rounded-lg shadow-2xl z-20 overflow-hidden animate-[slideDown_0.2s_ease-out]">
                     <button
                       onClick={() => {
                         onCreateDeck();
