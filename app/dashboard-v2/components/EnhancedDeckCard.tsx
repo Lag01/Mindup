@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { DeckWithStats } from '@/lib/types';
 import DropdownPortal from './DropdownPortal';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface EnhancedDeckCardProps {
   deck: DeckWithStats;
@@ -34,6 +35,7 @@ export default function EnhancedDeckCard({
   const [isHovered, setIsHovered] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const isMobile = useIsMobile();
 
   const isAnki = deck.learningMethod === 'ANKI';
   const dueCount = deck.ankiStats?.due || 0;
@@ -282,7 +284,9 @@ export default function EnhancedDeckCard({
       {/* Quick Actions (revealed on hover) */}
       <div
         className={`flex gap-2 transition-all duration-200 ${
-          isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
+          isMobile
+            ? 'opacity-100 translate-y-0'
+            : isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
         }`}
       >
         {/* Review Button */}
