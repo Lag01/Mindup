@@ -115,8 +115,6 @@ export default function MobileSidebar({
 
           {/* Quick Stats */}
           <QuickStats
-            currentStreak={currentStreak}
-            maxStreak={maxStreak}
             totalDecks={totalDecks}
             dueCards={dueCards}
             reviewedCards={reviewedCards}
