@@ -17,14 +17,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Rediriger tous les accès directs aux dashboards vers dashboard-entry
-  if (session && pathname.startsWith('/dashboard')) {
-    // Sauf si déjà sur dashboard-entry (éviter boucle)
-    if (pathname !== '/dashboard-entry') {
-      return NextResponse.redirect(new URL('/dashboard-entry', request.url));
-    }
-  }
-
   // Si user connecté et sur la page de login, rediriger vers dashboard-entry
   if (session && pathname === '/') {
     return NextResponse.redirect(new URL('/dashboard-entry', request.url));

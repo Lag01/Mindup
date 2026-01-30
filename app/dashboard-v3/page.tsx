@@ -6,6 +6,7 @@ import { useUser } from '@/hooks/useUser'
 import { useDebounce } from '@/hooks/useDebounce'
 import { DeckWithStats } from '@/lib/types'
 import LoadingAnimation from '@/components/LoadingAnimation'
+import DashboardPageWrapper from '@/components/DashboardPageWrapper'
 import CreateDeckModal from '@/components/CreateDeckModal'
 import EditDeckNameModal from '@/components/EditDeckNameModal'
 
@@ -247,7 +248,8 @@ export default function DashboardV3Page() {
   const showEmptyState = filteredDecks.length === 0 && decks.length === 0 && !debouncedSearchQuery
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
+    <DashboardPageWrapper expectedVersion="v3">
+      <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
       {/* Mobile Header */}
       <MobileHeader
         currentStreak={userStreak?.current ?? 0}
@@ -349,5 +351,6 @@ export default function DashboardV3Page() {
         }}
       />
     </div>
+    </DashboardPageWrapper>
   )
 }

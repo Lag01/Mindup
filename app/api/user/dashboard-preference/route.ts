@@ -19,6 +19,7 @@ export async function GET() {
 
     return NextResponse.json({
       version: user.dashboardVersion,
+      dashboardVersion: user.dashboardVersion, // Alias pour compatibilité
       choiceDate: user.dashboardChoiceDate,
       feedbackGiven: user.dashboardFeedbackGiven,
       feedbackRating: user.dashboardFeedbackRating,

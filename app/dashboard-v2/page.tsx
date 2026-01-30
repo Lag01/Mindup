@@ -13,6 +13,7 @@ import QuickFilters from './components/QuickFilters';
 import DeckGrid from './components/DeckGrid';
 import EmptyState from './components/EmptyState';
 import LoadingAnimation from '@/components/LoadingAnimation';
+import DashboardPageWrapper from '@/components/DashboardPageWrapper';
 import CreateDeckModal from '@/components/CreateDeckModal';
 import EditDeckNameModal from '@/components/EditDeckNameModal';
 
@@ -241,8 +242,9 @@ export default function DashboardV2() {
     decks.length === 0 ? 'no-decks' : 'no-results';
 
   return (
-    <div
-      className="min-h-screen pb-32 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950"
+    <DashboardPageWrapper expectedVersion="v2">
+      <div
+        className="min-h-screen pb-32 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950"
       style={{ fontFamily: 'JetBrains Mono, monospace' }}
     >
       {/* Header */}
@@ -320,5 +322,6 @@ export default function DashboardV2() {
         />
       )}
     </div>
+    </DashboardPageWrapper>
   );
 }

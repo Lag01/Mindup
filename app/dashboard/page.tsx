@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import EditDeckNameModal from '@/components/EditDeckNameModal';
 import CreateDeckModal from '@/components/CreateDeckModal';
 import DashboardHeader from '@/components/DashboardHeader';
+import DashboardPageWrapper from '@/components/DashboardPageWrapper';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import { DeckWithStats } from '@/lib/types';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -195,7 +196,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <DashboardPageWrapper expectedVersion="v1">
+      <div className="min-h-screen bg-background">
       <DashboardHeader
         isAdmin={isAdmin}
         onCreateDeck={() => setUIState(prev => ({ ...prev, isCreatingDeck: true }))}
@@ -514,5 +516,6 @@ export default function Dashboard() {
         />
       </main>
     </div>
+    </DashboardPageWrapper>
   );
 }
