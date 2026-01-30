@@ -121,7 +121,7 @@ export default function HeroStats({
 }: HeroStatsProps) {
   return (
     <section className="mb-8" aria-label="Statistiques principales">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Streak Card */}
         <StatCard
           icon="🔥"
