@@ -91,7 +91,7 @@ export async function GET(
         skip,
         take: limit,
         orderBy: {
-          order: 'asc',
+          order: 'desc',
         },
       }),
     ]);
