@@ -18,7 +18,7 @@ export default function QuickActions({ onCreateDeck, onImportDeck }: QuickAction
         {/* Créer un deck */}
         <button
           onClick={onCreateDeck}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98] group"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98] group"
         >
           <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -29,7 +29,7 @@ export default function QuickActions({ onCreateDeck, onImportDeck }: QuickAction
         {/* Importer un deck */}
         <button
           onClick={onImportDeck}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98] group"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98] group"
         >
           <svg className="w-5 h-5 transition-transform group-hover:-translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />

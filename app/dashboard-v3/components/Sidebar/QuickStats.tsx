@@ -19,18 +19,17 @@ function StatCard({ label, value, icon, gradient }: StatCardProps) {
       {/* Glow effect */}
       <div className={`absolute inset-0 ${gradient} rounded-lg blur-sm opacity-0 group-hover:opacity-30 transition-opacity`} />
 
-      <div className="relative bg-zinc-800/50 backdrop-blur-sm rounded-lg p-3 border border-zinc-700/50 group-hover:border-zinc-600 transition-all">
-        {/* Icon + Value */}
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-lg">{icon}</span>
-          <span className={`text-2xl font-bold tabular-nums bg-gradient-to-r ${gradient} bg-clip-text text-transparent`}>
+      <div className="relative bg-zinc-800/50 backdrop-blur-sm rounded-lg p-2 border border-zinc-700/50 group-hover:border-zinc-600 transition-all min-h-[72px] flex items-center justify-center">
+        {/* Icon + Value - Layout vertical compact */}
+        <div className="flex flex-col items-center justify-center gap-0.5">
+          <span className="text-sm leading-none">{icon}</span>
+          <span className={`text-lg font-bold tabular-nums bg-gradient-to-r ${gradient} bg-clip-text text-transparent leading-none mt-0.5`}>
             {value.toLocaleString('fr-FR')}
           </span>
-        </div>
-
-        {/* Label */}
-        <div className="text-xs text-zinc-500 uppercase tracking-wider font-medium">
-          {label}
+          {/* Label */}
+          <div className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold text-center leading-tight mt-0.5">
+            {label}
+          </div>
         </div>
 
         {/* Corner accent */}
@@ -53,7 +52,7 @@ export default function QuickStats({
       </h3>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         <StatCard
           label="Decks"
           value={totalDecks}

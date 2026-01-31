@@ -288,7 +288,7 @@ export default function DashboardV3Page() {
 
       {/* Main Content */}
       <main className="lg:mr-80 min-h-screen">
-        <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="max-w-6xl mx-auto px-4 py-6 pb-20 md:px-6 md:py-8">
           {/* Recherche */}
           <div className="mb-6">
             <SearchBar value={searchQuery} onChange={setSearchQuery} />

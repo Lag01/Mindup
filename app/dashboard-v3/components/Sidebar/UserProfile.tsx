@@ -24,7 +24,7 @@ export default function UserProfile({ userName, currentStreak, maxStreak }: User
       {/* Gradient border glow */}
       <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-xl blur-sm" />
 
-      <div className="relative bg-zinc-800/50 backdrop-blur-md rounded-xl p-4 border border-zinc-700/50">
+      <div className="relative bg-zinc-800/50 backdrop-blur-md rounded-xl p-3 border border-zinc-700/50">
         <div className="flex items-center gap-3">
           {/* Avatar avec initiales */}
           <div className="relative flex-shrink-0">

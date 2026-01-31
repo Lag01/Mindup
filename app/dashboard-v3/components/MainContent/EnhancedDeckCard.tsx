@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { DeckWithStats } from '@/lib/types';
 import DropdownPortal from './DropdownPortal';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface EnhancedDeckCardProps {
   deck: DeckWithStats;
@@ -34,6 +35,7 @@ export default function EnhancedDeckCard({
   const [isHovered, setIsHovered] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const isMobile = useIsMobile();
 
   const isAnki = deck.learningMethod === 'ANKI';
   const dueCount = deck.ankiStats?.due || 0;
@@ -103,7 +105,7 @@ export default function EnhancedDeckCard({
           <button
             ref={menuButtonRef}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-1.5 text-zinc-400 hover:text-cyan-400 hover:bg-zinc-800/50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+            className="p-3 md:p-1.5 text-zinc-400 hover:text-cyan-400 hover:bg-zinc-800/50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
             aria-label="Menu d'actions du deck"
             aria-expanded={isMenuOpen}
           >
@@ -279,10 +281,10 @@ export default function EnhancedDeckCard({
         )}
       </div>
 
-      {/* Quick Actions (revealed on hover) */}
+      {/* Quick Actions (revealed on hover or always visible on mobile) */}
       <div
         className={`flex gap-2 transition-all duration-200 ${
-          isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
+          isMobile || isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
         }`}
       >
         {/* Review Button */}

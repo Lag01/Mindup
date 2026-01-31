@@ -90,7 +90,7 @@ export default function DropdownPortal({
   return createPortal(
     <div
       ref={dropdownRef}
-      className="fixed z-[9999]"
+      className="fixed z-[9999] max-w-[calc(100vw-2rem)]"
       style={{
         top: position.top,
         left: position.left,
