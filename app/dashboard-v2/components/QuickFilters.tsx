@@ -83,7 +83,7 @@ export default function QuickFilters({
               key={filter.type}
               onClick={() => onFilterChange(filter.type)}
               className={`
-                relative px-4 py-2 rounded-md border transition-all duration-200
+                relative px-4 py-2 rounded-md border transition-all duration-200 font-mono
                 ${isActive
                   ? `${filter.color.border} ${filter.color.bg} ${filter.color.text} shadow-lg ${filter.color.glow}`
                   : 'border-zinc-700/50 bg-zinc-800/30 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-800/50'
@@ -96,7 +96,6 @@ export default function QuickFilters({
               style={{
                 animationDelay: `${0.4 + index * 0.05}s`,
               }}
-              className="font-mono"
             >
               {/* Glow effect pour active state */}
               {isActive && (
