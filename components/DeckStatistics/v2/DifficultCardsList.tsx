@@ -1,6 +1,6 @@
 'use client';
 
-import { CardContentDisplay } from '../CardContentDisplay';
+import { CardContentDisplay } from '@/components/CardContentDisplay';
 
 interface DifficultCard {
   cardId: string;
