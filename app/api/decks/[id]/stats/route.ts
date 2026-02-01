@@ -106,7 +106,11 @@ export async function GET(
       WHERE c."deckId" = ${deckId}
     `;
 
-    // Requête pour l'historique des 7 derniers jours
+    // Requête pour l'historique complet (max 180 jours)
+    const maxHistoryDays = 180;
+    const oldestDate = new Date(today);
+    oldestDate.setDate(oldestDate.getDate() - maxHistoryDays);
+
     const reviewHistoryRaw = await prisma.$queryRaw<Array<{
       date: Date;
       count: bigint;
@@ -117,18 +121,30 @@ export async function GET(
       FROM "Card" c
       INNER JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
       WHERE c."deckId" = ${deckId}
-        AND r."lastReview" >= ${weekAgo}
+        AND r."lastReview" >= ${oldestDate}
+        AND r."lastReview" IS NOT NULL
       GROUP BY DATE(r."lastReview")
       ORDER BY "date" ASC
     `;
 
-    // Construire l'historique complet avec les jours à 0
+    // Construire l'historique complet depuis oldestDate jusqu'à aujourd'hui
     const historyMap = new Map<string, number>();
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+
+    // Trouver la date de la première révision
+    const firstReviewDate = reviewHistoryRaw.length > 0
+      ? new Date(reviewHistoryRaw[0].date)
+      : today;
+
+    const effectiveStartDate = firstReviewDate > oldestDate
+      ? firstReviewDate
+      : oldestDate;
+
+    // Créer les entrées pour tous les jours
+    let currentDate = new Date(effectiveStartDate);
+    while (currentDate <= today) {
+      const dateStr = currentDate.toISOString().split('T')[0];
       historyMap.set(dateStr, 0);
+      currentDate.setDate(currentDate.getDate() + 1);
     }
 
     // Remplir avec les vraies valeurs
@@ -168,6 +184,11 @@ export async function GET(
     const topDifficultCards = await prisma.$queryRaw<Array<{
       cardId: string;
       front: string;
+      back: string;
+      frontType: string;
+      backType: string;
+      frontImage: string | null;
+      backImage: string | null;
       againCount: bigint;
       hardCount: bigint;
       reps: bigint;
@@ -176,6 +197,11 @@ export async function GET(
       SELECT
         c.id as "cardId",
         c.front,
+        c.back,
+        c."frontType",
+        c."backType",
+        c."frontImage",
+        c."backImage",
         r."againCount",
         r."hardCount",
         r.reps,
@@ -225,6 +251,40 @@ export async function GET(
     const reviewsYesterdayNum = Number(comparison?.reviewsYesterday ?? 0);
     const reviewsThisWeekNum = Number(comparison?.reviewsThisWeek ?? 0);
     const reviewsPreviousWeekNum = Number(comparison?.reviewsPreviousWeek ?? 0);
+
+    // Calcul du streak actuel
+    const streakResult = await prisma.$queryRaw<Array<{ currentStreak: bigint }>>`
+      WITH daily_reviews AS (
+        SELECT DISTINCT DATE(r."lastReview") as review_date
+        FROM "Card" c
+        INNER JOIN "Review" r ON r."cardId" = c.id
+        WHERE c."deckId" = ${deckId}
+          AND r."userId" = ${user.id}
+          AND r."lastReview" IS NOT NULL
+        ORDER BY review_date DESC
+      ),
+      streak_groups AS (
+        SELECT
+          review_date,
+          review_date - (ROW_NUMBER() OVER (ORDER BY review_date DESC))::int * INTERVAL '1 day' as streak_group
+        FROM daily_reviews
+      ),
+      current_streak_group AS (
+        SELECT streak_group
+        FROM streak_groups
+        ORDER BY review_date DESC
+        LIMIT 1
+      )
+      SELECT COALESCE(COUNT(*), 0) as "currentStreak"
+      FROM streak_groups
+      WHERE streak_group = (SELECT streak_group FROM current_streak_group)
+        AND EXISTS (
+          SELECT 1 FROM daily_reviews
+          WHERE review_date >= CURRENT_DATE - INTERVAL '1 day'
+        )
+    `;
+
+    const currentStreak = Number(streakResult[0]?.currentStreak ?? 0);
 
     const reviewsVsYesterday = reviewsYesterdayNum > 0
       ? ((reviewsTodayNum - reviewsYesterdayNum) / reviewsYesterdayNum) * 100
@@ -318,6 +378,7 @@ export async function GET(
       reviewsThisWeek: Number(mainStats.reviewsThisWeek),
       reviewHistory,
       learningMethod: deck.learningMethod,
+      currentStreak,
       // Stats Anki (null si méthode IMMEDIATE)
       ankiStats: deck.learningMethod === 'ANKI' ? {
         new: Number(mainStats.ankiNew),
@@ -338,6 +399,11 @@ export async function GET(
       topDifficultCards: topDifficultCards.map(card => ({
         cardId: card.cardId,
         front: card.front.substring(0, 100),
+        back: card.back.substring(0, 100),
+        frontType: card.frontType as 'TEXT' | 'LATEX',
+        backType: card.backType as 'TEXT' | 'LATEX',
+        frontImage: card.frontImage,
+        backImage: card.backImage,
         failureRate: Math.round(card.failureRate * 100),
       })),
       recentlyMastered: recentlyMastered.map(card => ({

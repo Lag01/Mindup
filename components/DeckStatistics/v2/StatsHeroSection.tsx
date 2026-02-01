@@ -12,6 +12,7 @@ interface StatsHeroSectionProps {
   successRate: number;
   currentStreak?: number;
   dueCards?: number;
+  learningMethod?: 'IMMEDIATE' | 'ANKI';
   sparklineData?: {
     reviews?: number[];
     successRate?: number[];
@@ -26,6 +27,7 @@ export function StatsHeroSection({
   successRate,
   currentStreak = 0,
   dueCards = 0,
+  learningMethod,
   sparklineData,
 }: StatsHeroSectionProps) {
   const masteryPercentage = totalCards > 0 ? (masteredCards / totalCards) * 100 : 0;
@@ -49,23 +51,25 @@ export function StatsHeroSection({
 
         {/* Stat Cards Grid (2x2) */}
         <div className="grid gap-4 sm:grid-cols-2">
-          {/* À réviser */}
-          <div className="stat-card">
-            <EnhancedStatCard
-              label="À réviser"
-              value={dueCards}
-              icon="📝"
-              gradient="from-orange-500 to-red-600"
-              trend={
-                dueCards > 0
-                  ? {
-                      value: dueCards,
-                      label: 'cartes dues',
-                    }
-                  : undefined
-              }
-            />
-          </div>
+          {/* À réviser - uniquement pour ANKI */}
+          {learningMethod === 'ANKI' && (
+            <div className="stat-card">
+              <EnhancedStatCard
+                label="À réviser"
+                value={dueCards}
+                icon="📝"
+                gradient="from-orange-500 to-red-600"
+                trend={
+                  dueCards > 0
+                    ? {
+                        value: dueCards,
+                        label: 'cartes dues',
+                      }
+                    : undefined
+                }
+              />
+            </div>
+          )}
 
           {/* Taux de réussite */}
           <div className="stat-card">

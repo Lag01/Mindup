@@ -47,7 +47,7 @@ export function PeriodSelector({ selected, onChange }: PeriodSelectorProps) {
             {/* Glow Effect */}
             {isSelected && (
               <div
-                className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 opacity-30 blur-lg transition-opacity duration-300 group-hover:opacity-50"
+                className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 opacity-10 blur-lg transition-opacity duration-300 group-hover:opacity-20"
                 aria-hidden="true"
               />
             )}

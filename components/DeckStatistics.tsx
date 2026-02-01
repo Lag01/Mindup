@@ -53,9 +53,15 @@ interface ExtendedDeckStats {
   successRateChange: number;
   estimatedCompletionDays: number;
   projectedMasteryRate: number;
+  currentStreak: number;
   topDifficultCards: Array<{
     cardId: string;
     front: string;
+    back: string;
+    frontType: 'TEXT' | 'LATEX';
+    backType: 'TEXT' | 'LATEX';
+    frontImage: string | null;
+    backImage: string | null;
     failureRate: number;
   }>;
   recentlyMastered: Array<{
@@ -146,8 +152,9 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
           reviewsToday={stats.reviewsToday}
           reviewsYesterday={reviewsYesterday}
           successRate={stats.successRate}
-          currentStreak={0} // TODO: Ajouter streak à l'API
+          currentStreak={stats.currentStreak ?? 0}
           dueCards={stats.ankiStats?.dueToday ?? 0}
+          learningMethod={stats.learningMethod}
           sparklineData={{
             reviews: sparklineReviews,
           }}
@@ -226,8 +233,9 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
           reviewsToday={stats.reviewsToday}
           reviewsYesterday={reviewsYesterday}
           successRate={stats.successRate}
-          currentStreak={0}
+          currentStreak={stats.currentStreak ?? 0}
           dueCards={stats.ankiStats?.dueToday ?? 0}
+          learningMethod={stats.learningMethod}
           sparklineData={{
             reviews: sparklineReviews,
           }}

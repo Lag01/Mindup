@@ -1,10 +1,15 @@
 'use client';
 
-import Link from 'next/link';
+import { CardContentDisplay } from '../CardContentDisplay';
 
 interface DifficultCard {
   cardId: string;
   front: string;
+  back: string;
+  frontType: 'TEXT' | 'LATEX';
+  backType: 'TEXT' | 'LATEX';
+  frontImage: string | null;
+  backImage: string | null;
   failureRate: number;
 }
 
@@ -32,21 +37,13 @@ export function DifficultCardsList({ cards, deckId }: DifficultCardsListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground">
-            Cartes difficiles
-          </h3>
-          <p className="mt-1 text-sm text-zinc-400">
-            {cards.length} carte{cards.length > 1 ? 's' : ''} nécessite{cards.length > 1 ? 'nt' : ''} attention
-          </p>
-        </div>
-        <Link
-          href={`/deck/${deckId}/review?filter=difficult`}
-          className="rounded-lg bg-gradient-to-r from-orange-600 to-red-600 px-4 py-2 text-sm font-medium text-white transition-all hover:from-orange-500 hover:to-red-500 hover:shadow-lg"
-        >
-          Réviser tout
-        </Link>
+      <div>
+        <h3 className="text-lg font-semibold text-foreground">
+          Cartes difficiles
+        </h3>
+        <p className="mt-1 text-sm text-zinc-400">
+          {cards.length} carte{cards.length > 1 ? 's' : ''} nécessite{cards.length > 1 ? 'nt' : ''} attention
+        </p>
       </div>
 
       <div className="space-y-3">
@@ -67,19 +64,39 @@ export function DifficultCardsList({ cards, deckId }: DifficultCardsListProps) {
             />
 
             {/* Content */}
-            <div className="flex items-center gap-4 p-4 pl-5">
+            <div className="flex gap-4 p-4 pl-5">
               {/* Index Badge */}
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-xs font-bold text-zinc-400">
                 {index + 1}
               </div>
 
-              {/* Card Preview */}
-              <div className="flex-1 space-y-2">
-                <p className="line-clamp-2 text-sm text-foreground">
-                  {card.front}
-                </p>
+              {/* Card Content */}
+              <div className="flex-1 space-y-4">
+                {/* Recto */}
+                <div>
+                  <p className="text-xs font-semibold text-zinc-500 mb-1">Recto</p>
+                  <CardContentDisplay
+                    text={card.front}
+                    textType={card.frontType}
+                    imagePath={card.frontImage}
+                    className="text-sm text-foreground"
+                    maxHeight={100}
+                  />
+                </div>
 
-                {/* Failure Rate Bar */}
+                {/* Verso */}
+                <div>
+                  <p className="text-xs font-semibold text-zinc-500 mb-1">Verso</p>
+                  <CardContentDisplay
+                    text={card.back}
+                    textType={card.backType}
+                    imagePath={card.backImage}
+                    className="text-sm text-foreground"
+                    maxHeight={100}
+                  />
+                </div>
+
+                {/* Barre de taux d'échec */}
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
                     <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
@@ -94,14 +111,6 @@ export function DifficultCardsList({ cards, deckId }: DifficultCardsListProps) {
                   </span>
                 </div>
               </div>
-
-              {/* Action Button */}
-              <Link
-                href={`/deck/${deckId}/review?cardId=${card.cardId}`}
-                className="shrink-0 rounded-md bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-300 transition-all hover:bg-zinc-700 hover:text-white"
-              >
-                Réviser
-              </Link>
             </div>
 
             {/* Glow Effect */}
