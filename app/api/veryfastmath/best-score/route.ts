@@ -27,13 +27,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Récupérer le meilleur score pour ce mode
-    const bestScore = await prisma.veryFastMathScore.findFirst({
+    const bestScore = await prisma.veryFastMathScore.findUnique({
       where: {
-        userId: user.id,
-        mode,
-      },
-      orderBy: {
-        score: 'desc',
+        userId_mode: {
+          userId: user.id,
+          mode,
+        },
       },
       select: {
         score: true,

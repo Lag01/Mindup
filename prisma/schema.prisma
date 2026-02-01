@@ -173,7 +173,7 @@ model VeryFastMathScore {
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, mode])
+  @@unique([userId, mode])
   @@index([mode, createdAt])
   @@index([mode, score])
 }

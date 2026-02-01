@@ -41,40 +41,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Récupérer le meilleur score AVANT la sauvegarde
-    const previousBestScore = await prisma.veryFastMathScore.findFirst({
+    // Récupérer le score actuel
+    const currentScore = await prisma.veryFastMathScore.findUnique({
       where: {
-        userId: user.id,
-        mode,
-      },
-      orderBy: {
-        score: 'desc',
-      },
-    });
-
-    // Sauvegarder le score
-    await prisma.veryFastMathScore.create({
-      data: {
-        userId: user.id,
-        mode,
-        score,
+        userId_mode: {
+          userId: user.id,
+          mode,
+        },
       },
     });
 
-    // Récupérer le nouveau meilleur score après la sauvegarde
-    const currentBestScore = await prisma.veryFastMathScore.findFirst({
-      where: {
-        userId: user.id,
-        mode,
-      },
-      orderBy: {
-        score: 'desc',
-      },
-    });
+    // Ne sauvegarder que si c'est un nouveau record
+    if (!currentScore || score > currentScore.score) {
+      await prisma.veryFastMathScore.upsert({
+        where: {
+          userId_mode: {
+            userId: user.id,
+            mode,
+          },
+        },
+        update: {
+          score,
+          createdAt: new Date(),
+        },
+        create: {
+          userId: user.id,
+          mode,
+          score,
+        },
+      });
+    }
 
-    const previousBest = previousBestScore?.score || null;
-    const currentBest = currentBestScore?.score || score;
-    const isNewRecord = !previousBest || score > previousBest;
+    const isNewRecord = !currentScore || score > currentScore.score;
+    const currentBest = isNewRecord ? score : currentScore.score;
+    const previousBest = currentScore?.score || null;
 
     return NextResponse.json({
       savedScore: score,

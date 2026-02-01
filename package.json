@@ -10,7 +10,11 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "make-admin": "tsx scripts/make-admin.ts",
-    "migrate": "prisma migrate deploy"
+    "migrate": "prisma migrate deploy",
+    "cleanup:dry-run": "tsx scripts/cleanup-database.ts --dry-run",
+    "cleanup:all": "tsx scripts/cleanup-database.ts",
+    "cleanup:review-events": "tsx scripts/cleanup-database.ts --target=review-events",
+    "cleanup:tokens": "tsx scripts/cleanup-database.ts --target=refresh-tokens"
   },
   "keywords": [],
   "author": "",
@@ -50,6 +54,7 @@
     "eslint-config-next": "^16.0.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
