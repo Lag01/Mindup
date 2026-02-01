@@ -263,7 +263,7 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
 
       <TabsContent value="trends" className="mt-6 space-y-6">
         <TrendChart data={stats.reviewHistory} />
-        <DifficultCardsList cards={stats.topDifficultCards} deckId={deckId} />
+        <DifficultCardsListV2 cards={stats.topDifficultCards} deckId={deckId} />
       </TabsContent>
 
       <TabsContent value="details" className="mt-6 space-y-6">
