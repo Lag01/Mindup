@@ -94,9 +94,9 @@ export default function QuickFilters({
               aria-pressed={isActive}
               aria-label={`Filtrer par ${filter.label.toLowerCase()}`}
               style={{
-                fontFamily: 'JetBrains Mono, monospace',
                 animationDelay: `${0.4 + index * 0.05}s`,
               }}
+              className="font-mono"
             >
               {/* Glow effect pour active state */}
               {isActive && (
@@ -143,7 +143,7 @@ export default function QuickFilters({
       </div>
 
       {/* Terminal-style prompt indicator */}
-      <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+      <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
         <span className="text-cyan-500/60">$</span>
         <span>filter --mode={activeFilter}</span>
         <span className="inline-block w-2 h-3 bg-cyan-500/60 animate-[blink_1s_step-end_infinite] ml-0.5" />

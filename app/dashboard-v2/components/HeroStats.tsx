@@ -88,19 +88,19 @@ function StatCard({ icon, label, value, unit, accentColor, delay, pulse, highlig
       </div>
 
       {/* Label */}
-      <div className="text-xs uppercase tracking-wider text-zinc-400 mb-2 font-medium" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+      <div className="text-xs uppercase tracking-wider text-zinc-400 mb-2 font-medium">
         {label}
       </div>
 
       {/* Value */}
-      <div className={`text-4xl font-bold ${style.text} mb-1 tabular-nums`} style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+      <div className={`text-4xl font-bold ${style.text} mb-1 tabular-nums`}>
         {animatedValue.toLocaleString()}
         {unit && <span className="text-2xl ml-1 opacity-70">{unit}</span>}
       </div>
 
       {/* Highlight Badge pour cartes à réviser */}
       {highlight && value > 0 && (
-        <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-red-500/10 border border-red-500/30 rounded text-xs text-red-400 animate-[pulse_2s_ease-in-out_infinite]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+        <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-red-500/10 border border-red-500/30 rounded text-xs text-red-400 animate-[pulse_2s_ease-in-out_infinite]">
           <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
           <span>Action requise</span>
         </div>

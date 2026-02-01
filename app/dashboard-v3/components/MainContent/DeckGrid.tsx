@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import type { DeckWithStats } from '@/lib/types';
 import EnhancedDeckCard from './EnhancedDeckCard';
 
@@ -17,7 +18,7 @@ interface DeckGridProps {
   onDelete: (deckId: string) => void;
 }
 
-export default function DeckGrid({
+const DeckGrid = memo(function DeckGrid({
   decks,
   onReview,
   onEdit,
@@ -75,4 +76,6 @@ export default function DeckGrid({
       `}</style>
     </div>
   );
-}
+});
+
+export default DeckGrid;

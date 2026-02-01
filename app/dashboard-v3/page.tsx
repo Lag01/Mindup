@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useFetch } from '@/hooks/useFetch'
 import { DeckWithStats } from '@/lib/types'
 import LoadingAnimation from '@/components/LoadingAnimation'
 import DashboardPageWrapper from '@/components/DashboardPageWrapper'
@@ -30,10 +31,14 @@ export default function DashboardV3Page() {
 
   // États données
   const [decks, setDecks] = useState<DeckWithStats[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [userStreak, setUserStreak] = useState<UserStreak | null>(null)
+
+  // Hooks de fetch avec cache
+  const { loading: loadingDecks, execute: fetchDecks } = useFetch<{ decks: DeckWithStats[] }>()
+  const { loading: loadingStats, execute: fetchStats } = useFetch<{ currentStreak: number; maxStreak: number }>()
+  const loading = loadingDecks || loadingStats
 
   // États UI
   const [isCreatingDeck, setIsCreatingDeck] = useState(false)
@@ -57,26 +62,21 @@ export default function DashboardV3Page() {
     return decks.reduce((sum, deck) => sum + (deck.totalReviews ?? 0), 0)
   }, [decks])
 
-  // Chargement initial des données
+  // Chargement initial des données avec cache
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true)
-
-        // Fetch decks et streak en parallèle
-        const [decksRes, streakRes] = await Promise.all([
-          fetch('/api/decks'),
-          fetch('/api/stats/global'),
+        // Fetch decks et streak en parallèle avec cache
+        const [decksData, streakData] = await Promise.all([
+          fetchDecks('/api/decks'),
+          fetchStats('/api/stats/global'),
         ])
 
-        if (!decksRes.ok) throw new Error('Erreur lors du chargement des decks')
+        if (decksData?.decks) {
+          setDecks(decksData.decks)
+        }
 
-        const decksData = await decksRes.json()
-        // Vérifier que decksData.decks est bien un tableau
-        setDecks(decksData.decks || [])
-
-        if (streakRes.ok) {
-          const streakData = await streakRes.json()
+        if (streakData) {
           setUserStreak({
             current: streakData.currentStreak ?? 0,
             max: streakData.maxStreak ?? 0,
@@ -84,13 +84,11 @@ export default function DashboardV3Page() {
         }
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error)
-      } finally {
-        setLoading(false)
       }
     }
 
     fetchData()
-  }, [])
+  }, [fetchDecks, fetchStats])
 
   // Handlers
   const handleCreateDeck = useCallback(() => {

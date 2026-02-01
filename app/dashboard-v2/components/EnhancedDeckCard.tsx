@@ -82,7 +82,7 @@ export default function EnhancedDeckCard({
           {isAnki && (
             <span
               className="inline-flex items-center gap-1 px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded text-xs font-medium text-purple-400 uppercase tracking-wider"
-              style={{ fontFamily: 'JetBrains Mono, monospace' }}
+             
             >
               <span className="text-purple-400">◈</span>
               Anki
@@ -92,7 +92,7 @@ export default function EnhancedDeckCard({
           {deck.isImported && (
             <span
               className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500/10 border border-blue-500/30 rounded text-xs font-medium text-blue-400 uppercase tracking-wider"
-              style={{ fontFamily: 'JetBrains Mono, monospace' }}
+             
             >
               <span className="text-blue-400">↓</span>
               Imported
@@ -120,7 +120,7 @@ export default function EnhancedDeckCard({
             onClose={() => setIsMenuOpen(false)}
             align="right"
           >
-            <div className="w-56 bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-xl shadow-black/50 overflow-hidden animate-[slideDown_0.2s_ease-out]" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+            <div className="w-56 bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-xl shadow-black/50 overflow-hidden animate-[slideDown_0.2s_ease-out]">
               <button
                 onClick={() => { onStudy(deck.id); setIsMenuOpen(false); }}
                 className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-colors flex items-center gap-2"
@@ -208,7 +208,7 @@ export default function EnhancedDeckCard({
       {/* Deck Name */}
       <h3
         className="text-xl font-bold text-zinc-100 mb-4 leading-tight"
-        style={{ fontFamily: 'JetBrains Mono, monospace' }}
+       
       >
         {deck.name}
       </h3>
@@ -249,7 +249,7 @@ export default function EnhancedDeckCard({
           </div>
 
           {/* Progress Labels */}
-          <div className="flex items-center justify-between text-xs text-zinc-500" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+          <div className="flex items-center justify-between text-xs text-zinc-500">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 bg-orange-500 rounded-full" />
               {deck.ankiStats.new} New
@@ -267,7 +267,7 @@ export default function EnhancedDeckCard({
       )}
 
       {/* Stats Row */}
-      <div className="flex items-center gap-3 text-sm text-zinc-400 mb-4" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+      <div className="flex items-center gap-3 text-sm text-zinc-400 mb-4">
         <span>{deck.totalCards} carte{deck.totalCards !== 1 ? 's' : ''}</span>
 
         {hasDueCards && (
@@ -298,7 +298,7 @@ export default function EnhancedDeckCard({
               ? 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 focus:ring-cyan-500/50 hover:scale-[1.02] active:scale-[0.98]'
               : 'bg-zinc-800/50 text-zinc-500 cursor-not-allowed'
           }`}
-          style={{ fontFamily: 'JetBrains Mono, monospace' }}
+         
           aria-label={canReview ? 'Réviser les cartes' : 'Aucune carte à réviser'}
         >
           {canReview ? '⚡ Réviser' : 'Aucune carte'}
@@ -309,7 +309,7 @@ export default function EnhancedDeckCard({
           <button
             onClick={() => onEdit(deck.id)}
             className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 rounded-lg font-medium text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-zinc-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900"
-            style={{ fontFamily: 'JetBrains Mono, monospace' }}
+           
             aria-label="Éditer le deck"
           >
             ✎ Éditer
@@ -320,7 +320,7 @@ export default function EnhancedDeckCard({
         <button
           onClick={() => onStudy(deck.id)}
           className="px-4 py-2 bg-transparent border-2 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500 rounded-lg font-medium text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900"
-          style={{ fontFamily: 'JetBrains Mono, monospace' }}
+         
           aria-label="Étudier le deck"
         >
           ▶ Étudier

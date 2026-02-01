@@ -114,7 +114,6 @@ export default function CompactHeader({
                   }
                 }}
                 className="w-full pl-10 pr-9 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-md text-zinc-200 text-sm placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-300 font-mono"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
               />
               {searchQuery && (
                 <button
@@ -144,7 +143,6 @@ export default function CompactHeader({
                 }}
                 className="px-3 py-1.5 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 hover:border-cyan-500/50 rounded-md text-zinc-300 hover:text-cyan-400 text-sm font-medium transition-all duration-200 flex items-center gap-1.5 group"
                 aria-label="Menu créer"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
               >
                 <span className="text-cyan-400 group-hover:scale-110 transition-transform">+</span>
                 Créer
@@ -168,8 +166,7 @@ export default function CompactHeader({
                         setIsCreateMenuOpen(false);
                       }}
                       className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all duration-150 flex items-center gap-3 border-b border-zinc-700/30"
-                      style={{ fontFamily: 'JetBrains Mono, monospace' }}
-                    >
+                          >
                       <span className="text-lg">➕</span>
                       <span className="text-sm">Créer un deck</span>
                     </button>
@@ -179,8 +176,7 @@ export default function CompactHeader({
                         setIsCreateMenuOpen(false);
                       }}
                       className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all duration-150 flex items-center gap-3 border-b border-zinc-700/30"
-                      style={{ fontFamily: 'JetBrains Mono, monospace' }}
-                    >
+                          >
                       <span className="text-lg">📥</span>
                       <span className="text-sm">Importer un deck</span>
                     </button>
@@ -190,8 +186,7 @@ export default function CompactHeader({
                         setIsCreateMenuOpen(false);
                       }}
                       className="w-full text-left px-4 py-3 text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all duration-150 flex items-center gap-3"
-                      style={{ fontFamily: 'JetBrains Mono, monospace' }}
-                    >
+                          >
                       <span className="text-lg">🌐</span>
                       <span className="text-sm">Decks Publics</span>
                     </button>
@@ -205,7 +200,6 @@ export default function CompactHeader({
               onClick={() => router.push('/leaderboard')}
               className="px-3 py-1.5 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 hover:border-orange-500/50 rounded-md text-zinc-300 hover:text-orange-400 text-sm font-medium transition-all duration-200"
               aria-label="Classement"
-              style={{ fontFamily: 'JetBrains Mono, monospace' }}
             >
               Classement
             </button>
@@ -215,7 +209,6 @@ export default function CompactHeader({
               onClick={() => router.push('/veryfastmath')}
               className="px-3 py-1.5 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 hover:border-yellow-500/50 rounded-md text-zinc-300 hover:text-yellow-400 text-sm font-medium transition-all duration-200 whitespace-nowrap"
               aria-label="Défis VeryFastMath"
-              style={{ fontFamily: 'JetBrains Mono, monospace' }}
             >
               Math
             </button>
@@ -226,7 +219,6 @@ export default function CompactHeader({
                 onClick={() => router.push('/admin')}
                 className="px-3 py-1.5 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 hover:border-purple-500/50 rounded-md text-zinc-300 hover:text-purple-400 text-sm font-medium transition-all duration-200"
                 aria-label="Administration"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
               >
                 Admin
               </button>
@@ -247,7 +239,7 @@ export default function CompactHeader({
                   }}
                 >
                   <span className="text-lg animate-[pulse_2s_ease-in-out_infinite]">🔥</span>
-                  <span className="text-white font-bold text-sm" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                  <span className="text-white font-bold text-sm font-mono">
                     {currentStreak}j
                   </span>
                 </div>
@@ -255,7 +247,7 @@ export default function CompactHeader({
                 {/* Expanded Streak Info */}
                 {isStreakExpanded && maxStreak !== undefined && (
                   <div className="absolute top-full right-0 mt-2 px-3 py-2 bg-zinc-800/95 backdrop-blur-md border border-orange-500/30 rounded-md shadow-xl whitespace-nowrap animate-[slideDown_0.2s_ease-out]">
-                    <div className="text-xs text-orange-400 font-medium" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                    <div className="text-xs text-orange-400 font-medium font-mono">
                       Record: {maxStreak} jours
                     </div>
                   </div>
@@ -288,8 +280,7 @@ export default function CompactHeader({
                         setIsProfileMenuOpen(false);
                       }}
                       className="w-full text-left px-4 py-3 text-red-400 hover:bg-red-500/10 transition-all duration-150 flex items-center gap-3"
-                      style={{ fontFamily: 'JetBrains Mono, monospace' }}
-                    >
+                          >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                       </svg>
@@ -313,7 +304,7 @@ export default function CompactHeader({
             {currentStreak !== undefined && (
               <div className="px-2.5 py-1 bg-gradient-to-r from-orange-600/90 to-red-600/90 rounded-md flex items-center gap-1.5 shadow-lg opacity-0 animate-[fadeIn_0.5s_ease-out_0.1s_forwards]">
                 <span className="text-base">🔥</span>
-                <span className="text-white font-bold text-sm" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
+                <span className="text-white font-bold text-sm font-mono">
                   {currentStreak}j
                 </span>
               </div>
@@ -349,7 +340,6 @@ export default function CompactHeader({
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 className="w-full pl-10 pr-9 py-2 bg-zinc-800/50 border border-zinc-700/50 rounded-md text-zinc-200 text-sm placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
               />
               {searchQuery && (
                 <button
@@ -373,7 +363,6 @@ export default function CompactHeader({
                   setIsMobileMenuOpen(false);
                 }}
                 className="text-left px-3 py-2.5 text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 rounded-md transition-all text-sm flex items-center gap-2"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
               >
                 <span>➕</span> Créer un deck
               </button>
@@ -383,7 +372,6 @@ export default function CompactHeader({
                   setIsMobileMenuOpen(false);
                 }}
                 className="text-left px-3 py-2.5 text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 rounded-md transition-all text-sm flex items-center gap-2"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
               >
                 <span>📥</span> Importer un deck
               </button>
@@ -393,7 +381,6 @@ export default function CompactHeader({
                   setIsMobileMenuOpen(false);
                 }}
                 className="text-left px-3 py-2.5 text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 rounded-md transition-all text-sm flex items-center gap-2"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
               >
                 <span>🌐</span> Decks Publics
               </button>
@@ -404,7 +391,6 @@ export default function CompactHeader({
                   setIsMobileMenuOpen(false);
                 }}
                 className="text-left px-3 py-2.5 text-zinc-300 hover:bg-orange-500/10 hover:text-orange-400 rounded-md transition-all text-sm"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
               >
                 Classement
               </button>
@@ -414,7 +400,6 @@ export default function CompactHeader({
                   setIsMobileMenuOpen(false);
                 }}
                 className="text-left px-3 py-2.5 text-zinc-300 hover:bg-yellow-500/10 hover:text-yellow-400 rounded-md transition-all text-sm"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
               >
                 Défis VeryFastMath
               </button>
@@ -425,8 +410,7 @@ export default function CompactHeader({
                     setIsMobileMenuOpen(false);
                   }}
                   className="text-left px-3 py-2.5 text-zinc-300 hover:bg-purple-500/10 hover:text-purple-400 rounded-md transition-all text-sm"
-                  style={{ fontFamily: 'JetBrains Mono, monospace' }}
-                >
+                  >
                   Administration
                 </button>
               )}
@@ -437,7 +421,6 @@ export default function CompactHeader({
                   setIsMobileMenuOpen(false);
                 }}
                 className="text-left px-3 py-2.5 text-red-400 hover:bg-red-500/10 rounded-md transition-all text-sm"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
               >
                 Déconnexion
               </button>
@@ -446,31 +429,6 @@ export default function CompactHeader({
         </div>
       </div>
 
-      <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-4px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </header>
   );
 }

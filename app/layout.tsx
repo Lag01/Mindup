@@ -1,10 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { JetBrains_Mono } from 'next/font/google';
 import "./globals.css";
 import 'katex/dist/katex.min.css';
 import RegisterServiceWorker from './register-sw';
 import { Providers } from '@/components/Providers';
 import SplashScreen from '@/components/SplashScreen';
 import { Analytics } from '@vercel/analytics/next';
+
+const jetbrainsMono = JetBrains_Mono({
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: "Mindup - Révision",
@@ -41,10 +49,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
-      <head>
-        <link rel="preload" href="/logo-animation.json" as="fetch" crossOrigin="anonymous" />
-      </head>
+    <html lang="fr" className={jetbrainsMono.variable}>
       <body className="antialiased">
         <SplashScreen />
         <RegisterServiceWorker />

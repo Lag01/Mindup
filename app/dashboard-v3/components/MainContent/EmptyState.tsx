@@ -155,7 +155,7 @@ export default function EmptyState({
         {/* Title */}
         <h2
           className="text-2xl font-bold text-zinc-100 mb-3 opacity-0 animate-[slideUp_0.5s_ease-out_0.1s_forwards]"
-          style={{ fontFamily: 'JetBrains Mono, monospace' }}
+         
         >
           {isNoDecks ? 'Aucun deck créé' : 'Aucun résultat trouvé'}
         </h2>
@@ -163,7 +163,7 @@ export default function EmptyState({
         {/* Description */}
         <p
           className="text-base text-zinc-400 mb-8 leading-relaxed opacity-0 animate-[slideUp_0.5s_ease-out_0.2s_forwards]"
-          style={{ fontFamily: 'JetBrains Mono, monospace' }}
+         
         >
           {isNoDecks ? (
             <>
@@ -184,7 +184,7 @@ export default function EmptyState({
         {/* Terminal prompt indicator */}
         <div
           className="mb-8 flex items-center justify-center gap-2 text-xs text-zinc-500 opacity-0 animate-[slideUp_0.5s_ease-out_0.25s_forwards]"
-          style={{ fontFamily: 'JetBrains Mono, monospace' }}
+         
         >
           <span className="text-red-500/60">$</span>
           <span>{isNoDecks ? 'ls decks/' : `search "${searchQuery || ''}"`}</span>
@@ -200,7 +200,7 @@ export default function EmptyState({
               <button
                 onClick={onCreateDeck}
                 className="group relative px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
+               
                 aria-label="Créer un nouveau deck"
               >
                 {/* Glow effect on hover */}
@@ -218,7 +218,7 @@ export default function EmptyState({
               <button
                 onClick={onImportDeck}
                 className="group relative px-6 py-3 bg-transparent border-2 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500 rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900"
-                style={{ fontFamily: 'JetBrains Mono, monospace' }}
+               
                 aria-label="Importer un deck existant"
               >
                 <span className="flex items-center gap-2">
@@ -234,7 +234,7 @@ export default function EmptyState({
             <button
               onClick={onClearSearch}
               className="group relative px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900"
-              style={{ fontFamily: 'JetBrains Mono, monospace' }}
+             
               aria-label="Effacer la recherche"
             >
               {/* Glow effect on hover */}
