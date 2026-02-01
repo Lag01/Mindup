@@ -80,7 +80,7 @@ export function DifficultCardsList({ cards, deckId }: DifficultCardsListProps) {
                     textType={card.frontType}
                     imagePath={card.frontImage}
                     className="text-sm text-foreground"
-                    maxHeight={100}
+                    maxHeight={200}
                   />
                 </div>
 
@@ -92,7 +92,7 @@ export function DifficultCardsList({ cards, deckId }: DifficultCardsListProps) {
                     textType={card.backType}
                     imagePath={card.backImage}
                     className="text-sm text-foreground"
-                    maxHeight={100}
+                    maxHeight={200}
                   />
                 </div>
 

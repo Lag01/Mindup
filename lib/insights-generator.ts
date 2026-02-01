@@ -31,23 +31,7 @@ export function generateInsights(
 ): Insight[] {
   const insights: Insight[] = [];
 
-  // 1. Warning - Cartes difficiles nécessitent attention (Priorité 5)
-  if (stats.topDifficultCards.length >= 3) {
-    const difficultCount = stats.topDifficultCards.length;
-    insights.push({
-      type: 'warning',
-      title: `${difficultCount} cartes nécessitent attention`,
-      description: `Taux d'échec élevé détecté`,
-      icon: '⚠️',
-      priority: 5,
-      action: {
-        label: 'Réviser ces cartes',
-        href: `/deck/${deckId}/review?filter=difficult`,
-      },
-    });
-  }
-
-  // 2. Warning - Danger streak (aucune révision aujourd'hui après 18h) (Priorité 5)
+  // 1. Warning - Danger streak (aucune révision aujourd'hui après 18h) (Priorité 5)
   if (currentHour >= 18 && stats.reviewsToday === 0) {
     insights.push({
       type: 'warning',
@@ -62,7 +46,7 @@ export function generateInsights(
     });
   }
 
-  // 3. Milestone - Nouveau record de révisions (Priorité 4)
+  // 2. Milestone - Nouveau record de révisions (Priorité 4)
   if (stats.reviewsToday > 0 && stats.reviewsVsYesterday > 50) {
     insights.push({
       type: 'milestone',
@@ -73,7 +57,7 @@ export function generateInsights(
     });
   }
 
-  // 4. Positive - Progression taux de réussite (Priorité 4)
+  // 3. Positive - Progression taux de réussite (Priorité 4)
   if (stats.successRateChange >= 10) {
     insights.push({
       type: 'positive',
@@ -84,7 +68,7 @@ export function generateInsights(
     });
   }
 
-  // 5. Positive - Deck presque maîtrisé (Priorité 4)
+  // 4. Positive - Deck presque maîtrisé (Priorité 4)
   const masteryPercentage = (stats.masteredCards / stats.totalCards) * 100;
   if (masteryPercentage >= 80 && masteryPercentage < 100) {
     insights.push({
@@ -96,7 +80,7 @@ export function generateInsights(
     });
   }
 
-  // 6. Milestone - Deck 100% maîtrisé (Priorité 5)
+  // 5. Milestone - Deck 100% maîtrisé (Priorité 5)
   if (masteryPercentage >= 100) {
     insights.push({
       type: 'milestone',
@@ -107,7 +91,7 @@ export function generateInsights(
     });
   }
 
-  // 7. Suggestion - Moment optimal pour réviser (Priorité 2)
+  // 6. Suggestion - Moment optimal pour réviser (Priorité 2)
   if (currentHour >= 9 && currentHour <= 11 && stats.reviewsToday === 0) {
     insights.push({
       type: 'suggestion',
@@ -122,7 +106,7 @@ export function generateInsights(
     });
   }
 
-  // 8. Positive - Bonne régularité (Priorité 3)
+  // 7. Positive - Bonne régularité (Priorité 3)
   if (stats.reviewsVsPreviousWeek >= 0 && stats.reviewsVsPreviousWeek <= 20) {
     insights.push({
       type: 'positive',
@@ -133,7 +117,7 @@ export function generateInsights(
     });
   }
 
-  // 9. Warning - Baisse activité (Priorité 3)
+  // 8. Warning - Baisse activité (Priorité 3)
   if (stats.reviewsVsPreviousWeek < -30) {
     insights.push({
       type: 'warning',
@@ -144,7 +128,7 @@ export function generateInsights(
     });
   }
 
-  // 10. Suggestion - Estimation completion (Priorité 2)
+  // 9. Suggestion - Estimation completion (Priorité 2)
   if (stats.estimatedCompletionDays > 0 && stats.estimatedCompletionDays <= 30) {
     insights.push({
       type: 'suggestion',
@@ -155,7 +139,7 @@ export function generateInsights(
     });
   }
 
-  // 11. Positive - Taux de succès élevé (Priorité 3)
+  // 10. Positive - Taux de succès élevé (Priorité 3)
   if (stats.successRate >= 80 && stats.totalReviews >= 20) {
     insights.push({
       type: 'positive',

@@ -398,8 +398,8 @@ export async function GET(
       projectedMasteryRate: Math.round(projectedMasteryRate * 10) / 10,
       topDifficultCards: topDifficultCards.map(card => ({
         cardId: card.cardId,
-        front: card.front.substring(0, 100),
-        back: card.back.substring(0, 100),
+        front: card.front,
+        back: card.back,
         frontType: card.frontType as 'TEXT' | 'LATEX',
         backType: card.backType as 'TEXT' | 'LATEX',
         frontImage: card.frontImage,

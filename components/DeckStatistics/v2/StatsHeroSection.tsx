@@ -13,10 +13,20 @@ interface StatsHeroSectionProps {
   currentStreak?: number;
   dueCards?: number;
   learningMethod?: 'IMMEDIATE' | 'ANKI';
+  estimatedCompletionDays?: number;
   sparklineData?: {
     reviews?: number[];
     successRate?: number[];
   };
+}
+
+function formatCompletionDays(days: number): string {
+  if (days === 0) return 'Terminé !';
+  if (days === 1) return '1 jour';
+  if (days <= 7) return `${days} jours`;
+  if (days <= 30) return `~${days} jours`;
+  const weeks = Math.round(days / 7);
+  return `~${weeks} semaine${weeks > 1 ? 's' : ''}`;
 }
 
 export function StatsHeroSection({
@@ -28,6 +38,7 @@ export function StatsHeroSection({
   currentStreak = 0,
   dueCards = 0,
   learningMethod,
+  estimatedCompletionDays = 0,
   sparklineData,
 }: StatsHeroSectionProps) {
   const masteryPercentage = totalCards > 0 ? (masteredCards / totalCards) * 100 : 0;
@@ -112,6 +123,24 @@ export function StatsHeroSection({
                   : undefined
               }
               sparkline={sparklineData?.reviews}
+            />
+          </div>
+
+          {/* Maîtrise complète */}
+          <div className="stat-card">
+            <EnhancedStatCard
+              label="Maîtrise complète"
+              value={formatCompletionDays(estimatedCompletionDays)}
+              icon="🎯"
+              gradient="from-purple-500 to-pink-600"
+              trend={
+                estimatedCompletionDays > 0
+                  ? {
+                      value: estimatedCompletionDays,
+                      label: estimatedCompletionDays <= 1 ? 'jour' : 'jours',
+                    }
+                  : undefined
+              }
             />
           </div>
         </div>

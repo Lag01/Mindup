@@ -40,6 +40,7 @@ function MathText({
   const containerRef = useRef<HTMLDivElement>(null);
   const [fontSize, setFontSize] = useState(16);
   const [needsScroll, setNeedsScroll] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -50,6 +51,7 @@ function MathText({
       try {
         // Clear previous content
         containerRef.current.innerHTML = '';
+        setHasError(false);
 
         if (contentType === 'LATEX') {
           // Render as LaTeX
@@ -74,6 +76,7 @@ function MathText({
             } catch (e2) {
               // If both fail, display as text
               containerRef.current.textContent = text;
+              setHasError(true);
             }
           }
         } else {
@@ -85,14 +88,15 @@ function MathText({
         if (containerRef.current) {
           containerRef.current.textContent = text;
         }
+        setHasError(true);
       }
     };
 
     const adjustFontSize = () => {
       if (!containerRef.current || !autoResize) return;
 
-      // Générer clé de cache basée sur le contenu
-      const cacheKey = `${text.substring(0, 100)}_${contentType}_${maxHeight}`;
+      // Générer clé de cache basée sur le contenu (début + fin pour éviter collisions)
+      const cacheKey = `${contentType}_${maxHeight}_${text.length}_${text.substring(0, 50)}_${text.slice(-50)}`;
 
       // Vérifier si la taille est déjà en cache
       const cachedSize = fontSizeCache.get(cacheKey);
@@ -164,7 +168,7 @@ function MathText({
   return (
     <div
       ref={containerRef}
-      className={`${className} ${needsScroll ? 'needs-scroll' : ''}`}
+      className={`${className} ${needsScroll ? 'needs-scroll' : ''} ${hasError ? 'border border-red-500/30 bg-red-900/10' : ''}`}
       style={{
         fontSize: autoResize ? `${fontSize}px` : undefined,
         maxHeight: autoResize ? `${maxHeight}px` : undefined,

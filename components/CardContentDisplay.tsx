@@ -5,8 +5,8 @@ import MathText from './MathText';
 import { addCacheBusting } from '@/lib/image-service';
 
 // Ratios de distribution de l'espace pour texte+image
-const TEXT_HEIGHT_RATIO = 0.4;  // 40% pour le texte
-const IMAGE_HEIGHT_RATIO = 0.6; // 60% pour l'image
+const TEXT_HEIGHT_RATIO = 0.5;  // 50% pour le texte
+const IMAGE_HEIGHT_RATIO = 0.5; // 50% pour l'image
 
 interface CardContentDisplayProps {
   text: string;

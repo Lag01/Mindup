@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatsHeroSection } from './DeckStatistics/v2/StatsHeroSection';
 import { InsightsSection } from './DeckStatistics/v2/InsightsSection';
 import { TrendChart } from './DeckStatistics/v2/TrendChart';
-import { DifficultCardsList } from './DeckStatistics/v2/DifficultCardsList';
+import { DifficultCardsListV2 } from './DeckStatistics/v2/DifficultCardsListV2';
 import { DistributionTabs } from './DeckStatistics/v2/DistributionTabs';
 
 interface ExtendedDeckStats {
@@ -155,6 +155,7 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
           currentStreak={stats.currentStreak ?? 0}
           dueCards={stats.ankiStats?.dueToday ?? 0}
           learningMethod={stats.learningMethod}
+          estimatedCompletionDays={stats.estimatedCompletionDays}
           sparklineData={{
             reviews: sparklineReviews,
           }}
@@ -182,7 +183,7 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
         />
 
         {/* 4. Top Cartes Difficiles */}
-        <DifficultCardsList cards={stats.topDifficultCards} deckId={deckId} />
+        <DifficultCardsListV2 cards={stats.topDifficultCards} deckId={deckId} />
 
         {/* 5. Détails (Distribution) */}
         <DistributionTabs ratingDistribution={stats.ratingDistribution} />
@@ -236,6 +237,7 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
           currentStreak={stats.currentStreak ?? 0}
           dueCards={stats.ankiStats?.dueToday ?? 0}
           learningMethod={stats.learningMethod}
+          estimatedCompletionDays={stats.estimatedCompletionDays}
           sparklineData={{
             reviews: sparklineReviews,
           }}
