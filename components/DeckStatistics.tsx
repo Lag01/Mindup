@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useIsMobile } from '@/hooks/useIsMobile';
-import MetricsCard from './DeckStatistics/MetricsCard';
-import PerformanceChart from './DeckStatistics/PerformanceChart';
-import ReviewHistoryChart from './DeckStatistics/ReviewHistoryChart';
-import RatingsDistribution from './DeckStatistics/RatingsDistribution';
-import RecentActivity from './DeckStatistics/RecentActivity';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StatsHeroSection } from './DeckStatistics/v2/StatsHeroSection';
+import { InsightsSection } from './DeckStatistics/v2/InsightsSection';
+import { TrendChart } from './DeckStatistics/v2/TrendChart';
+import { DifficultCardsList } from './DeckStatistics/v2/DifficultCardsList';
+import { DistributionTabs } from './DeckStatistics/v2/DistributionTabs';
 
-interface DeckStats {
+interface ExtendedDeckStats {
   totalCards: number;
 
   cardsByStatus: {
@@ -35,7 +36,6 @@ interface DeckStats {
 
   reviewHistory: { date: string; count: number }[];
 
-  // Anki-specific fields
   learningMethod?: 'IMMEDIATE' | 'ANKI';
   ankiStats?: {
     new: number;
@@ -44,6 +44,25 @@ interface DeckStats {
     dueToday: number;
     avgInterval: number;
   } | null;
+
+  // Nouvelles métriques enrichies
+  avgTimePerCard: number;
+  totalStudyTime: number;
+  reviewsVsYesterday: number;
+  reviewsVsPreviousWeek: number;
+  successRateChange: number;
+  estimatedCompletionDays: number;
+  projectedMasteryRate: number;
+  topDifficultCards: Array<{
+    cardId: string;
+    front: string;
+    failureRate: number;
+  }>;
+  recentlyMastered: Array<{
+    cardId: string;
+    front: string;
+    masteredAt: string;
+  }>;
 }
 
 interface DeckStatisticsProps {
@@ -51,7 +70,7 @@ interface DeckStatisticsProps {
 }
 
 export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
-  const [stats, setStats] = useState<DeckStats | null>(null);
+  const [stats, setStats] = useState<ExtendedDeckStats | null>(null);
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
 
@@ -76,104 +95,196 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
 
   if (loading) {
     return (
-      <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
-        <div className="text-zinc-400 text-center">Chargement des statistiques...</div>
+      <div className="space-y-6">
+        {/* Loading Skeleton */}
+        <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
+          <div className="flex items-center justify-center">
+            <div className="h-[200px] w-[200px] animate-pulse rounded-full bg-zinc-800" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-32 animate-pulse rounded-lg bg-zinc-800" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!stats) {
     return (
-      <div className="bg-zinc-900 rounded-lg p-6 border border-zinc-800">
-        <div className="text-zinc-400 text-center">Statistiques non disponibles</div>
+      <div className="rounded-lg border border-zinc-700/50 bg-zinc-900/50 p-8 text-center backdrop-blur-sm">
+        <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
+          <span className="text-3xl">⚠️</span>
+        </div>
+        <h3 className="text-lg font-semibold text-foreground">
+          Statistiques non disponibles
+        </h3>
+        <p className="mt-1 text-sm text-zinc-400">
+          Impossible de charger les données
+        </p>
       </div>
     );
   }
 
-  // Calculer les cartes normales
-  const normalCards = stats.totalCards - (stats.difficultCards + stats.masteredCards + stats.cardsByStatus.notStarted);
+  // Calculer reviewsYesterday basé sur la tendance
+  const reviewsYesterday = stats.reviewsVsYesterday !== 0
+    ? Math.round(stats.reviewsToday / (1 + stats.reviewsVsYesterday / 100))
+    : 0;
 
-  return (
-    <div className="space-y-6">
-      {/* Cartes de métriques clés - 8 cartes */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricsCard
-          label="Total"
-          value={stats.totalCards}
-          description="cartes"
-          colorClass="text-foreground"
-        />
-        <MetricsCard
-          label="Non commencées"
-          value={stats.cardsByStatus.notStarted}
-          description="jamais révisées"
-          colorClass="text-gray-400"
-        />
-        <MetricsCard
-          label="En cours"
-          value={stats.cardsByStatus.inProgress}
-          description="en apprentissage"
-          colorClass="text-blue-400"
-        />
-        <MetricsCard
-          label="Maîtrisées"
-          value={stats.masteredCards}
-          description=">70% facile"
-          colorClass="text-green-400"
-        />
-        <MetricsCard
-          label="Difficiles"
-          value={stats.difficultCards}
-          description=">50% échecs"
-          colorClass="text-red-400"
-        />
-        <MetricsCard
-          label="Taux de réussite"
-          value={`${stats.successRate.toFixed(1)}%`}
-          description="good + easy"
-          colorClass="text-emerald-400"
-        />
-        <MetricsCard
-          label="Révisions totales"
-          value={stats.totalReviews}
-          description="total"
-          colorClass="text-purple-400"
-        />
-        <MetricsCard
-          label="Aujourd'hui"
-          value={stats.reviewsToday}
-          description="révisions"
-          colorClass="text-blue-400"
-        />
-      </div>
+  // Sparkline data (7 derniers jours du reviewHistory)
+  const sparklineReviews = stats.reviewHistory.slice(-7).map(h => h.count);
 
-      {/* Graphiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <PerformanceChart
-          difficultCards={stats.difficultCards}
-          normalCards={normalCards}
+  // Desktop Layout
+  if (!isMobile) {
+    return (
+      <div className="space-y-8">
+        {/* 1. Hero Section */}
+        <StatsHeroSection
+          totalCards={stats.totalCards}
           masteredCards={stats.masteredCards}
-          isMobile={isMobile}
+          reviewsToday={stats.reviewsToday}
+          reviewsYesterday={reviewsYesterday}
+          successRate={stats.successRate}
+          currentStreak={0} // TODO: Ajouter streak à l'API
+          dueCards={stats.ankiStats?.dueToday ?? 0}
+          sparklineData={{
+            reviews: sparklineReviews,
+          }}
         />
-        <ReviewHistoryChart
-          reviewHistory={stats.reviewHistory}
-          isMobile={isMobile}
+
+        {/* 2. Tendances */}
+        <TrendChart data={stats.reviewHistory} />
+
+        {/* 3. Insights & Recommandations */}
+        <InsightsSection
+          stats={{
+            totalCards: stats.totalCards,
+            masteredCards: stats.masteredCards,
+            difficultCards: stats.difficultCards,
+            reviewsToday: stats.reviewsToday,
+            reviewsVsYesterday: stats.reviewsVsYesterday,
+            successRate: stats.successRate,
+            successRateChange: stats.successRateChange,
+            topDifficultCards: stats.topDifficultCards,
+            estimatedCompletionDays: stats.estimatedCompletionDays,
+            reviewsVsPreviousWeek: stats.reviewsVsPreviousWeek,
+            totalReviews: stats.totalReviews,
+          }}
+          deckId={deckId}
         />
+
+        {/* 4. Top Cartes Difficiles */}
+        <DifficultCardsList cards={stats.topDifficultCards} deckId={deckId} />
+
+        {/* 5. Détails (Distribution) */}
+        <DistributionTabs ratingDistribution={stats.ratingDistribution} />
+
+        {/* 6. Stats ANKI (si applicable) */}
+        {stats.ankiStats && (
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-900/50 p-6 backdrop-blur-sm">
+            <h3 className="mb-4 text-lg font-semibold text-foreground">
+              Statistiques ANKI
+            </h3>
+            <div className="grid gap-4 sm:grid-cols-4">
+              <div className="rounded-lg border border-blue-700/30 bg-blue-900/10 p-4">
+                <p className="text-xs text-zinc-400">Nouvelles</p>
+                <p className="mt-1 text-2xl font-bold text-blue-400">{stats.ankiStats.new}</p>
+              </div>
+              <div className="rounded-lg border border-yellow-700/30 bg-yellow-900/10 p-4">
+                <p className="text-xs text-zinc-400">Apprentissage</p>
+                <p className="mt-1 text-2xl font-bold text-yellow-400">{stats.ankiStats.learning}</p>
+              </div>
+              <div className="rounded-lg border border-green-700/30 bg-green-900/10 p-4">
+                <p className="text-xs text-zinc-400">Révision</p>
+                <p className="mt-1 text-2xl font-bold text-green-400">{stats.ankiStats.review}</p>
+              </div>
+              <div className="rounded-lg border border-orange-700/30 bg-orange-900/10 p-4">
+                <p className="text-xs text-zinc-400">Dues aujourd'hui</p>
+                <p className="mt-1 text-2xl font-bold text-orange-400">{stats.ankiStats.dueToday}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+    );
+  }
 
-      {/* Détails des ratings */}
-      <RatingsDistribution
-        ratingDistribution={stats.ratingDistribution}
-        totalReviews={stats.totalReviews}
-      />
+  // Mobile Layout avec Tabs
+  return (
+    <Tabs defaultValue="overview" className="w-full">
+      <TabsList className="grid w-full grid-cols-3 bg-zinc-900/80 border border-zinc-700/50">
+        <TabsTrigger value="overview">Vue</TabsTrigger>
+        <TabsTrigger value="trends">Tendances</TabsTrigger>
+        <TabsTrigger value="details">Détails</TabsTrigger>
+      </TabsList>
 
-      {/* Activité récente */}
-      <RecentActivity
-        reviewsThisWeek={stats.reviewsThisWeek}
-        inProgressCards={stats.cardsByStatus.inProgress}
-        masteredCards={stats.masteredCards}
-        totalCards={stats.totalCards}
-      />
-    </div>
+      <TabsContent value="overview" className="mt-6 space-y-6">
+        <StatsHeroSection
+          totalCards={stats.totalCards}
+          masteredCards={stats.masteredCards}
+          reviewsToday={stats.reviewsToday}
+          reviewsYesterday={reviewsYesterday}
+          successRate={stats.successRate}
+          currentStreak={0}
+          dueCards={stats.ankiStats?.dueToday ?? 0}
+          sparklineData={{
+            reviews: sparklineReviews,
+          }}
+        />
+
+        <InsightsSection
+          stats={{
+            totalCards: stats.totalCards,
+            masteredCards: stats.masteredCards,
+            difficultCards: stats.difficultCards,
+            reviewsToday: stats.reviewsToday,
+            reviewsVsYesterday: stats.reviewsVsYesterday,
+            successRate: stats.successRate,
+            successRateChange: stats.successRateChange,
+            topDifficultCards: stats.topDifficultCards,
+            estimatedCompletionDays: stats.estimatedCompletionDays,
+            reviewsVsPreviousWeek: stats.reviewsVsPreviousWeek,
+            totalReviews: stats.totalReviews,
+          }}
+          deckId={deckId}
+        />
+      </TabsContent>
+
+      <TabsContent value="trends" className="mt-6 space-y-6">
+        <TrendChart data={stats.reviewHistory} />
+        <DifficultCardsList cards={stats.topDifficultCards} deckId={deckId} />
+      </TabsContent>
+
+      <TabsContent value="details" className="mt-6 space-y-6">
+        <DistributionTabs ratingDistribution={stats.ratingDistribution} />
+
+        {stats.ankiStats && (
+          <div className="rounded-lg border border-zinc-700/50 bg-zinc-900/50 p-6 backdrop-blur-sm">
+            <h3 className="mb-4 text-lg font-semibold text-foreground">
+              Statistiques ANKI
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-lg border border-blue-700/30 bg-blue-900/10 p-4">
+                <p className="text-xs text-zinc-400">Nouvelles</p>
+                <p className="mt-1 text-2xl font-bold text-blue-400">{stats.ankiStats.new}</p>
+              </div>
+              <div className="rounded-lg border border-yellow-700/30 bg-yellow-900/10 p-4">
+                <p className="text-xs text-zinc-400">Apprentissage</p>
+                <p className="mt-1 text-2xl font-bold text-yellow-400">{stats.ankiStats.learning}</p>
+              </div>
+              <div className="rounded-lg border border-green-700/30 bg-green-900/10 p-4">
+                <p className="text-xs text-zinc-400">Révision</p>
+                <p className="mt-1 text-2xl font-bold text-green-400">{stats.ankiStats.review}</p>
+              </div>
+              <div className="rounded-lg border border-orange-700/30 bg-orange-900/10 p-4">
+                <p className="text-xs text-zinc-400">Dues aujourd'hui</p>
+                <p className="mt-1 text-2xl font-bold text-orange-400">{stats.ankiStats.dueToday}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </TabsContent>
+    </Tabs>
   );
 }
