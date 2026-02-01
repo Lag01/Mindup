@@ -95,7 +95,7 @@ export default function DeckStatsPage() {
             </button>
             <span className="text-zinc-600">/</span>
             <button
-              onClick={() => router.push(`/deck/${deckId}`)}
+              onClick={() => router.push(`/deck/${deckId}/edit`)}
               className="text-zinc-400 transition-colors hover:text-cyan-400"
             >
               {deckName}
