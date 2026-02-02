@@ -20,17 +20,50 @@ const DeckStatistics = dynamic(() => import('@/components/DeckStatistics'), {
   ssr: false,
 });
 
+const DeckStatisticsV1 = dynamic(() => import('@/components/DeckStatistics/DeckStatisticsV1'), {
+  loading: () => (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <Skeleton className="h-64 w-full mb-6" />
+      <div className="grid md:grid-cols-2 gap-6">
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    </div>
+  ),
+  ssr: false,
+});
+
 export default function DeckStatsPage() {
   const params = useParams();
   const deckId = params.id as string;
   const [deckName, setDeckName] = useState('');
   const [loading, setLoading] = useState(true);
   const [resettingStats, setResettingStats] = useState(false);
+  const [dashboardVersion, setDashboardVersion] = useState<string | null>(null);
+  const [loadingVersion, setLoadingVersion] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     fetchDeckName();
+    fetchDashboardVersion();
   }, [deckId]);
+
+  const fetchDashboardVersion = async () => {
+    try {
+      const response = await fetch('/api/user/dashboard-preference');
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard version');
+      }
+      const data = await response.json();
+      setDashboardVersion(data.dashboardVersion);
+    } catch (error) {
+      console.error('Error fetching dashboard version:', error);
+      // Fallback to v2 if error
+      setDashboardVersion('v2');
+    } finally {
+      setLoadingVersion(false);
+    }
+  };
 
   const fetchDeckName = async () => {
     try {
@@ -76,7 +109,7 @@ export default function DeckStatsPage() {
     }
   };
 
-  if (loading) {
+  if (loading || loadingVersion) {
     return <LoadingAnimation fullScreen />;
   }
 
@@ -144,7 +177,11 @@ export default function DeckStatsPage() {
 
       {/* Statistics Content */}
       <main className="mx-auto max-w-7xl px-4 py-8">
-        <DeckStatistics deckId={deckId} />
+        {dashboardVersion === 'v1' ? (
+          <DeckStatisticsV1 deckId={deckId} />
+        ) : (
+          <DeckStatistics deckId={deckId} />
+        )}
       </main>
     </div>
   );

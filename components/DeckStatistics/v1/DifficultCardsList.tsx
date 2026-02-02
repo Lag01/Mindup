@@ -1,0 +1,153 @@
+'use client';
+
+import { useState } from 'react';
+import CardContentDisplay from '@/components/CardContentDisplay';
+
+interface DifficultCard {
+  cardId: string;
+  front: string;
+  back: string;
+  frontType: 'TEXT' | 'LATEX';
+  backType: 'TEXT' | 'LATEX';
+  frontImage: string | null;
+  backImage: string | null;
+  failureRate: number;
+}
+
+interface DifficultCardsListProps {
+  cards: DifficultCard[];
+  deckId: string;
+}
+
+export default function DifficultCardsList({ cards, deckId }: DifficultCardsListProps) {
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleCard = (cardId: string) => {
+    setExpandedCards(prev => {
+      const next = new Set(prev);
+      if (next.has(cardId)) {
+        next.delete(cardId);
+      } else {
+        next.add(cardId);
+      }
+      return next;
+    });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, cardId: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleCard(cardId);
+    }
+  };
+
+  if (cards.length === 0) {
+    return (
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-8 text-center">
+        <div className="mx-auto mb-4 text-5xl">✨</div>
+        <h3 className="mb-2 text-xl font-semibold text-foreground">
+          Excellent travail !
+        </h3>
+        <p className="text-sm text-zinc-400">
+          Aucune carte difficile détectée
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div>
+        <h3 className="text-lg font-semibold text-foreground">
+          Cartes difficiles
+        </h3>
+        <p className="mt-1 text-sm text-zinc-400">
+          {cards.length} carte{cards.length > 1 ? 's' : ''} nécessite{cards.length > 1 ? 'nt' : ''} attention
+        </p>
+      </div>
+
+      {/* Cards List */}
+      <div className="space-y-3">
+        {cards.map((card, index) => {
+          const isExpanded = expandedCards.has(card.cardId);
+
+          return (
+            <div
+              key={card.cardId}
+              className="group relative overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-700"
+            >
+              {/* Severity Indicator */}
+              <div
+                className="absolute left-0 top-0 bottom-0 w-1 bg-orange-600 transition-all duration-300 group-hover:w-1.5"
+                style={{ opacity: card.failureRate / 100 }}
+              />
+
+              {/* Content */}
+              <div className="flex gap-4 p-4 pl-5">
+                {/* Index Badge */}
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-xs font-bold text-zinc-400">
+                  {index + 1}
+                </div>
+
+                {/* Card Content */}
+                <div className="flex-1 space-y-4">
+                  {/* Bouton expand/collapse */}
+                  <button
+                    onClick={() => toggleCard(card.cardId)}
+                    onKeyDown={(e) => handleKeyDown(e, card.cardId)}
+                    className="rounded-lg bg-zinc-800 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white"
+                    aria-expanded={isExpanded}
+                  >
+                    {isExpanded ? '▼ Réduire' : '▶ Développer'}
+                  </button>
+
+                  {/* Recto - toujours visible */}
+                  <div>
+                    <p className="text-xs font-semibold text-zinc-500 mb-1">Recto</p>
+                    <CardContentDisplay
+                      text={card.front}
+                      textType={card.frontType}
+                      imagePath={card.frontImage}
+                      className="text-sm text-foreground"
+                      maxHeight={isExpanded ? 200 : 80}
+                    />
+                  </div>
+
+                  {/* Verso - visible si expanded */}
+                  {isExpanded && (
+                    <div>
+                      <p className="text-xs font-semibold text-zinc-500 mb-1">Verso</p>
+                      <CardContentDisplay
+                        text={card.back}
+                        textType={card.backType}
+                        imagePath={card.backImage}
+                        className="text-sm text-foreground"
+                        maxHeight={200}
+                      />
+                    </div>
+                  )}
+
+                  {/* Barre de taux d'échec */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                        <div
+                          className="h-full bg-orange-600 transition-all duration-500"
+                          style={{ width: `${card.failureRate}%` }}
+                        />
+                      </div>
+                    </div>
+                    <span className="w-12 text-right text-xs font-semibold tabular-nums text-orange-400">
+                      {card.failureRate}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
