@@ -21,6 +21,7 @@ interface StatsHeroSectionProps {
 }
 
 function formatCompletionDays(days: number): string {
+  if (days === -1) return 'Commencez à réviser';
   if (days === 0) return 'Terminé !';
   if (days === 1) return '1 jour';
   if (days <= 7) return `${days} jours`;
@@ -126,10 +127,10 @@ export function StatsHeroSection({
             />
           </div>
 
-          {/* Maîtrise complète */}
+          {/* Estimation maîtrise */}
           <div className="stat-card">
             <EnhancedStatCard
-              label="Maîtrise complète"
+              label="Estimation maîtrise"
               value={formatCompletionDays(estimatedCompletionDays)}
               icon="🎯"
               gradient="from-purple-500 to-pink-600"

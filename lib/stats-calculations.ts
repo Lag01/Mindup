@@ -70,13 +70,18 @@ export function estimateCompletionDays(
   totalCards: number,
   avgMasteredPerDay: number
 ): number {
-  if (totalCards === 0 || avgMasteredPerDay === 0) {
+  if (totalCards === 0) {
     return 0;
   }
 
   const remainingCards = totalCards - masteredCards;
   if (remainingCards <= 0) {
     return 0;
+  }
+
+  // Retourne -1 si jamais révisé (permet de distinguer de "terminé")
+  if (avgMasteredPerDay === 0) {
+    return -1;
   }
 
   return Math.ceil(remainingCards / avgMasteredPerDay);

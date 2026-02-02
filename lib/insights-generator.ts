@@ -47,7 +47,7 @@ export function generateInsights(
   }
 
   // 2. Milestone - Nouveau record de révisions (Priorité 4)
-  if (stats.reviewsToday > 0 && stats.reviewsVsYesterday > 50) {
+  if (stats.totalReviews > 0 && stats.reviewsToday > 0 && stats.reviewsVsYesterday > 50) {
     insights.push({
       type: 'milestone',
       title: 'Nouveau record !',
@@ -58,7 +58,7 @@ export function generateInsights(
   }
 
   // 3. Positive - Progression taux de réussite (Priorité 4)
-  if (stats.successRateChange >= 10) {
+  if (stats.totalReviews > 0 && stats.successRateChange >= 10) {
     insights.push({
       type: 'positive',
       title: 'Progression excellente',
@@ -70,7 +70,7 @@ export function generateInsights(
 
   // 4. Positive - Deck presque maîtrisé (Priorité 4)
   const masteryPercentage = (stats.masteredCards / stats.totalCards) * 100;
-  if (masteryPercentage >= 80 && masteryPercentage < 100) {
+  if (stats.totalReviews > 0 && masteryPercentage >= 80 && masteryPercentage < 100) {
     insights.push({
       type: 'positive',
       title: 'Presque terminé !',
@@ -107,7 +107,8 @@ export function generateInsights(
   }
 
   // 7. Positive - Bonne régularité (Priorité 3)
-  if (stats.reviewsVsPreviousWeek >= 0 && stats.reviewsVsPreviousWeek <= 20) {
+  // Uniquement si l'utilisateur a déjà révisé
+  if (stats.totalReviews > 0 && stats.reviewsVsPreviousWeek >= 0 && stats.reviewsVsPreviousWeek <= 20) {
     insights.push({
       type: 'positive',
       title: 'Régularité excellente',

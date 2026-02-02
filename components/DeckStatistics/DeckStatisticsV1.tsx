@@ -176,7 +176,7 @@ export default function DeckStatisticsV1({ deckId }: DeckStatisticsV1Props) {
         />
 
         {/* 4. Top Cartes Difficiles */}
-        <DifficultCardsList cards={stats.topDifficultCards} deckId={deckId} />
+        <DifficultCardsList cards={stats.topDifficultCards} deckId={deckId} totalReviews={stats.totalReviews} />
 
         {/* 5. Détails (Distribution) */}
         <DistributionTabs ratingDistribution={stats.ratingDistribution} />
@@ -253,7 +253,7 @@ export default function DeckStatisticsV1({ deckId }: DeckStatisticsV1Props) {
 
       <TabsContent value="trends" className="mt-6 space-y-6">
         <TrendChart data={stats.reviewHistory} />
-        <DifficultCardsList cards={stats.topDifficultCards} deckId={deckId} />
+        <DifficultCardsList cards={stats.topDifficultCards} deckId={deckId} totalReviews={stats.totalReviews} />
       </TabsContent>
 
       <TabsContent value="details" className="mt-6 space-y-6">

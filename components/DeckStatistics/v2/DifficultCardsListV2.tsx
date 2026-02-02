@@ -17,9 +17,10 @@ interface DifficultCard {
 interface DifficultCardsListV2Props {
   cards: DifficultCard[];
   deckId: string;
+  totalReviews?: number;
 }
 
-export function DifficultCardsListV2({ cards, deckId }: DifficultCardsListV2Props) {
+export function DifficultCardsListV2({ cards, deckId, totalReviews = 0 }: DifficultCardsListV2Props) {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   const toggleCard = (cardId: string) => {
@@ -42,14 +43,22 @@ export function DifficultCardsListV2({ cards, deckId }: DifficultCardsListV2Prop
   };
 
   if (cards.length === 0) {
+    // Distinguer "jamais révisé" de "aucune carte difficile"
+    const hasNeverReviewed = cards.length === 0 && totalReviews === 0;
+
     return (
       <div className="rounded-lg border border-zinc-700/50 bg-zinc-900/50 p-8 text-center backdrop-blur-sm">
-        <div className="mx-auto mb-4 text-5xl">✨</div>
+        <div className="mx-auto mb-4 text-5xl">
+          {hasNeverReviewed ? '📚' : '✨'}
+        </div>
         <h3 className="mb-2 text-xl font-semibold text-foreground">
-          Excellent travail !
+          {hasNeverReviewed ? 'Commencez à réviser' : 'Excellent travail !'}
         </h3>
         <p className="text-sm text-zinc-400">
-          Aucune carte difficile détectée
+          {hasNeverReviewed
+            ? 'Les cartes difficiles apparaîtront après vos premières révisions'
+            : 'Aucune carte difficile détectée'
+          }
         </p>
       </div>
     );

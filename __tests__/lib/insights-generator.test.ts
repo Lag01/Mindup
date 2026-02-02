@@ -75,4 +75,36 @@ describe('generateInsights', () => {
       expect(insights[i].priority).toBeGreaterThanOrEqual(insights[i + 1].priority);
     }
   });
+
+  it('should not generate positive insights when totalReviews is 0', () => {
+    const statsNoReviews = {
+      ...mockStats,
+      totalReviews: 0,
+      reviewsToday: 0,
+    };
+
+    const insights = generateInsights(statsNoReviews, 'deck-123');
+
+    // Ne devrait pas contenir d'insights positifs comme "Régularité excellente", "Progression excellente", etc.
+    const positiveInsights = insights.filter(i =>
+      i.type === 'positive' &&
+      (i.title.includes('Régularité') || i.title.includes('Progression') || i.title.includes('Presque'))
+    );
+
+    expect(positiveInsights.length).toBe(0);
+  });
+
+  it('should not generate milestone for new record when totalReviews is 0', () => {
+    const statsNoReviews = {
+      ...mockStats,
+      totalReviews: 0,
+      reviewsToday: 50,
+      reviewsVsYesterday: 100,
+    };
+
+    const insights = generateInsights(statsNoReviews, 'deck-123');
+    const recordMilestone = insights.find(i => i.type === 'milestone' && i.title.includes('Nouveau record'));
+
+    expect(recordMilestone).toBeUndefined();
+  });
 });

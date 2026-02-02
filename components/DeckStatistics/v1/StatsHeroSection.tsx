@@ -17,6 +17,7 @@ interface StatsHeroSectionProps {
 }
 
 function formatCompletionDays(days: number): string {
+  if (days === -1) return 'Commencez à réviser';
   if (days === 0) return 'Terminé !';
   if (days === 1) return '1 jour';
   if (days <= 7) return `${days} jours`;
@@ -88,9 +89,9 @@ export default function StatsHeroSection({
             subtext={reviewsYesterday > 0 ? `${reviewsTrend.percentage}% vs hier` : undefined}
           />
 
-          {/* Maîtrise complète */}
+          {/* Estimation maîtrise */}
           <StatCard
-            label="Maîtrise complète"
+            label="Estimation maîtrise"
             value={formatCompletionDays(estimatedCompletionDays)}
             color="purple"
             subtext={estimatedCompletionDays > 0 ? `${estimatedCompletionDays} jour${estimatedCompletionDays > 1 ? 's' : ''}` : undefined}

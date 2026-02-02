@@ -92,10 +92,16 @@ describe('estimateCompletionDays', () => {
     expect(result).toBe(0);
   });
 
-  it('should return 0 if no progress rate', () => {
+  it('should return -1 when never reviewed', () => {
+    const result = estimateCompletionDays(0, 100, 0);
+
+    expect(result).toBe(-1);
+  });
+
+  it('should return -1 when no progress rate', () => {
     const result = estimateCompletionDays(50, 100, 0);
 
-    expect(result).toBe(0);
+    expect(result).toBe(-1);
   });
 });
 

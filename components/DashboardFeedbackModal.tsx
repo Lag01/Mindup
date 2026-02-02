@@ -82,11 +82,11 @@ export default function DashboardFeedbackModal({
                 aria-label={`${star} étoile${star > 1 ? 's' : ''}`}
               >
                 <svg
-                  className={`w-10 h-10 transition-colors ${
+                  className={`w-10 h-10 transition-transform duration-150 will-change-transform ${
                     star <= displayRating
                       ? 'text-yellow-500 fill-yellow-500'
                       : 'text-zinc-600 fill-zinc-600'
-                  } hover:text-yellow-400 hover:fill-yellow-400`}
+                  } hover:scale-110`}
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
                 >
