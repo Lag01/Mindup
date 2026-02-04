@@ -84,7 +84,7 @@ export function DifficultCardsListV2({ cards, deckId, totalReviews = 0 }: Diffic
           return (
             <div
               key={card.cardId}
-              className="group relative overflow-hidden rounded-lg border border-zinc-700/50 bg-zinc-900/50 transition-all duration-300 hover:border-zinc-600/70 hover:shadow-lg backdrop-blur-sm"
+              className="group relative rounded-lg border border-zinc-700/50 bg-zinc-900/50 transition-all duration-300 hover:border-zinc-600/70 hover:shadow-lg backdrop-blur-sm"
             >
               {/* Severity Indicator - Simple */}
               <div
