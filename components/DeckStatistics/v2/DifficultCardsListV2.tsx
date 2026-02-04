@@ -114,26 +114,30 @@ export function DifficultCardsListV2({ cards, deckId, totalReviews = 0 }: Diffic
                   {/* Recto - toujours visible */}
                   <div>
                     <p className="text-xs font-semibold text-zinc-500 mb-1">Recto</p>
-                    <CardContentDisplay
-                      text={card.front}
-                      textType={card.frontType}
-                      imagePath={card.frontImage}
-                      className="text-sm text-foreground"
-                      maxHeight={isExpanded ? 200 : 80}
-                    />
+                    <div style={{ width: '100%', overflow: 'hidden', maxHeight: `${isExpanded ? 200 : 80}px` }}>
+                      <CardContentDisplay
+                        text={card.front}
+                        textType={card.frontType}
+                        imagePath={card.frontImage}
+                        className="text-sm text-foreground"
+                        maxHeight={isExpanded ? 200 : 80}
+                      />
+                    </div>
                   </div>
 
                   {/* Verso - visible si expanded */}
                   {isExpanded && (
                     <div>
                       <p className="text-xs font-semibold text-zinc-500 mb-1">Verso</p>
-                      <CardContentDisplay
-                        text={card.back}
-                        textType={card.backType}
-                        imagePath={card.backImage}
-                        className="text-sm text-foreground"
-                        maxHeight={200}
-                      />
+                      <div style={{ width: '100%', overflow: 'hidden', maxHeight: '200px' }}>
+                        <CardContentDisplay
+                          text={card.back}
+                          textType={card.backType}
+                          imagePath={card.backImage}
+                          className="text-sm text-foreground"
+                          maxHeight={200}
+                        />
+                      </div>
                     </div>
                   )}
 
