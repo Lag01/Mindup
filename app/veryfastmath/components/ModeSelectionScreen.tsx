@@ -222,7 +222,7 @@ export default function ModeSelectionScreen({
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
             <MiniStatCard
               icon="🏆"
-              label="Meilleur Score"
+              label="Record Global"
               value={bestGlobalScore}
               delay={0.3}
             />
