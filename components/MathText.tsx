@@ -181,6 +181,8 @@ function MathText({
         lineHeight: '1.5',
         padding: CONTENT_PADDING,
         width: '100%',
+        maxWidth: '100%',
+        minWidth: 0,
         boxSizing: 'border-box',
         ...(needsScroll && {
           scrollbarColor: '#3f3f46 transparent',

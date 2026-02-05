@@ -100,7 +100,7 @@ export function DifficultCardsListV2({ cards, deckId, totalReviews = 0 }: Diffic
                 </div>
 
                 {/* Card Content */}
-                <div className="flex-1 space-y-4">
+                <div className="flex-1 space-y-4 min-w-0">
                   {/* Bouton expand/collapse */}
                   <button
                     onClick={() => toggleCard(card.cardId)}

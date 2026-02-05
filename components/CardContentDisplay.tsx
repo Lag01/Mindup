@@ -76,6 +76,7 @@ export default function CardContentDisplay({
           maxHeight: `${maxHeight}px`,
           overflow: 'auto',
           width: '100%',
+          maxWidth: '100%',
         }}
       >
         {/* Texte en haut */}

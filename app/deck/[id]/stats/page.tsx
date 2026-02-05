@@ -114,7 +114,7 @@ export default function DeckStatsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Enhanced Header */}
       <header className="border-b border-zinc-800 bg-gradient-to-b from-zinc-900 to-zinc-900/95 backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4 py-6">
