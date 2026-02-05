@@ -118,7 +118,7 @@ export function DifficultCardsListV2({ cards, deckId, totalReviews = 0 }: Diffic
                       style={{
                         width: '100%',
                         maxHeight: `${isExpanded ? 200 : 80}px`,
-                        overflow: 'hidden',
+                        overflow: 'auto',
                         position: 'relative',
                       }}
                     >
@@ -140,7 +140,7 @@ export function DifficultCardsListV2({ cards, deckId, totalReviews = 0 }: Diffic
                         style={{
                           width: '100%',
                           maxHeight: '200px',
-                          overflow: 'hidden',
+                          overflow: 'auto',
                           position: 'relative',
                         }}
                       >
