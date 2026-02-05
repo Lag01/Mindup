@@ -115,13 +115,11 @@ export function DifficultCardsListV2({ cards, deckId, totalReviews = 0 }: Diffic
                   <div>
                     <p className="text-xs font-semibold text-zinc-500 mb-1">Recto</p>
                     <div
-                      className="difficult-card-content"
                       style={{
                         width: '100%',
                         maxHeight: `${isExpanded ? 200 : 80}px`,
                         overflow: 'hidden',
                         position: 'relative',
-                        contain: 'layout style paint',
                       }}
                     >
                       <CardContentDisplay
@@ -139,13 +137,11 @@ export function DifficultCardsListV2({ cards, deckId, totalReviews = 0 }: Diffic
                     <div>
                       <p className="text-xs font-semibold text-zinc-500 mb-1">Verso</p>
                       <div
-                        className="difficult-card-content"
                         style={{
                           width: '100%',
                           maxHeight: '200px',
                           overflow: 'hidden',
                           position: 'relative',
-                          contain: 'layout style paint',
                         }}
                       >
                         <CardContentDisplay

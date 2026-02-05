@@ -173,7 +173,6 @@ function MathText({
         fontSize: autoResize ? `${fontSize}px` : undefined,
         maxHeight: autoResize ? `${maxHeight}px` : undefined,
         overflow: 'auto',
-        overflowX: 'hidden',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
