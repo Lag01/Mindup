@@ -75,6 +75,7 @@ export default function CardContentDisplay({
         style={{
           maxHeight: `${maxHeight}px`,
           overflow: 'auto',
+          overflowX: 'hidden',
           width: '100%',
         }}
       >

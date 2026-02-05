@@ -23,13 +23,23 @@ body {
 
 /* Styles pour améliorer le rendu KaTeX */
 @layer base {
-  /* Empêche le débordement horizontal des formules LaTeX */
+  /* Contexte par défaut : scroll libre (pour page révision, édition, etc.) */
   .katex-display {
-    overflow-x: auto !important;
-    overflow-y: auto !important;
-    text-align: center !important;
-    margin: 0 !important;
-    max-width: 100% !important;
+    overflow-x: auto;
+    overflow-y: auto;
+    text-align: center;
+    margin: 0;
+    max-width: 100%;
+  }
+
+  /* Contexte cartes difficiles : scroll contraint */
+  .difficult-card-content .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-align: center;
+    margin: 0;
+    max-width: 100%;
+    contain: layout size;
   }
 
   /* Styles de scrollbar pour les formules KaTeX */

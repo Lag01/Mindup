@@ -114,7 +114,16 @@ export function DifficultCardsListV2({ cards, deckId, totalReviews = 0 }: Diffic
                   {/* Recto - toujours visible */}
                   <div>
                     <p className="text-xs font-semibold text-zinc-500 mb-1">Recto</p>
-                    <div style={{ width: '100%', overflow: 'hidden', maxHeight: `${isExpanded ? 200 : 80}px` }}>
+                    <div
+                      className="difficult-card-content"
+                      style={{
+                        width: '100%',
+                        maxHeight: `${isExpanded ? 200 : 80}px`,
+                        overflow: 'hidden',
+                        position: 'relative',
+                        contain: 'layout style paint',
+                      }}
+                    >
                       <CardContentDisplay
                         text={card.front}
                         textType={card.frontType}
@@ -129,7 +138,16 @@ export function DifficultCardsListV2({ cards, deckId, totalReviews = 0 }: Diffic
                   {isExpanded && (
                     <div>
                       <p className="text-xs font-semibold text-zinc-500 mb-1">Verso</p>
-                      <div style={{ width: '100%', overflow: 'hidden', maxHeight: '200px' }}>
+                      <div
+                        className="difficult-card-content"
+                        style={{
+                          width: '100%',
+                          maxHeight: '200px',
+                          overflow: 'hidden',
+                          position: 'relative',
+                          contain: 'layout style paint',
+                        }}
+                      >
                         <CardContentDisplay
                           text={card.back}
                           textType={card.backType}
