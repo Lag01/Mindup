@@ -2,13 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import ModeSelectionScreen from './components/ModeSelectionScreen';
+import dynamic from 'next/dynamic';
 import CountdownScreen from './components/CountdownScreen';
 import GameScreen from './components/GameScreen';
-import ResultsScreen from './components/ResultsScreen';
+import LoadingAnimation from '@/components/LoadingAnimation';
+import { useDashboardVersion } from '@/hooks/useDashboardVersion';
+
+// V2 components (current design)
+const ModeSelectionScreenV2 = dynamic(() => import('./components/ModeSelectionScreen'), { ssr: false });
+const ResultsScreenV2 = dynamic(() => import('./components/ResultsScreen'), { ssr: false });
+
+// V1 components (simplified design)
+const ModeSelectionScreenV1 = dynamic(() => import('./components/ModeSelectionScreenV1'), { ssr: false });
+const ResultsScreenV1 = dynamic(() => import('./components/ResultsScreenV1'), { ssr: false });
 
 type MathMode = 'ADDITION' | 'SUBTRACTION' | 'MULTIPLICATION' | 'DIVISION';
-type GameScreen = 'selection' | 'countdown' | 'playing' | 'finished';
+type GameScreenType = 'selection' | 'countdown' | 'playing' | 'finished';
 
 interface BestScores {
   ADDITION: number | null;
@@ -19,7 +28,8 @@ interface BestScores {
 
 export default function VeryFastMathPage() {
   const router = useRouter();
-  const [screen, setScreen] = useState<GameScreen>('selection');
+  const { version, loading: versionLoading } = useDashboardVersion();
+  const [screen, setScreen] = useState<GameScreenType>('selection');
   const [selectedMode, setSelectedMode] = useState<MathMode | null>(null);
   const [finalScore, setFinalScore] = useState<number>(0);
   const [bestScores, setBestScores] = useState<BestScores>({
@@ -29,7 +39,6 @@ export default function VeryFastMathPage() {
     DIVISION: null,
   });
 
-  // Charger les meilleurs scores au montage
   useEffect(() => {
     const modes: MathMode[] = ['ADDITION', 'SUBTRACTION', 'MULTIPLICATION', 'DIVISION'];
     modes.forEach(mode => {
@@ -44,7 +53,6 @@ export default function VeryFastMathPage() {
     });
   }, []);
 
-  // Bloquer le scroll pendant countdown et jeu
   useEffect(() => {
     if (screen === 'countdown' || screen === 'playing') {
       document.body.style.overflow = 'hidden';
@@ -86,17 +94,26 @@ export default function VeryFastMathPage() {
     }
   };
 
+  if (versionLoading) {
+    return <LoadingAnimation fullScreen />;
+  }
+
+  const isV1 = version === 'v1';
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className={`min-h-screen ${isV1 ? 'bg-background' : 'bg-zinc-950'} text-white`}>
       {/* Header visible uniquement en mode sélection et résultats */}
       {(screen === 'selection' || screen === 'finished') && (
-        <header className="bg-zinc-900 border-b border-zinc-800">
+        <header className={isV1 ? 'bg-zinc-900 border-b border-zinc-800' : 'bg-zinc-900 border-b border-zinc-800'}>
           <div className="max-w-7xl mx-auto px-4 py-4">
             <div className="flex justify-between items-center">
               <h1 className="text-2xl sm:text-3xl font-bold">Défis VeryFastMath</h1>
               <button
                 onClick={() => router.push('/dashboard-entry')}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                className={isV1
+                  ? 'bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors text-sm'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors text-sm'
+                }
               >
                 Retour au dashboard
               </button>
@@ -120,10 +137,17 @@ export default function VeryFastMathPage() {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {screen === 'selection' && (
-          <ModeSelectionScreen
-            onSelectMode={handleModeSelect}
-            bestScores={bestScores}
-          />
+          isV1 ? (
+            <ModeSelectionScreenV1
+              onSelectMode={handleModeSelect}
+              bestScores={bestScores}
+            />
+          ) : (
+            <ModeSelectionScreenV2
+              onSelectMode={handleModeSelect}
+              bestScores={bestScores}
+            />
+          )
         )}
 
         {screen === 'countdown' && selectedMode && (
@@ -138,13 +162,23 @@ export default function VeryFastMathPage() {
         )}
 
         {screen === 'finished' && selectedMode && (
-          <ResultsScreen
-            mode={selectedMode}
-            score={finalScore}
-            onPlayAgain={handlePlayAgain}
-            onBackToMenu={handleBackToMenu}
-            onViewLeaderboard={() => router.push('/leaderboard')}
-          />
+          isV1 ? (
+            <ResultsScreenV1
+              mode={selectedMode}
+              score={finalScore}
+              onPlayAgain={handlePlayAgain}
+              onBackToMenu={handleBackToMenu}
+              onViewLeaderboard={() => router.push('/leaderboard')}
+            />
+          ) : (
+            <ResultsScreenV2
+              mode={selectedMode}
+              score={finalScore}
+              onPlayAgain={handlePlayAgain}
+              onBackToMenu={handleBackToMenu}
+              onViewLeaderboard={() => router.push('/leaderboard')}
+            />
+          )
         )}
       </main>
     </div>
