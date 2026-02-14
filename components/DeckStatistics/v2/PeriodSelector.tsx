@@ -71,14 +71,6 @@ export function PeriodSelector({ selected, onChange }: PeriodSelectorProps) {
         );
       })}
 
-      {/* Sliding Background Indicator */}
-      <div
-        className="pointer-events-none absolute h-9 rounded-md bg-gradient-to-br from-blue-600/20 to-cyan-600/20 transition-all duration-300 ease-out"
-        style={{
-          width: `${100 / periods.length}%`,
-          left: `${(periods.findIndex(p => p.value === selected) / periods.length) * 100}%`,
-        }}
-      />
     </div>
   );
 }
