@@ -6,8 +6,8 @@ import MathText from '@/components/MathText';
 import CardContentDisplay from '@/components/CardContentDisplay';
 import ImageOverlay from '@/components/ImageOverlay';
 import LoadingAnimation from '@/components/LoadingAnimation';
-import { insertCardInQueue, Rating } from '@/lib/revision';
-import { Card, SessionState } from '@/lib/types';
+import { advanceCyclicQueue, peekNextCyclicCard, Rating } from '@/lib/revision';
+import { Card, SessionState, PendingReinsertion } from '@/lib/types';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 // Fonction pour mélanger aléatoirement un tableau (Fisher-Yates shuffle)
@@ -145,7 +145,7 @@ function saveSessionState(
       ...state,
       mode,
       learningMethod,
-      version: 1
+      version: state.version ?? 1
     };
     const key = getSessionKey(deckId, mode, learningMethod);
     localStorage.setItem(key, JSON.stringify(extendedState));
@@ -166,15 +166,11 @@ function loadSessionState(
     if (saved) {
       const parsed: SessionState = JSON.parse(saved);
 
-      // Validation : vérifier que la session correspond au mode actuel
       if (parsed.mode && parsed.mode !== mode) {
-        console.warn(`Session mode mismatch: expected ${mode}, got ${parsed.mode}. Ignoring.`);
         return null;
       }
 
-      // Validation : vérifier que la méthode correspond (pour mode révision)
       if (mode === 'review' && parsed.learningMethod && parsed.learningMethod !== learningMethod) {
-        console.warn(`Learning method mismatch: expected ${learningMethod}, got ${parsed.learningMethod}. Ignoring.`);
         return null;
       }
 
@@ -206,6 +202,9 @@ export default function ReviewV1() {
   const isStudyMode = searchParams.get('mode') === 'study';
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [cardQueue, setCardQueue] = useState<Card[]>([]);
+  const [baseDeck, setBaseDeck] = useState<Card[]>([]);
+  const [baseIndex, setBaseIndex] = useState(0);
+  const [pendingReinsertions, setPendingReinsertions] = useState<PendingReinsertion[]>([]);
   const [currentCard, setCurrentCard] = useState<Card | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -218,11 +217,14 @@ export default function ReviewV1() {
   const isMobile = useIsMobile();
 
   const nextCard = useMemo(() => {
+    if (learningMethod === 'IMMEDIATE' && !isStudyMode) {
+      return peekNextCyclicCard(baseDeck, baseIndex, pendingReinsertions);
+    }
     if (cardQueue.length > 1) {
       return cardQueue[1];
     }
     return null;
-  }, [cardQueue]);
+  }, [cardQueue, learningMethod, isStudyMode, baseDeck, baseIndex, pendingReinsertions]);
 
   useEffect(() => {
     fetchCards();
@@ -252,9 +254,48 @@ export default function ReviewV1() {
         return;
       }
 
-      const savedSession = loadSessionState(deckId, mode, method);
+      let savedSession = loadSessionState(deckId, mode, method);
 
-      if (savedSession && savedSession.cardQueue.length > 0) {
+      // Rejeter les anciennes sessions IMMEDIATE (version < 2)
+      if (method === 'IMMEDIATE' && !isStudyMode && savedSession && (savedSession.version || 1) < 2) {
+        clearSessionState(deckId, mode, method);
+        savedSession = null;
+      }
+
+      if (method === 'IMMEDIATE' && !isStudyMode) {
+        // Mode IMMEDIATE cyclique
+        if (savedSession?.baseDeck && savedSession.baseDeck.length > 0) {
+          // Restauration : synchroniser le contenu avec les données fraîches
+          const syncedBaseDeck = savedSession.baseDeck.map(savedCard => {
+            const freshCard = data.cards.find((c: Card) => c.id === savedCard.id);
+            if (!freshCard) return savedCard;
+            return { ...savedCard, front: freshCard.front, back: freshCard.back, frontType: freshCard.frontType, backType: freshCard.backType };
+          }).filter(card => data.cards.some((c: Card) => c.id === card.id));
+
+          const syncedPending = (savedSession.pendingReinsertions || []).map(p => {
+            const freshCard = data.cards.find((c: Card) => c.id === p.cardId);
+            if (!freshCard) return p;
+            return { ...p, card: { ...p.card, front: freshCard.front, back: freshCard.back, frontType: freshCard.frontType, backType: freshCard.backType } };
+          }).filter(p => data.cards.some((c: Card) => c.id === p.cardId));
+
+          setBaseDeck(syncedBaseDeck);
+          setBaseIndex(savedSession.baseIndex ?? 0);
+          setPendingReinsertions(syncedPending);
+          setSessionStats(savedSession.sessionStats);
+
+          const restoredCurrent = data.cards.find((c: Card) => c.id === savedSession!.currentCardId);
+          setCurrentCard(restoredCurrent || syncedBaseDeck[(savedSession.baseIndex ?? 0) % syncedBaseDeck.length]);
+        } else {
+          // Démarrage frais pour IMMEDIATE
+          const shuffled = shuffleArray<Card>(data.cards);
+          setBaseDeck(shuffled);
+          setBaseIndex(1);
+          setPendingReinsertions([]);
+          if (shuffled.length > 0) {
+            setCurrentCard(shuffled[0]);
+          }
+        }
+      } else if (savedSession && savedSession.cardQueue.length > 0) {
         const syncedQueue = savedSession.cardQueue.map(savedCard => {
           const freshCard = data.cards.find((c: Card) => c.id === savedCard.id);
           if (!freshCard) return savedCard;
@@ -274,7 +315,7 @@ export default function ReviewV1() {
         setSessionStats(savedSession.sessionStats);
 
         const currentCardFromSaved = syncedQueue.find(
-          card => card.id === savedSession.currentCardId
+          card => card.id === savedSession!.currentCardId
         );
         setCurrentCard(currentCardFromSaved || syncedQueue[0]);
       } else {
@@ -367,7 +408,9 @@ export default function ReviewV1() {
         return;
       }
 
-      const oldCardQueue = cardQueue;
+      const oldBaseDeck = baseDeck;
+      const oldBaseIndex = baseIndex;
+      const oldPending = pendingReinsertions;
       const oldCurrentCard = currentCard;
       const oldStats = sessionStats;
       const oldIsFlipped = isFlipped;
@@ -380,31 +423,24 @@ export default function ReviewV1() {
         easy: sessionStats.easy + (rating === 'easy' ? 1 : 0),
       };
 
-      const remainingQueue = cardQueue.slice(1);
-      const newQueue = insertCardInQueue(remainingQueue, currentCard, rating as Rating);
+      const { nextCard: next, newBaseIndex, newPending } = advanceCyclicQueue(
+        currentCard, rating as Rating, baseDeck, baseIndex, pendingReinsertions
+      );
 
       setSessionStats(updatedStats);
+      setBaseIndex(newBaseIndex);
+      setPendingReinsertions(newPending);
+      setCurrentCard(next);
 
-      if (newQueue.length === 0) {
-        const shuffledCards = shuffleArray<Card>(allCards);
-        setCardQueue(shuffledCards);
-        setCurrentCard(shuffledCards[0]);
-
-        saveSessionState(deckId, {
-          cardQueue: shuffledCards,
-          currentCardId: shuffledCards[0].id,
-          sessionStats: updatedStats,
-        }, 'review', learningMethod);
-      } else {
-        setCardQueue(newQueue);
-        setCurrentCard(newQueue[0]);
-
-        saveSessionState(deckId, {
-          cardQueue: newQueue,
-          currentCardId: newQueue[0].id,
-          sessionStats: updatedStats,
-        }, 'review', learningMethod);
-      }
+      saveSessionState(deckId, {
+        cardQueue: [],
+        currentCardId: next.id,
+        sessionStats: updatedStats,
+        baseDeck,
+        baseIndex: newBaseIndex,
+        pendingReinsertions: newPending,
+        version: 2,
+      }, 'review', learningMethod);
 
       setIsFlipped(false);
       setSubmitting(false);
@@ -421,7 +457,9 @@ export default function ReviewV1() {
       }).catch(error => {
         console.error('Error submitting review:', error);
 
-        setCardQueue(oldCardQueue);
+        setBaseDeck(oldBaseDeck);
+        setBaseIndex(oldBaseIndex);
+        setPendingReinsertions(oldPending);
         setCurrentCard(oldCurrentCard);
         setSessionStats(oldStats);
         setIsFlipped(oldIsFlipped);
@@ -435,7 +473,7 @@ export default function ReviewV1() {
       alert('Erreur lors du traitement de la révision');
       setSubmitting(false);
     }
-  }, [submitting, currentCard, isStudyMode, sessionStats, cardQueue, allCards, deckId, isFlipped]);
+  }, [submitting, currentCard, isStudyMode, learningMethod, sessionStats, cardQueue, allCards, deckId, isFlipped, baseDeck, baseIndex, pendingReinsertions]);
 
   // Keyboard shortcuts
   useEffect(() => {

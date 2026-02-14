@@ -3,6 +3,8 @@
  * Remplace l'ancien système FSRS basé sur des intervalles de jours
  */
 
+import { Card, PendingReinsertion } from './types';
+
 export type Rating = 'again' | 'hard' | 'good' | 'easy';
 
 export interface ReviewStats {
@@ -71,10 +73,8 @@ export function calculateSuccessRate(stats: ReviewStats): number {
 }
 
 /**
+ * @deprecated Utiliser advanceCyclicQueue à la place
  * Calcule la position de réinsertion dans la file
- * @param rating - L'évaluation de la carte
- * @param currentQueueLength - Longueur actuelle de la file
- * @returns La position où insérer la carte (0 = début)
  */
 export function calculateInsertPosition(
   rating: Rating,
@@ -88,11 +88,8 @@ export function calculateInsertPosition(
 }
 
 /**
+ * @deprecated Utiliser advanceCyclicQueue à la place
  * Insère une carte dans la file à la position appropriée
- * @param queue - File actuelle de cartes
- * @param card - Carte à insérer
- * @param rating - Évaluation de la carte
- * @returns Nouvelle file avec la carte insérée (ou sans modification si "easy")
  */
 export function insertCardInQueue<T>(
   queue: T[],
@@ -165,4 +162,73 @@ export function calculateSessionMetrics(
     goodRate: Math.round((counts.good / total) * 100),
     easyRate: Math.round((counts.easy / total) * 100),
   };
+}
+
+/**
+ * Avance la file cyclique après notation d'une carte (mode IMMEDIATE v2)
+ *
+ * Algorithme :
+ * 1. Décrémenter cardsRemaining de toutes les réinsertions en attente
+ * 2. Si rating != 'easy' : ajouter la carte courante en réinsertion
+ * 3. Chercher la première réinsertion prête (cardsRemaining <= 0, FIFO)
+ *    → Si trouvée : c'est la prochaine carte
+ *    → Sinon : prochaine carte = baseDeck[baseIndex % length], baseIndex++
+ */
+export function advanceCyclicQueue(
+  currentCard: Card,
+  rating: Rating,
+  baseDeck: Card[],
+  baseIndex: number,
+  pending: PendingReinsertion[]
+): { nextCard: Card; newBaseIndex: number; newPending: PendingReinsertion[] } {
+  // 1. Décrémenter cardsRemaining pour toutes les réinsertions
+  let newPending = pending.map(p => ({
+    ...p,
+    cardsRemaining: p.cardsRemaining - 1,
+  }));
+
+  // 2. Si pas "easy", planifier une réinsertion
+  if (rating !== 'easy') {
+    const interval = REVISION_INTERVALS[rating];
+    newPending.push({
+      cardId: currentCard.id,
+      card: currentCard,
+      cardsRemaining: interval,
+    });
+  }
+
+  // 3. Trouver la première réinsertion prête (FIFO)
+  const readyIndex = newPending.findIndex(p => p.cardsRemaining <= 0);
+  let nextCard: Card;
+  let newBaseIndex = baseIndex;
+
+  if (readyIndex !== -1) {
+    nextCard = newPending[readyIndex].card;
+    newPending = [...newPending.slice(0, readyIndex), ...newPending.slice(readyIndex + 1)];
+  } else {
+    nextCard = baseDeck[baseIndex % baseDeck.length];
+    newBaseIndex = baseIndex + 1;
+  }
+
+  return { nextCard, newBaseIndex, newPending };
+}
+
+/**
+ * Prédit la prochaine carte sans modifier l'état (pour le preloading)
+ */
+export function peekNextCyclicCard(
+  baseDeck: Card[],
+  baseIndex: number,
+  pending: PendingReinsertion[]
+): Card | null {
+  if (baseDeck.length === 0) return null;
+
+  // Simuler le décrément : la première réinsertion avec cardsRemaining <= 1
+  // deviendra <= 0 après décrément
+  const nextReinsertion = pending.find(p => p.cardsRemaining <= 1);
+  if (nextReinsertion) {
+    return nextReinsertion.card;
+  }
+
+  return baseDeck[baseIndex % baseDeck.length];
 }

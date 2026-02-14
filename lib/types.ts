@@ -91,6 +91,12 @@ export interface SessionStats {
   easy: number;
 }
 
+export interface PendingReinsertion {
+  cardId: string;
+  card: Card;
+  cardsRemaining: number;
+}
+
 export interface SessionState {
   cardQueue: Card[];
   currentCardId: string | null;
@@ -98,6 +104,9 @@ export interface SessionState {
   mode?: 'study' | 'review';
   learningMethod?: 'IMMEDIATE' | 'ANKI';
   version?: number;
+  baseDeck?: Card[];
+  baseIndex?: number;
+  pendingReinsertions?: PendingReinsertion[];
 }
 
 // ============================================================================
