@@ -3,7 +3,6 @@ export { ProgressRing } from './ProgressRing';
 export { InsightCard } from './InsightCard';
 export { PeriodSelector } from './PeriodSelector';
 export { TrendChart } from './TrendChart';
-export { DifficultCardsList } from './DifficultCardsList';
 export { DistributionTabs } from './DistributionTabs';
 export { StatsHeroSection } from './StatsHeroSection';
 export { InsightsSection } from './InsightsSection';
