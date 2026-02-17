@@ -1,41 +1,33 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import LoadingAnimation from './LoadingAnimation';
 
 export default function SplashScreen() {
   const [showSplash, setShowSplash] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
-  const fadeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
+    // Vérifier si l'utilisateur a déjà vu le splash screen
     const hasSeenSplash = localStorage.getItem('hasSeenSplash');
+
     if (hasSeenSplash) {
       setShowSplash(false);
+      return;
     }
-  }, []);
 
-  // Callback appelé quand l'animation Lottie est prête : on lance le timer
-  const handleAnimationReady = useCallback(() => {
-    const hasSeenSplash = localStorage.getItem('hasSeenSplash');
-    if (hasSeenSplash) return;
-
-    timerRef.current = setTimeout(() => {
+    // Attendre 1.5 secondes puis commencer le fade-out
+    const timer = setTimeout(() => {
       setFadeOut(true);
 
-      fadeTimerRef.current = setTimeout(() => {
+      // Après l'animation de fade-out (300ms), masquer complètement
+      setTimeout(() => {
         setShowSplash(false);
         localStorage.setItem('hasSeenSplash', 'true');
       }, 300);
     }, 1500);
-  }, []);
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
-    };
+    return () => clearTimeout(timer);
   }, []);
 
   if (!showSplash) {
@@ -48,7 +40,7 @@ export default function SplashScreen() {
         fadeOut ? 'animate-fade-out' : ''
       }`}
     >
-      <LoadingAnimation size="large" onReady={handleAnimationReady} />
+      <LoadingAnimation size="large" />
     </div>
   );
 }
