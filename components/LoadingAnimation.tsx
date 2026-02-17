@@ -3,19 +3,42 @@
 import { useEffect, useRef, useState } from 'react';
 import Lottie, { LottieRefCurrentProps } from 'lottie-react';
 
+// Cache module-level : le fetch est lancé une seule fois et partagé entre toutes les instances
+let cachedAnimationData: object | null = null;
+let animationPromise: Promise<object> | null = null;
+
+function fetchAnimationData(): Promise<object> {
+  if (!animationPromise) {
+    animationPromise = fetch('/logo-animation.json')
+      .then(res => res.json())
+      .then(data => {
+        cachedAnimationData = data;
+        return data;
+      });
+  }
+  return animationPromise;
+}
+
+// Lancer le fetch immédiatement côté client (avant même le premier render)
+if (typeof window !== 'undefined') {
+  fetchAnimationData();
+}
+
 interface LoadingAnimationProps {
   size?: 'small' | 'medium' | 'large';
   message?: string; // Garder pour compatibilité mais ne pas l'utiliser
   fullScreen?: boolean;
+  onReady?: () => void;
 }
 
 export default function LoadingAnimation({
   size = 'medium',
   fullScreen = false,
+  onReady,
 }: LoadingAnimationProps) {
   const lottieRef = useRef<LottieRefCurrentProps>(null);
   const [animationError, setAnimationError] = useState(false);
-  const [animationData, setAnimationData] = useState<object | null>(null);
+  const [animationData, setAnimationData] = useState<object | null>(cachedAnimationData);
 
   // Déterminer la taille en pixels
   const getSize = () => {
@@ -32,19 +55,29 @@ export default function LoadingAnimation({
 
   const sizeInPx = getSize();
 
-  // Charger le JSON Lottie dynamiquement au lieu de l'importer statiquement
+  // Récupérer les données depuis le cache ou attendre le fetch en cours
   useEffect(() => {
+    if (cachedAnimationData) {
+      setAnimationData(cachedAnimationData);
+      onReady?.();
+      return;
+    }
     let cancelled = false;
-    fetch('/logo-animation.json')
-      .then(res => res.json())
+    fetchAnimationData()
       .then(data => {
-        if (!cancelled) setAnimationData(data);
+        if (!cancelled) {
+          setAnimationData(data);
+          onReady?.();
+        }
       })
       .catch(() => {
-        if (!cancelled) setAnimationError(true);
+        if (!cancelled) {
+          setAnimationError(true);
+          onReady?.();
+        }
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [onReady]);
 
   // Configurer la vitesse de l'animation à x2
   useEffect(() => {
