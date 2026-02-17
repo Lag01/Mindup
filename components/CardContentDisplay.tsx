@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import MathText from './MathText';
 import { addCacheBusting } from '@/lib/image-service';
 
@@ -36,12 +37,13 @@ export default function CardContentDisplay({
   // Cas 1 : Image seule (pas de texte)
   if (hasImage && !hasText) {
     return (
-      <div className={`flex items-center justify-center ${className}`}>
-        <img
+      <div className={`relative ${className}`} style={{ width: '100%', height: `${maxHeight}px` }}>
+        <Image
           src={addCacheBusting(imagePath, sessionTimestamp) || imagePath}
           alt="Contenu de la carte"
-          className="max-w-full max-h-full object-contain cursor-pointer hover:opacity-80 transition-opacity"
-          style={{ maxHeight: `${maxHeight}px` }}
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          className="object-contain cursor-pointer hover:opacity-80 transition-opacity"
           onClick={(e) => {
             e.stopPropagation();
             onImageClick?.(imagePath);
@@ -91,12 +93,13 @@ export default function CardContentDisplay({
         </div>
 
         {/* Image en bas */}
-        <div className="flex-shrink-0 flex items-center justify-center">
-          <img
+        <div className="flex-shrink-0 relative" style={{ width: '100%', height: `${imageMaxHeight}px` }}>
+          <Image
             src={addCacheBusting(imagePath, sessionTimestamp) || imagePath}
             alt="Illustration de la carte"
-            className="max-w-full object-contain rounded cursor-pointer hover:opacity-80 transition-opacity"
-            style={{ maxHeight: `${imageMaxHeight}px` }}
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-contain rounded cursor-pointer hover:opacity-80 transition-opacity"
             onClick={(e) => {
               e.stopPropagation();
               onImageClick?.(imagePath);

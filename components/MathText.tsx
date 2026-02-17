@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, memo } from 'react';
 import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 // Configuration du redimensionnement automatique de police
 const DEFAULT_FONT_SIZE = 14;
@@ -83,8 +84,7 @@ function MathText({
           // Render as plain text
           containerRef.current.textContent = text;
         }
-      } catch (error) {
-        console.error('Error rendering content:', error);
+      } catch {
         if (containerRef.current) {
           containerRef.current.textContent = text;
         }
@@ -147,7 +147,8 @@ function MathText({
         iteration++;
       }
 
-      // Mettre en cache la taille calculée
+      // Limiter le cache à 500 entrées pour éviter les fuites mémoire
+      if (fontSizeCache.size > 500) fontSizeCache.clear();
       fontSizeCache.set(cacheKey, bestSize);
 
       setFontSize(bestSize);

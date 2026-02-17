@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
+interface LeaderboardRow {
+  userId: string;
+  displayName: string | null;
+  reviewCount: bigint;
+  totalUsers: bigint;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -16,51 +23,29 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
+    const offset = (page - 1) * limit;
 
-    // Requête pour compter le total d'utilisateurs dans le leaderboard (all-time)
-    const totalUsersAllTime = await prisma.reviewEvent.groupBy({
-      by: ['userId'],
-    });
-    const totalUsers = totalUsersAllTime.length;
+    // Une seule requête SQL avec COUNT(*) OVER() pour le total + JOIN users
+    const rows = await prisma.$queryRaw<LeaderboardRow[]>`
+      SELECT
+        re."userId",
+        u."displayName",
+        COUNT(re.id) AS "reviewCount",
+        COUNT(*) OVER() AS "totalUsers"
+      FROM "ReviewEvent" re
+      JOIN "User" u ON u.id = re."userId"
+      GROUP BY re."userId", u."displayName"
+      ORDER BY "reviewCount" DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
 
-    // Requête pour compter les révisions par utilisateur (all-time) avec pagination
-    const skip = (page - 1) * limit;
-    const leaderboardData = await prisma.reviewEvent.groupBy({
-      by: ['userId'],
-      _count: {
-        id: true,
-      },
-      orderBy: {
-        _count: {
-          id: 'desc',
-        },
-      },
-      skip,
-      take: limit,
-    });
+    const totalUsers = rows.length > 0 ? Number(rows[0].totalUsers) : 0;
 
-    // Récupérer les informations des utilisateurs
-    const userIds = leaderboardData.map(entry => entry.userId);
-    const users = await prisma.user.findMany({
-      where: {
-        id: {
-          in: userIds,
-        },
-      },
-      select: {
-        id: true,
-        displayName: true,
-      },
-    });
-
-    // Mapper les données avec les noms d'utilisateur
-    const userMap = new Map(users.map(u => [u.id, u.displayName]));
-
-    const leaderboard = leaderboardData.map((entry, index) => ({
-      rank: skip + index + 1, // Rank global tenant compte de la pagination
-      userId: entry.userId,
-      displayName: userMap.get(entry.userId) || 'Utilisateur inconnu',
-      reviewCount: entry._count.id,
+    const leaderboard = rows.map((row, index) => ({
+      rank: offset + index + 1,
+      userId: row.userId,
+      displayName: row.displayName || 'Utilisateur inconnu',
+      reviewCount: Number(row.reviewCount),
     }));
 
     return NextResponse.json({

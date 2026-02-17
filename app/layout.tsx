@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono } from 'next/font/google';
 import "./globals.css";
-import 'katex/dist/katex.min.css';
 import RegisterServiceWorker from './register-sw';
 import { Providers } from '@/components/Providers';
 import SplashScreen from '@/components/SplashScreen';

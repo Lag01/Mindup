@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Lottie, { LottieRefCurrentProps } from 'lottie-react';
-import logoAnimation from '@/public/logo-animation.json';
 
 interface LoadingAnimationProps {
   size?: 'small' | 'medium' | 'large';
@@ -16,6 +15,7 @@ export default function LoadingAnimation({
 }: LoadingAnimationProps) {
   const lottieRef = useRef<LottieRefCurrentProps>(null);
   const [animationError, setAnimationError] = useState(false);
+  const [animationData, setAnimationData] = useState<object | null>(null);
 
   // Déterminer la taille en pixels
   const getSize = () => {
@@ -32,16 +32,38 @@ export default function LoadingAnimation({
 
   const sizeInPx = getSize();
 
+  // Charger le JSON Lottie dynamiquement au lieu de l'importer statiquement
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/logo-animation.json')
+      .then(res => res.json())
+      .then(data => {
+        if (!cancelled) setAnimationData(data);
+      })
+      .catch(() => {
+        if (!cancelled) setAnimationError(true);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   // Configurer la vitesse de l'animation à x2
   useEffect(() => {
     if (lottieRef.current) {
       lottieRef.current.setSpeed(2);
     }
-  }, []);
+  }, [animationData]);
+
+  // Fallback spinner CSS si Lottie échoue ou est en cours de chargement
+  const SpinnerFallback = () => (
+    <div
+      className="animate-spin rounded-full border-b-2 border-blue-500"
+      style={{ width: sizeInPx, height: sizeInPx }}
+    />
+  );
 
   // Composant Lottie
   const LottieAnimation = () => {
-    if (animationError) {
+    if (animationError || !animationData) {
       return <SpinnerFallback />;
     }
 
@@ -49,12 +71,11 @@ export default function LoadingAnimation({
       <div style={{ width: sizeInPx, height: sizeInPx }}>
         <Lottie
           lottieRef={lottieRef}
-          animationData={logoAnimation}
+          animationData={animationData}
           loop={true}
           autoplay={true}
           style={{ width: '100%', height: '100%' }}
           onLoadedImages={() => {
-            // Animation chargée avec succès
             if (lottieRef.current) {
               lottieRef.current.setSpeed(2);
             }
@@ -67,14 +88,6 @@ export default function LoadingAnimation({
       </div>
     );
   };
-
-  // Fallback spinner CSS si Lottie échoue
-  const SpinnerFallback = () => (
-    <div
-      className="animate-spin rounded-full border-b-2 border-blue-500"
-      style={{ width: sizeInPx, height: sizeInPx }}
-    />
-  );
 
   // Contenu de l'animation (SANS message)
   const AnimationContent = () => (

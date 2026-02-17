@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import LoadingAnimation from './LoadingAnimation';
 
 export default function SplashScreen() {
   const [showSplash, setShowSplash] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
     // Vérifier si l'utilisateur a déjà vu le splash screen
@@ -21,13 +22,16 @@ export default function SplashScreen() {
       setFadeOut(true);
 
       // Après l'animation de fade-out (300ms), masquer complètement
-      setTimeout(() => {
+      fadeTimerRef.current = setTimeout(() => {
         setShowSplash(false);
         localStorage.setItem('hasSeenSplash', 'true');
       }, 300);
     }, 1500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    };
   }, []);
 
   if (!showSplash) {

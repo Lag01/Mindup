@@ -54,35 +54,65 @@ export async function GET(request: NextRequest) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      cards = await prisma.card.findMany({
-        where: {
-          deckId: deckId,
-        },
-        include: {
-          reviews: {
-            where: {
-              userId: user.id,
-              OR: [
-                { nextReview: null },           // Cartes jamais révisées
-                { nextReview: { lte: today } }, // Cartes dues
-              ],
-            },
-            take: 1,
-          },
-        },
-        orderBy: {
-          order: 'asc',
-        },
-      });
+      // Requête SQL directe avec LEFT JOIN pour filtrer en SQL (pas en JS)
+      const rawCards = await prisma.$queryRaw<Array<{
+        id: string;
+        front: string;
+        back: string;
+        frontType: string;
+        backType: string;
+        frontImage: string | null;
+        backImage: string | null;
+        order: number;
+        reviewId: string | null;
+        reps: number | null;
+        againCount: number | null;
+        hardCount: number | null;
+        goodCount: number | null;
+        easyCount: number | null;
+        lastReview: Date | null;
+        interval: number | null;
+        nextReview: Date | null;
+        easeFactor: number | null;
+        status: string | null;
+      }>>`
+        SELECT
+          c.id, c.front, c.back,
+          c."frontType", c."backType",
+          c."frontImage", c."backImage",
+          c."order",
+          r.id AS "reviewId",
+          r.reps, r."againCount", r."hardCount", r."goodCount", r."easyCount",
+          r."lastReview", r.interval, r."nextReview", r."easeFactor", r.status
+        FROM "Card" c
+        LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
+        WHERE c."deckId" = ${deckId}
+          AND (r.id IS NULL OR r."nextReview" IS NULL OR r."nextReview" <= ${today})
+        ORDER BY c."order" ASC
+      `;
 
-      // Filter to only keep cards with matching reviews
-      cards = cards.filter(
-        (card) =>
-          card.reviews.length === 0 || // Carte jamais révisée
-          (card.reviews[0] &&
-            (card.reviews[0].nextReview === null ||
-              card.reviews[0].nextReview <= today))
-      );
+      cards = rawCards.map(row => ({
+        id: row.id,
+        front: row.front,
+        back: row.back,
+        frontType: row.frontType,
+        backType: row.backType,
+        frontImage: row.frontImage,
+        backImage: row.backImage,
+        reviews: row.reviewId ? [{
+          id: row.reviewId,
+          reps: row.reps,
+          againCount: row.againCount,
+          hardCount: row.hardCount,
+          goodCount: row.goodCount,
+          easyCount: row.easyCount,
+          lastReview: row.lastReview,
+          interval: row.interval,
+          nextReview: row.nextReview,
+          easeFactor: row.easeFactor,
+          status: row.status,
+        }] : [],
+      }));
     } else {
       // IMMEDIATE method: Get ALL cards (not filtered by due date)
       cards = await prisma.card.findMany({
