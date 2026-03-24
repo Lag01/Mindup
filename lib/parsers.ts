@@ -41,9 +41,14 @@ function detectContentType(content: string): 'TEXT' | 'LATEX' {
 }
 
 export function parseXML(content: string): ParsedDeck {
+  if (content.length > 5 * 1024 * 1024) {
+    throw new Error('Fichier XML trop volumineux (max 5 Mo)');
+  }
+
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_',
+    processEntities: false,
   });
 
   const result = parser.parse(content);

@@ -195,6 +195,49 @@ Mode de jeu pour s'entraîner au calcul mental rapide :
 - **Leaderboard** : Comparez vos scores avec les autres joueurs
 - **Détection de records** : Notification quand vous battez votre meilleur score
 
+## Architecture
+
+```mermaid
+graph TB
+    subgraph Client["Client (React 19)"]
+        UI[Pages & Composants]
+        Store[Zustand Store]
+        SW[Service Worker PWA]
+    end
+
+    subgraph API["API Routes (Next.js 16)"]
+        Auth["/api/auth/*<br>Login, Signup, Refresh, Logout"]
+        Decks["/api/decks/*<br>CRUD, Import, Export"]
+        Review["/api/review<br>Immédiat + ANKI"]
+        Upload["/api/upload/*<br>Images (admin)"]
+        Public["/api/public-decks/*<br>Marketplace"]
+        Admin["/api/admin/*<br>Users, Settings"]
+        Game["/api/veryfastmath/*<br>Scores, Leaderboard"]
+        Cron["/api/cron/*<br>Cleanup images"]
+    end
+
+    subgraph Security["Sécurité"]
+        JWT[JWT + Cookies httpOnly]
+        Rate[Rate Limiter IP]
+        CSP[CSP + HSTS + Headers]
+        Magic[Magic Bytes Validation]
+    end
+
+    subgraph Data["Stockage"]
+        DB[(Neon PostgreSQL<br>via Prisma)]
+        Blob[Vercel Blob<br>Images]
+    end
+
+    UI --> Auth & Decks & Review & Upload & Public & Game
+    Auth --> JWT --> DB
+    Decks --> Rate --> DB
+    Review --> DB
+    Upload --> Magic --> Blob
+    Admin --> DB
+    Cron --> Blob
+    Public --> DB
+```
+
 ## Structure du projet
 
 ```

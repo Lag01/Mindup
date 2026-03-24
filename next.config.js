@@ -69,7 +69,7 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               "font-src 'self' https://cdn.jsdelivr.net data:",
               "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://*.vercel.app https://*.vercel-insights.com",
