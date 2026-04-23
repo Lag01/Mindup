@@ -93,6 +93,37 @@ Application web de révision par flashcards avec système de révision immédiat
 - Timing attacks : `crypto.timingSafeEqual` pour la comparaison de tokens
 - LaTeX : commandes dangereuses bloquées (\input, \write, etc.)
 
+## Audit qualité - 23/04/2026
+
+### Corrections appliquées
+
+**Sécurité**
+- Timing attack au login : dummy hash bcrypt si email inexistant (prévient l'énumération d'emails)
+- Validation LaTeX étendue : 8 nouvelles commandes bloquées (`\documentclass`, `\usepackage`, `\newcommand`, `\def`, `\let`, `\catcode`, `\jobname`, `\output`)
+
+**Types TypeScript**
+- `Card.review?: any` → `Card.review?: Review` dans `lib/types.ts`
+- `deck: any` → `DeckWithStats` dans `lib/store/decks.ts`
+- `Leaderboard V1/V2` : unions discriminées (`FlashcardsLeaderboardEntry | MathLeaderboardEntry | StreakLeaderboardEntry`) remplacent tous les `any`
+
+**UX & Accessibilité**
+- `alert()` / silent fail → toasts (`useToast`) pour reset stats, export et suppression dans dashboard-v3
+- Zones cliquables augmentées à `min-w-[44px] min-h-[44px]` (conformité WCAG) dans `EnhancedDeckCard` et `UserProfile`
+- Alt d'images : descriptions contextuelles dans `CardContentDisplay` (prop `imageAlt` + fallback basé sur le texte)
+
+**Performance & Stabilité**
+- Race condition corrigée dans dashboard-v3 : flag `mounted` + cleanup dans `useEffect`
+- Cache `useFetch` : limite de taille à 100 entrées (prévient les fuites mémoire)
+- Cache TTL externalisé dans `lib/constants.ts`
+
+**Base de données**
+- Index `@@index([userId, lastReview])` ajouté sur `Review` (requêtes de statistiques par date)
+- Migration à appliquer : `npx prisma migrate dev`
+
+**Organisation du code**
+- `lib/constants.ts` créé : magic numbers centralisés (CACHE_TTL_MS, CACHE_MAX_SIZE, IMAGE_MAX_SIZE_MB, CARD_MAX_CONTENT_LENGTH, API_ROUTES, LEADERBOARD_PAGE_SIZE)
+- `.env.example` consolidé avec toutes les variables requises
+
 ---
 
-**Derniere mise a jour** : 25/03/2026
+**Dernière mise à jour** : 23/04/2026
