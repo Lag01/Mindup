@@ -23,27 +23,34 @@ const useIsMobile = () => {
   return isMobile;
 };
 
-const formatStats = (entry: any, dataType: 'flashcards' | 'math' | 'streak', isMobile: boolean, streakMode?: 'current' | 'max'): string => {
-  if (dataType === 'flashcards') {
-    const count = entry.reviewCount.toLocaleString('fr-FR');
-    return isMobile ? `${count} cartes` : `${count} cartes révisées`;
-  } else if (dataType === 'math') {
-    return `Score : ${entry.bestScore}`;
-  } else {
-    const value = streakMode === 'current' ? entry.currentStreak : entry.maxStreak;
-    return `${value} jours`;
-  }
-};
-
 type LeaderboardCategory = 'flashcards' | 'veryfastmath' | 'streak';
 type MathMode = 'ADDITION' | 'SUBTRACTION' | 'MULTIPLICATION' | 'DIVISION';
 type StreakMode = 'current' | 'max';
 
-interface FlashcardsLeaderboardData { leaderboard: any[]; currentUserId?: string; }
-interface MathLeaderboardData { mode: string; leaderboard: any[]; currentUserId?: string; }
-interface StreakLeaderboardData { mode: 'current' | 'max'; leaderboard: any[]; currentUserId?: string; }
+interface FlashcardsLeaderboardEntry { rank: number; userId: string; displayName: string; reviewCount: number; }
+interface MathLeaderboardEntry { rank: number; userId: string; displayName: string; bestScore: number; }
+interface StreakLeaderboardEntry { rank: number; userId: string; displayName: string; currentStreak: number; maxStreak: number; }
+type AnyLeaderboardEntry = FlashcardsLeaderboardEntry | MathLeaderboardEntry | StreakLeaderboardEntry;
 
-interface LeaderboardCardV1Props { entry: any; dataType: 'flashcards' | 'math' | 'streak'; isCurrentUser: boolean; streakMode?: StreakMode; }
+interface FlashcardsLeaderboardData { leaderboard: FlashcardsLeaderboardEntry[]; currentUserId?: string; }
+interface MathLeaderboardData { mode: string; leaderboard: MathLeaderboardEntry[]; currentUserId?: string; }
+interface StreakLeaderboardData { mode: StreakMode; leaderboard: StreakLeaderboardEntry[]; currentUserId?: string; }
+type AnyLeaderboardData = FlashcardsLeaderboardData | MathLeaderboardData | StreakLeaderboardData;
+
+const formatStats = (entry: AnyLeaderboardEntry, dataType: 'flashcards' | 'math' | 'streak', isMobile: boolean, streakMode?: StreakMode): string => {
+  if (dataType === 'flashcards') {
+    const count = (entry as FlashcardsLeaderboardEntry).reviewCount?.toLocaleString('fr-FR') ?? '0';
+    return isMobile ? `${count} cartes` : `${count} cartes révisées`;
+  } else if (dataType === 'math') {
+    return `Score : ${(entry as MathLeaderboardEntry).bestScore ?? 0}`;
+  } else {
+    const e = entry as StreakLeaderboardEntry;
+    const value = streakMode === 'current' ? (e.currentStreak ?? 0) : (e.maxStreak ?? 0);
+    return `${value} jours`;
+  }
+};
+
+interface LeaderboardCardV1Props { entry: AnyLeaderboardEntry; dataType: 'flashcards' | 'math' | 'streak'; isCurrentUser: boolean; streakMode?: StreakMode; }
 
 const LeaderboardCardV1: React.FC<LeaderboardCardV1Props> = ({ entry, dataType, isCurrentUser, streakMode }) => {
   const isMobile = useIsMobile();
@@ -142,8 +149,8 @@ export default function LeaderboardV1() {
   if (loading) return <LoadingAnimation fullScreen />;
 
   const renderLeaderboard = () => {
-    let currentData: any;
-    let dataType: 'flashcards' | 'math' | 'streak' = category === 'flashcards' ? 'flashcards' : category === 'veryfastmath' ? 'math' : 'streak';
+    let currentData: AnyLeaderboardData | undefined;
+    const dataType: 'flashcards' | 'math' | 'streak' = category === 'flashcards' ? 'flashcards' : category === 'veryfastmath' ? 'math' : 'streak';
 
     if (category === 'flashcards' && flashcardsData) currentData = flashcardsData;
     else if (category === 'veryfastmath' && mathData) currentData = mathData;
@@ -165,8 +172,8 @@ export default function LeaderboardV1() {
 
     return (
       <div className="space-y-3">
-        {currentData.leaderboard.map((entry: any) => (
-          <LeaderboardCardV1 key={entry.userId} entry={entry} dataType={dataType} isCurrentUser={entry.userId === currentData.currentUserId} streakMode={dataType === 'streak' ? streakMode : undefined} />
+        {currentData.leaderboard.map((entry) => (
+          <LeaderboardCardV1 key={entry.userId} entry={entry} dataType={dataType} isCurrentUser={entry.userId === currentData!.currentUserId} streakMode={dataType === 'streak' ? streakMode : undefined} />
         ))}
       </div>
     );

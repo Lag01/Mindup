@@ -43,7 +43,7 @@ export default function UserProfile({ userName, currentStreak, maxStreak }: User
 
             {/* Badge streak avec animation */}
             <div
-              className="relative inline-flex items-center gap-1.5 mt-1 px-2.5 py-1 bg-gradient-to-r from-orange-600/90 to-red-600/90 rounded-md cursor-pointer transition-transform hover:scale-105"
+              className="relative inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 min-h-[36px] bg-gradient-to-r from-orange-600/90 to-red-600/90 rounded-md cursor-pointer transition-transform hover:scale-105"
               onMouseEnter={() => setShowRecord(true)}
               onMouseLeave={() => setShowRecord(false)}
             >

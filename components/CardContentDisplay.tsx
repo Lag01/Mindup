@@ -17,6 +17,7 @@ interface CardContentDisplayProps {
   autoResize?: boolean;
   maxHeight?: number;
   onImageClick?: (imageUrl: string) => void;
+  imageAlt?: string;
 }
 
 export default function CardContentDisplay({
@@ -27,6 +28,7 @@ export default function CardContentDisplay({
   autoResize = true,
   maxHeight = 400,
   onImageClick,
+  imageAlt,
 }: CardContentDisplayProps) {
   // Timestamp de session pour cache busting (évite les re-renders)
   const [sessionTimestamp] = useState(() => Date.now());
@@ -40,7 +42,7 @@ export default function CardContentDisplay({
       <div className={`relative ${className}`} style={{ width: '100%', height: `${maxHeight}px` }}>
         <Image
           src={addCacheBusting(imagePath, sessionTimestamp) || imagePath}
-          alt="Contenu de la carte"
+          alt={imageAlt ?? (text ? `Illustration : ${text.slice(0, 60)}` : 'Image de la carte')}
           fill
           sizes="(max-width: 768px) 100vw, 50vw"
           className="object-contain cursor-pointer hover:opacity-80 transition-opacity"
@@ -96,7 +98,7 @@ export default function CardContentDisplay({
         <div className="flex-shrink-0 relative" style={{ width: '100%', height: `${imageMaxHeight}px` }}>
           <Image
             src={addCacheBusting(imagePath, sessionTimestamp) || imagePath}
-            alt="Illustration de la carte"
+            alt={imageAlt ?? (text ? `Illustration : ${text.slice(0, 60)}` : 'Illustration de la carte')}
             fill
             sizes="(max-width: 768px) 100vw, 50vw"
             className="object-contain rounded cursor-pointer hover:opacity-80 transition-opacity"

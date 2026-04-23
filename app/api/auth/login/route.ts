@@ -42,17 +42,11 @@ export async function POST(request: NextRequest) {
       where: { email },
     });
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Email ou mot de passe incorrect' },
-        { status: 401 }
-      );
-    }
+    // Dummy hash pour éviter une timing attack (révélation d'emails existants)
+    const DUMMY_HASH = '$2b$10$invalidhashXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+    const isPasswordValid = await verifyPassword(password, user?.password ?? DUMMY_HASH);
 
-    // Verify password
-    const isPasswordValid = await verifyPassword(password, user.password);
-
-    if (!isPasswordValid) {
+    if (!user || !isPasswordValid) {
       return NextResponse.json(
         { error: 'Email ou mot de passe incorrect' },
         { status: 401 }

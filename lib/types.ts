@@ -25,7 +25,7 @@ export interface Card {
   backImage: string | null;
   order: number;
   deckId?: string;
-  review?: any; // TODO: Typer correctement quand le type Review sera défini
+  review?: Review;
 }
 
 // ============================================================================

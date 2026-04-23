@@ -1,4 +1,6 @@
-const MAX_CONTENT_LENGTH = 10000; // 10KB par côté
+import { CARD_MAX_CONTENT_LENGTH } from '@/lib/constants';
+
+const MAX_CONTENT_LENGTH = CARD_MAX_CONTENT_LENGTH;
 
 export function validateCardContent(
   front: string,
@@ -28,16 +30,24 @@ export function validateCardContent(
 function isValidLaTeX(latex: string): boolean {
   if (!latex) return true;
 
-  // Bloquer commandes LaTeX dangereuses qui peuvent lire/écrire des fichiers
+  // Bloquer commandes LaTeX dangereuses qui peuvent lire/écrire des fichiers ou exécuter du code
   const dangerous = [
-    '\\input',      // Inclure un fichier
-    '\\include',    // Inclure un fichier
-    '\\write',      // Écrire dans un fichier
-    '\\immediate',  // Exécution immédiate
-    '\\openin',     // Ouvrir un fichier en lecture
-    '\\openout',    // Ouvrir un fichier en écriture
-    '\\csname',     // Peut créer des commandes arbitraires
-    '\\expandafter',// Expansion de macros potentiellement dangereuse
+    '\\input',        // Inclure un fichier
+    '\\include',      // Inclure un fichier
+    '\\write',        // Écrire dans un fichier
+    '\\immediate',    // Exécution immédiate
+    '\\openin',       // Ouvrir un fichier en lecture
+    '\\openout',      // Ouvrir un fichier en écriture
+    '\\csname',       // Peut créer des commandes arbitraires
+    '\\expandafter',  // Expansion de macros potentiellement dangereuse
+    '\\documentclass',// Commande de document entier (non supportée par KaTeX)
+    '\\usepackage',   // Import de paquets arbitraires
+    '\\newcommand',   // Définition de nouvelles commandes arbitraires
+    '\\def',          // Définition de macros bas-niveau
+    '\\let',          // Redéfinition de commandes
+    '\\catcode',      // Modification des codes de catégorie TeX
+    '\\jobname',      // Accès au nom du fichier courant
+    '\\output',       // Routine de sortie TeX
   ];
 
   return !dangerous.some(cmd => latex.includes(cmd));

@@ -66,9 +66,9 @@ export const useDecksStore = create<DecksState>((set, get) => ({
       const data = await response.json();
 
       // Convertir les dates string en Date objects
-      const decks = data.decks.map((deck: any) => ({
+      const decks = data.decks.map((deck: DeckWithStats) => ({
         ...deck,
-        createdAt: new Date(deck.createdAt),
+        createdAt: new Date(deck.createdAt as string),
       }));
 
       set({ decks, loading: false, error: null });

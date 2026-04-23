@@ -139,6 +139,7 @@ model Review {
   @@unique([cardId, userId])
   @@index([userId])
   @@index([nextReview])
+  @@index([userId, lastReview])
 }
 
 model AppSettings {

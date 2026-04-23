@@ -19,6 +19,7 @@ import QuickFilters from './components/MainContent/QuickFilters'
 import DeckGrid from './components/MainContent/DeckGrid'
 import EmptyState from './components/MainContent/EmptyState'
 import { useDeckFilters, FilterType } from './hooks/useDeckFilters'
+import { useToast } from '@/hooks/useToast'
 
 interface UserStreak {
   current: number
@@ -28,6 +29,7 @@ interface UserStreak {
 export default function DashboardV3Page() {
   const router = useRouter()
   const { user, isAdmin } = useUser()
+  const { success: toastSuccess, error: toastError, ToastContainer } = useToast()
 
   // États données
   const [decks, setDecks] = useState<DeckWithStats[]>([])
@@ -64,13 +66,16 @@ export default function DashboardV3Page() {
 
   // Chargement initial des données avec cache
   useEffect(() => {
+    let mounted = true
+
     const fetchData = async () => {
       try {
-        // Fetch decks et streak en parallèle avec cache
         const [decksData, streakData] = await Promise.all([
           fetchDecks('/api/decks'),
           fetchStats('/api/stats/global'),
         ])
+
+        if (!mounted) return
 
         if (decksData?.decks) {
           setDecks(decksData.decks)
@@ -83,11 +88,13 @@ export default function DashboardV3Page() {
           })
         }
       } catch (error) {
+        if (!mounted) return
         console.error('Erreur lors du chargement des données:', error)
       }
     }
 
     fetchData()
+    return () => { mounted = false }
   }, [fetchDecks, fetchStats])
 
   // Handlers
@@ -161,7 +168,7 @@ export default function DashboardV3Page() {
   }, [])
 
   const handleResetStats = useCallback(async (deckId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir réinitialiser les statistiques de ce deck ?')) {
+    if (!window.confirm('Êtes-vous sûr de vouloir réinitialiser les statistiques de ce deck ?')) {
       return
     }
 
@@ -176,13 +183,14 @@ export default function DashboardV3Page() {
       const decksRes = await fetch('/api/decks')
       if (decksRes.ok) {
         const decksData = await decksRes.json()
-        setDecks(decksData)
+        if (decksData?.decks) setDecks(decksData.decks)
       }
+      toastSuccess('Statistiques réinitialisées')
     } catch (error) {
       console.error('Erreur:', error)
-      alert('Erreur lors de la réinitialisation des statistiques')
+      toastError('Erreur lors de la réinitialisation des statistiques')
     }
-  }, [])
+  }, [toastSuccess, toastError])
 
   const handleExport = useCallback(async (deckId: string, format: 'xml' | 'csv') => {
     try {
@@ -198,14 +206,15 @@ export default function DashboardV3Page() {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
+      toastSuccess(`Export ${format.toUpperCase()} téléchargé`)
     } catch (error) {
       console.error('Erreur:', error)
-      alert('Erreur lors de l\'export du deck')
+      toastError('Erreur lors de l\'export du deck')
     }
-  }, [])
+  }, [toastSuccess, toastError])
 
   const handleDelete = useCallback(async (deckId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce deck ?')) {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce deck ?')) {
       return
     }
 
@@ -217,11 +226,12 @@ export default function DashboardV3Page() {
       if (!response.ok) throw new Error('Erreur lors de la suppression')
 
       setDecks((prev) => prev.filter((d) => d.id !== deckId))
+      toastSuccess('Deck supprimé')
     } catch (error) {
       console.error('Erreur:', error)
-      alert('Erreur lors de la suppression du deck')
+      toastError('Erreur lors de la suppression du deck')
     }
-  }, [])
+  }, [toastSuccess, toastError])
 
   const handleLogout = useCallback(async () => {
     try {
@@ -348,6 +358,8 @@ export default function DashboardV3Page() {
           }
         }}
       />
+
+      <ToastContainer />
     </div>
     </DashboardPageWrapper>
   )

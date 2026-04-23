@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
+import { CACHE_TTL_MS, CACHE_MAX_SIZE } from '@/lib/constants';
 
 // Cache global pour les requêtes GET
 // Clé: URL → Valeur: { data, timestamp }
-const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const cache = new Map<string, { data: unknown; timestamp: number }>();
 
 interface UseFetchOptions<T> {
   onSuccess?: (data: T) => void;
@@ -62,18 +62,19 @@ export function useFetch<T = unknown>(
       // Vérifier le cache pour les requêtes GET uniquement
       if (method === 'GET') {
         const cached = cache.get(url);
-        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
           // Cache hit - retourner les données sans fetch
-          setData(cached.data);
+          const cachedData = cached.data as T;
+          setData(cachedData);
           setLoading(false);
           setError(null);
 
           // Callback de succès avec données cachées
           if (onSuccess) {
-            onSuccess(cached.data);
+            onSuccess(cachedData);
           }
 
-          return cached.data;
+          return cachedData;
         }
       }
 
@@ -95,8 +96,12 @@ export function useFetch<T = unknown>(
         const result = await response.json();
         setData(result);
 
-        // Mettre en cache si requête GET
+        // Mettre en cache si requête GET (avec limite de taille pour éviter les fuites mémoire)
         if (method === 'GET') {
+          if (cache.size >= CACHE_MAX_SIZE) {
+            const firstKey = cache.keys().next().value;
+            if (firstKey) cache.delete(firstKey);
+          }
           cache.set(url, { data: result, timestamp: Date.now() });
         }
 
