@@ -1,78 +1,72 @@
 // Service Worker pour Mindup PWA
-const CACHE_NAME = 'mindup-v1';
+// Stratégie : network-only pour les API et la navigation,
+// précache uniquement des assets statiques pour l'installation PWA.
+// Bumper CACHE_NAME à chaque modification structurelle de ce fichier
+// pour forcer l'invalidation des anciens caches au prochain chargement.
+const CACHE_NAME = 'mindup-v2';
 const OFFLINE_URL = '/';
 
-// Installation du service worker
+const PRECACHE_ASSETS = [
+  '/manifest.json',
+  '/favicon.ico',
+  '/favicon.png',
+  '/logo-full.png',
+  '/logo-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
+  '/icon-maskable.png',
+];
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll([
-        OFFLINE_URL,
-        '/manifest.json',
-        '/favicon.ico',
-        '/favicon.png',
-        '/logo-full.png',
-        '/logo-icon.png',
-        '/icon-192.png',
-        '/icon-512.png',
-        '/apple-touch-icon.png',
-        '/icon-maskable.png',
-      ]);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_ASSETS))
   );
   self.skipWaiting();
 });
 
-// Activation du service worker
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      )
+    )
   );
   self.clients.claim();
 });
 
-// Gestion des requêtes
 self.addEventListener('fetch', (event) => {
-  // Ignorer les requêtes non-GET
-  if (event.request.method !== 'GET') {
+  const request = event.request;
+
+  if (request.method !== 'GET') {
     return;
   }
 
+  const url = new URL(request.url);
+
+  // Routes API : toujours réseau, jamais de cache (sinon stats / révisions deviennent stale)
+  if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  // Navigation HTML : network-first avec fallback offline minimal
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match(OFFLINE_URL))
+    );
+    return;
+  }
+
+  // Bundles Next.js (hash dans l'URL) et autres assets : laisser le cache HTTP du browser gérer
+  if (url.pathname.startsWith('/_next/')) {
+    return;
+  }
+
+  // Assets précachés : cache-first, fallback réseau
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Cloner la réponse
-        const responseToCache = response.clone();
-
-        // Mettre en cache si c'est une réponse valide
-        if (response.status === 200) {
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-
-        return response;
-      })
-      .catch(() => {
-        // Si la requête échoue, essayer de récupérer depuis le cache
-        return caches.match(event.request).then((response) => {
-          if (response) {
-            return response;
-          }
-
-          // Si pas dans le cache, retourner la page offline
-          if (event.request.destination === 'document') {
-            return caches.match(OFFLINE_URL);
-          }
-        });
-      })
+    caches.match(request).then((cached) => cached || fetch(request))
   );
 });

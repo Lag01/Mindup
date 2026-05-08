@@ -87,3 +87,39 @@ Les lignes `Review` étant conservées, leurs `ReviewEvent` associés ne sont ja
 
 ### Leçon
 Pour une fonction de "reset" qui ne doit toucher qu'un sous-ensemble logique des données, utiliser `UPDATE` plutôt que `DELETE` dès qu'il existe des relations `onDelete: Cascade` vers d'autres tables qui sont la source de vérité d'autres écrans.
+
+---
+
+## 2026-05-08 — Service Worker servait des bundles JS et des réponses API obsolètes
+
+### Symptôme
+Après un déploiement, l'utilisateur continuait à voir l'ancien comportement de l'application, même après un rafraîchissement avec vidage du cache navigateur. Le bug "4 cartes sur 6" persistait alors qu'une correction avait été déployée. Seule la procédure DevTools → Application → "Effacer les données du site" + reload résolvait le problème.
+
+### Cause racine
+`public/sw.js` (version `mindup-v1`) appliquait une stratégie de cache trop agressive : à chaque requête GET, il mettait en cache la réponse (`cache.put(event.request, responseToCache)`), sans distinction entre :
+- les routes API `/api/*` (qui doivent être fraîches),
+- les navigations HTML (qui pointent vers les bundles JS courants),
+- les bundles Next.js (déjà cache-bustés via leur hash),
+- les assets statiques (manifest, favicons).
+
+Conséquences :
+- Le HTML cachable contenait des références aux anciens hash de bundles → après un déploiement, le SW pouvait servir un HTML stale qui réclamait des fichiers JS qui ne correspondaient plus à la version courante.
+- Les routes API renvoyaient parfois des réponses cachées (par ex. `/api/review` avec d'anciennes cartes ou d'anciennes stats).
+- L'erreur `Manifest: Line 1, column 1, Syntax error` en console venait du même mécanisme : le SW avait probablement caché une réponse HTML (page d'erreur ou redirect) à la place du JSON `manifest.json`.
+
+### Solution implémentée
+Réécriture complète de `public/sw.js` avec une stratégie distinguant les types de ressources :
+- **Précache à l'install** : uniquement les assets fixes (manifest, favicons, logos).
+- **`/api/*`** : aucun handler, le SW ne touche pas — toujours réseau frais.
+- **Navigations HTML** (`request.mode === 'navigate'`) : network-first avec fallback `OFFLINE_URL` uniquement en cas d'échec réseau.
+- **`/_next/*`** : aucun handler, le browser gère son cache HTTP normal (les bundles ont déjà un hash unique).
+- **Reste** : cache-first sur les assets précachés, sinon réseau.
+
+`CACHE_NAME` bumpé de `mindup-v1` à `mindup-v2` pour forcer la suppression de l'ancien cache à l'activation du nouveau SW.
+
+### Leçon
+Un Service Worker qui cache aveuglément toutes les réponses GET est un piège récurrent. Règles à appliquer :
+- Ne **jamais** cacher les routes API en runtime.
+- Ne pas cacher le HTML de navigation autrement qu'avec un fallback offline.
+- Laisser les assets versionnés (Next.js `_next/static/*`) au cache HTTP du browser (déjà optimal).
+- Bumper `CACHE_NAME` à chaque modification structurelle du SW pour forcer l'invalidation côté clients.

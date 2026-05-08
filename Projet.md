@@ -140,6 +140,11 @@ Application web de révision par flashcards avec système de révision immédiat
   - `app/api/decks/[id]/stats/route.ts` : `reviewHistory`, `reviewsToday`, `reviewsThisWeek`, `reviewsYesterday`, `reviewsPreviousWeek`, `successRateThisWeek`, `successRatePreviousWeek` migrés vers `ReviewEvent`.
   - `app/api/stats/global/route.ts` : `reviewsToday` migré vers `ReviewEvent`.
 
+**Service Worker : déploiements masqués par un cache trop agressif**
+- Symptôme : après un déploiement, les utilisateurs continuaient à voir l'ancien comportement de l'app même après rafraîchissement avec vidage du cache. Erreurs `Manifest: Syntax error` en console.
+- Cause : `public/sw.js` mettait en cache toutes les requêtes GET sans distinction (HTML de navigation, routes API, bundles Next.js).
+- Correction : refonte du SW avec stratégie différenciée — `/api/*` et `/_next/*` non touchés, navigations en network-first avec fallback offline, cache-first uniquement sur les assets précachés. `CACHE_NAME` bumpé à `mindup-v2` pour invalider l'ancien cache.
+
 **Reset deck : suppression de l'historique global du leaderboard et de l'admin**
 - Symptôme : réinitialiser les stats d'un deck faisait disparaître les révisions correspondantes du leaderboard et du dashboard admin.
 - Cause : `prisma.review.deleteMany` cascade-deletait les `ReviewEvent` associés (`Review.events` en `onDelete: Cascade` dans `prisma/schema.prisma:160`). Or le leaderboard (`api/leaderboard/route.ts`) et l'admin (`app/admin/page.tsx` via `_count.reviewEvents`) lisent précisément `ReviewEvent`.
