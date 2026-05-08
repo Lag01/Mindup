@@ -124,6 +124,27 @@ Application web de révision par flashcards avec système de révision immédiat
 - `lib/constants.ts` créé : magic numbers centralisés (CACHE_TTL_MS, CACHE_MAX_SIZE, IMAGE_MAX_SIZE_MB, CARD_MAX_CONTENT_LENGTH, API_ROUTES, LEADERBOARD_PAGE_SIZE)
 - `.env.example` consolidé avec toutes les variables requises
 
+## Bugfixes - 08/05/2026
+
+### Trois bugs corrigés sur les données
+
+**Mode Immédiate : cartes manquantes en révision**
+- Symptôme : sur un deck de 6 cartes, seules 4 apparaissaient en révision après ajout des 2 dernières.
+- Cause : `ReviewV2.tsx` restaurait le `baseDeck` depuis `localStorage` et se contentait de filtrer les cartes supprimées, sans réinjecter celles ajoutées au deck après le démarrage de la session.
+- Correction : `components/Review/ReviewV2.tsx` — après synchronisation, ajout en queue (mélangé) des cartes présentes dans `data.cards` mais absentes du `baseDeck` sauvegardé. Fallback "démarrage frais" si la session restaurée est vide.
+
+**Statistiques temporelles : courbe et fenêtres glissantes faussées**
+- Symptôme : la courbe de révision affichait au plus 1 point par carte par jour (au lieu du nombre réel de réponses), et les indicateurs "cette semaine / aujourd'hui" mélangeaient les cumuls historiques avec la fenêtre courante.
+- Cause : `Review.lastReview` est un timestamp écrasé à chaque révision et `Review.*Count` sont des cumuls all-time. Une carte révisée 50 fois aujourd'hui n'apparaissait qu'une fois dans la courbe, et `successRateThisWeek` attribuait à la semaine en cours toutes les anciennes révisions des cartes dont la dernière review tombait dans la fenêtre.
+- Correction : refonte des requêtes temporelles sur `ReviewEvent` (table granulaire `userId, cardId, rating, createdAt`).
+  - `app/api/decks/[id]/stats/route.ts` : `reviewHistory`, `reviewsToday`, `reviewsThisWeek`, `reviewsYesterday`, `reviewsPreviousWeek`, `successRateThisWeek`, `successRatePreviousWeek` migrés vers `ReviewEvent`.
+  - `app/api/stats/global/route.ts` : `reviewsToday` migré vers `ReviewEvent`.
+
+**Reset deck : suppression de l'historique global du leaderboard et de l'admin**
+- Symptôme : réinitialiser les stats d'un deck faisait disparaître les révisions correspondantes du leaderboard et du dashboard admin.
+- Cause : `prisma.review.deleteMany` cascade-deletait les `ReviewEvent` associés (`Review.events` en `onDelete: Cascade` dans `prisma/schema.prisma:160`). Or le leaderboard (`api/leaderboard/route.ts`) et l'admin (`app/admin/page.tsx` via `_count.reviewEvents`) lisent précisément `ReviewEvent`.
+- Correction : `app/api/decks/[id]/reset-stats/route.ts` — passage à `prisma.review.updateMany` qui remet à zéro les compteurs (`reps`, `*Count`, `lastReview`, `interval`, `nextReview`, `easeFactor`, `status`) sans supprimer les lignes `Review`. `ReviewEvent` est ainsi préservé.
+
 ---
 
-**Dernière mise à jour** : 23/04/2026
+**Dernière mise à jour** : 08/05/2026

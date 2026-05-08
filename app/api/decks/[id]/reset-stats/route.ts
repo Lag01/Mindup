@@ -38,17 +38,30 @@ export async function POST(
       );
     }
 
-    // Delete all reviews for cards in this deck for this user
-    await prisma.review.deleteMany({
+    // Réinitialiser les compteurs des Review (sans supprimer les lignes)
+    // pour préserver les ReviewEvent associés (utilisés par le leaderboard et l'admin)
+    await prisma.review.updateMany({
       where: {
         userId: user.id,
         card: {
           deckId: deckId,
         },
       },
+      data: {
+        reps: 0,
+        againCount: 0,
+        hardCount: 0,
+        goodCount: 0,
+        easyCount: 0,
+        lastReview: null,
+        interval: null,
+        nextReview: null,
+        easeFactor: 2.5,
+        status: 'NEW',
+      },
     });
 
-    // Recalculer le streak après suppression des ReviewEvent (cascade delete)
+    // Recalculer le streak après réinitialisation
     try {
       await updateUserStreak(user.id);
     } catch (streakError) {

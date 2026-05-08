@@ -61,10 +61,12 @@ export async function GET(request: NextRequest) {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const reviewsToday = await prisma.review.count({
+    // Compter chaque révision individuelle d'aujourd'hui via ReviewEvent
+    // (Review.lastReview ne garde que la dernière review par carte)
+    const reviewsToday = await prisma.reviewEvent.count({
       where: {
         userId: user.id,
-        lastReview: {
+        createdAt: {
           gte: today,
           lt: tomorrow,
         },

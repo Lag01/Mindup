@@ -107,6 +107,8 @@ export async function GET(
     `;
 
     // Requête pour l'historique complet (max 180 jours)
+    // Basé sur ReviewEvent.createdAt : compte chaque révision individuelle,
+    // contrairement à Review.lastReview qui n'enregistre que la dernière révision par carte.
     const maxHistoryDays = 180;
     const oldestDate = new Date(today);
     oldestDate.setDate(oldestDate.getDate() - maxHistoryDays);
@@ -116,14 +118,14 @@ export async function GET(
       count: bigint;
     }>>`
       SELECT
-        DATE(r."lastReview") as "date",
+        DATE(re."createdAt") as "date",
         COUNT(*) as "count"
-      FROM "Card" c
-      INNER JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
+      FROM "ReviewEvent" re
+      INNER JOIN "Card" c ON c.id = re."cardId"
       WHERE c."deckId" = ${deckId}
-        AND r."lastReview" >= ${oldestDate}
-        AND r."lastReview" IS NOT NULL
-      GROUP BY DATE(r."lastReview")
+        AND re."userId" = ${user.id}
+        AND re."createdAt" >= ${oldestDate}
+      GROUP BY DATE(re."createdAt")
       ORDER BY "date" ASC
     `;
 
@@ -214,6 +216,8 @@ export async function GET(
     `;
 
     // 3. Comparaison période précédente
+    // Basée sur ReviewEvent : compte chaque réponse individuelle dans la fenêtre,
+    // au lieu de Review.lastReview qui rattache tous les cumuls à la dernière review.
     const reviewComparison = await prisma.$queryRaw<Array<{
       reviewsToday: bigint;
       reviewsYesterday: bigint;
@@ -223,27 +227,29 @@ export async function GET(
       successRatePreviousWeek: number | null;
     }>>`
       SELECT
-        COUNT(CASE WHEN r."lastReview" >= ${today} THEN 1 END) as "reviewsToday",
-        COUNT(CASE WHEN r."lastReview" >= ${yesterday} AND r."lastReview" < ${today} THEN 1 END) as "reviewsYesterday",
-        COUNT(CASE WHEN r."lastReview" >= ${weekAgo} THEN 1 END) as "reviewsThisWeek",
-        COUNT(CASE WHEN r."lastReview" >= ${twoWeeksAgo} AND r."lastReview" < ${weekAgo} THEN 1 END) as "reviewsPreviousWeek",
+        COUNT(CASE WHEN re."createdAt" >= ${today} THEN 1 END) as "reviewsToday",
+        COUNT(CASE WHEN re."createdAt" >= ${yesterday} AND re."createdAt" < ${today} THEN 1 END) as "reviewsYesterday",
+        COUNT(CASE WHEN re."createdAt" >= ${weekAgo} THEN 1 END) as "reviewsThisWeek",
+        COUNT(CASE WHEN re."createdAt" >= ${twoWeeksAgo} AND re."createdAt" < ${weekAgo} THEN 1 END) as "reviewsPreviousWeek",
 
         CASE
-          WHEN SUM(CASE WHEN r."lastReview" >= ${weekAgo} THEN r.reps ELSE 0 END) > 0
-          THEN (SUM(CASE WHEN r."lastReview" >= ${weekAgo} THEN r."goodCount" + r."easyCount" ELSE 0 END)::float /
-                SUM(CASE WHEN r."lastReview" >= ${weekAgo} THEN r.reps ELSE 0 END)) * 100
+          WHEN COUNT(CASE WHEN re."createdAt" >= ${weekAgo} THEN 1 END) > 0
+          THEN (COUNT(CASE WHEN re."createdAt" >= ${weekAgo} AND re."rating" IN ('good', 'easy') THEN 1 END)::float /
+                COUNT(CASE WHEN re."createdAt" >= ${weekAgo} THEN 1 END)) * 100
           ELSE NULL
         END as "successRateThisWeek",
 
         CASE
-          WHEN SUM(CASE WHEN r."lastReview" >= ${twoWeeksAgo} AND r."lastReview" < ${weekAgo} THEN r.reps ELSE 0 END) > 0
-          THEN (SUM(CASE WHEN r."lastReview" >= ${twoWeeksAgo} AND r."lastReview" < ${weekAgo} THEN r."goodCount" + r."easyCount" ELSE 0 END)::float /
-                SUM(CASE WHEN r."lastReview" >= ${twoWeeksAgo} AND r."lastReview" < ${weekAgo} THEN r.reps ELSE 0 END)) * 100
+          WHEN COUNT(CASE WHEN re."createdAt" >= ${twoWeeksAgo} AND re."createdAt" < ${weekAgo} THEN 1 END) > 0
+          THEN (COUNT(CASE WHEN re."createdAt" >= ${twoWeeksAgo} AND re."createdAt" < ${weekAgo} AND re."rating" IN ('good', 'easy') THEN 1 END)::float /
+                COUNT(CASE WHEN re."createdAt" >= ${twoWeeksAgo} AND re."createdAt" < ${weekAgo} THEN 1 END)) * 100
           ELSE NULL
         END as "successRatePreviousWeek"
-      FROM "Card" c
-      LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
+      FROM "ReviewEvent" re
+      INNER JOIN "Card" c ON c.id = re."cardId"
       WHERE c."deckId" = ${deckId}
+        AND re."userId" = ${user.id}
+        AND re."createdAt" >= ${twoWeeksAgo}
     `;
 
     const comparison = reviewComparison[0];
@@ -374,8 +380,8 @@ export async function GET(
       },
       difficultCards: Number(mainStats.difficultCards),
       masteredCards: Number(mainStats.masteredCards),
-      reviewsToday: Number(mainStats.reviewsToday),
-      reviewsThisWeek: Number(mainStats.reviewsThisWeek),
+      reviewsToday: reviewsTodayNum,
+      reviewsThisWeek: reviewsThisWeekNum,
       reviewHistory,
       learningMethod: deck.learningMethod,
       currentStreak,
