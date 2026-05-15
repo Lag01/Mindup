@@ -5,101 +5,42 @@ import { updateReviewStats, Rating } from '@/lib/revision';
 import { updateAnkiReviewStats, AnkiRating, CardStatus } from '@/lib/anki';
 import { updateUserStreak } from '@/lib/streak';
 
-export async function GET(request: NextRequest) {
-  try {
-    const user = await getCurrentUser();
+interface RawCard {
+  id: string;
+  front: string;
+  back: string;
+  frontType: string;
+  backType: string;
+  frontImage: string | null;
+  backImage: string | null;
+  order: number;
+  reviewId: string | null;
+  reps: number | null;
+  againCount: number | null;
+  hardCount: number | null;
+  goodCount: number | null;
+  easyCount: number | null;
+  lastReview: Date | null;
+  interval: number | null;
+  nextReview: Date | null;
+  easeFactor: number | null;
+  stability: number | null;
+  difficulty: number | null;
+  lapses: number | null;
+  status: string | null;
+}
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const deckId = searchParams.get('deckId');
-
-    if (!deckId) {
-      return NextResponse.json(
-        { error: 'ID du deck requis' },
-        { status: 400 }
-      );
-    }
-
-    // Verify deck belongs to user and get learning method
-    const deck = await prisma.deck.findFirst({
-      where: {
-        id: deckId,
-        userId: user.id,
-      },
-      select: {
-        id: true,
-        learningMethod: true,
-      },
-    });
-
-    if (!deck) {
-      return NextResponse.json(
-        { error: 'Deck non trouvé' },
-        { status: 404 }
-      );
-    }
-
-    // Get cards from the deck
-    // For ANKI method: filter by cards due (nextReview <= today OR never reviewed)
-    // For IMMEDIATE method: get all cards
-    let cards;
-
-    if (deck.learningMethod === 'ANKI') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // Requête SQL directe avec LEFT JOIN pour filtrer en SQL (pas en JS)
-      const rawCards = await prisma.$queryRaw<Array<{
-        id: string;
-        front: string;
-        back: string;
-        frontType: string;
-        backType: string;
-        frontImage: string | null;
-        backImage: string | null;
-        order: number;
-        reviewId: string | null;
-        reps: number | null;
-        againCount: number | null;
-        hardCount: number | null;
-        goodCount: number | null;
-        easyCount: number | null;
-        lastReview: Date | null;
-        interval: number | null;
-        nextReview: Date | null;
-        easeFactor: number | null;
-        status: string | null;
-      }>>`
-        SELECT
-          c.id, c.front, c.back,
-          c."frontType", c."backType",
-          c."frontImage", c."backImage",
-          c."order",
-          r.id AS "reviewId",
-          r.reps, r."againCount", r."hardCount", r."goodCount", r."easyCount",
-          r."lastReview", r.interval, r."nextReview", r."easeFactor", r.status
-        FROM "Card" c
-        LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
-        WHERE c."deckId" = ${deckId}
-          AND (r.id IS NULL OR r."nextReview" IS NULL OR r."nextReview" <= ${today})
-        ORDER BY c."order" ASC
-      `;
-
-      cards = rawCards.map(row => ({
-        id: row.id,
-        front: row.front,
-        back: row.back,
-        frontType: row.frontType,
-        backType: row.backType,
-        frontImage: row.frontImage,
-        backImage: row.backImage,
-        reviews: row.reviewId ? [{
+function mapRawCard(row: RawCard) {
+  return {
+    id: row.id,
+    front: row.front,
+    back: row.back,
+    frontType: row.frontType,
+    backType: row.backType,
+    frontImage: row.frontImage,
+    backImage: row.backImage,
+    review: row.reviewId
+      ? {
           id: row.reviewId,
           reps: row.reps,
           againCount: row.againCount,
@@ -110,41 +51,161 @@ export async function GET(request: NextRequest) {
           interval: row.interval,
           nextReview: row.nextReview,
           easeFactor: row.easeFactor,
+          stability: row.stability,
+          difficulty: row.difficulty,
+          lapses: row.lapses,
           status: row.status,
-        }] : [],
-      }));
-    } else {
-      // IMMEDIATE method: Get ALL cards (not filtered by due date)
-      cards = await prisma.card.findMany({
-        where: {
-          deckId: deckId,
-        },
+        }
+      : null,
+  };
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const deckId = searchParams.get('deckId');
+
+    if (!deckId) {
+      return NextResponse.json({ error: 'ID du deck requis' }, { status: 400 });
+    }
+
+    const deck = await prisma.deck.findFirst({
+      where: { id: deckId, userId: user.id },
+      select: {
+        id: true,
+        learningMethod: true,
+        newCardsPerDay: true,
+        maxReviewsPerDay: true,
+      },
+    });
+
+    if (!deck) {
+      return NextResponse.json({ error: 'Deck non trouvé' }, { status: 404 });
+    }
+
+    if (deck.learningMethod !== 'ANKI') {
+      // Mode IMMEDIATE : retourner toutes les cartes sans filtre
+      const cards = await prisma.card.findMany({
+        where: { deckId },
         include: {
-          reviews: {
-            where: {
-              userId: user.id,
-            },
-            take: 1,
-          },
+          reviews: { where: { userId: user.id }, take: 1 },
         },
-        orderBy: {
-          order: 'asc', // Keep the original card order
-        },
+        orderBy: { order: 'asc' },
+      });
+
+      return NextResponse.json({
+        cards: cards.map(card => ({
+          id: card.id,
+          front: card.front,
+          back: card.back,
+          frontType: card.frontType,
+          backType: card.backType,
+          frontImage: card.frontImage,
+          backImage: card.backImage,
+          review: card.reviews[0] || null,
+        })),
+        learningMethod: deck.learningMethod,
       });
     }
 
+    // --- Mode ANKI ---
+    const now = new Date();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const customStudy = searchParams.get('customStudy') === 'true';
+
+    // Compter les cartes déjà révisées aujourd'hui (cartes distinctes)
+    const [doneReviewsResult, doneNewResult] = await Promise.all([
+      prisma.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(DISTINCT re."cardId") AS count
+        FROM "ReviewEvent" re
+        JOIN "Card" c ON c.id = re."cardId"
+        WHERE re."userId" = ${user.id}
+          AND c."deckId" = ${deckId}
+          AND re."createdAt" >= ${todayStart}
+      `,
+      // Nouvelles cartes = Review créé aujourd'hui (première révision de la carte)
+      prisma.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(DISTINCT re."cardId") AS count
+        FROM "ReviewEvent" re
+        JOIN "Card" c ON c.id = re."cardId"
+        JOIN "Review" r ON r."cardId" = re."cardId" AND r."userId" = re."userId"
+        WHERE re."userId" = ${user.id}
+          AND c."deckId" = ${deckId}
+          AND re."createdAt" >= ${todayStart}
+          AND r."createdAt" >= ${todayStart}
+      `,
+    ]);
+
+    const reviewsDoneToday = Number(doneReviewsResult[0].count);
+    const newCardsDoneToday = Number(doneNewResult[0].count);
+
+    const reviewBudget = customStudy
+      ? 99999
+      : Math.max(0, deck.maxReviewsPerDay - reviewsDoneToday);
+    const newBudget = customStudy
+      ? 99999
+      : Math.max(0, deck.newCardsPerDay - newCardsDoneToday);
+
+    // Récupérer les cartes de révision (LEARNING / REVIEW / RELEARNING, dues maintenant)
+    const reviewCards: RawCard[] =
+      reviewBudget > 0
+        ? await prisma.$queryRaw<RawCard[]>`
+            SELECT c.id, c.front, c.back,
+                   c."frontType", c."backType",
+                   c."frontImage", c."backImage", c."order",
+                   r.id AS "reviewId",
+                   r.reps, r."againCount", r."hardCount", r."goodCount", r."easyCount",
+                   r."lastReview", r.interval, r."nextReview", r."easeFactor",
+                   r.stability, r.difficulty, r.lapses, r.status
+            FROM "Card" c
+            JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
+            WHERE c."deckId" = ${deckId}
+              AND r.status IN ('LEARNING', 'REVIEW', 'RELEARNING')
+              AND r."nextReview" <= ${now}
+            ORDER BY r."nextReview" ASC
+            LIMIT ${reviewBudget}
+          `
+        : [];
+
+    // Récupérer les nouvelles cartes (jamais vues ou status=NEW)
+    const newCards: RawCard[] =
+      newBudget > 0
+        ? await prisma.$queryRaw<RawCard[]>`
+            SELECT c.id, c.front, c.back,
+                   c."frontType", c."backType",
+                   c."frontImage", c."backImage", c."order",
+                   r.id AS "reviewId",
+                   r.reps, r."againCount", r."hardCount", r."goodCount", r."easyCount",
+                   r."lastReview", r.interval, r."nextReview", r."easeFactor",
+                   r.stability, r.difficulty, r.lapses, r.status
+            FROM "Card" c
+            LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
+            WHERE c."deckId" = ${deckId}
+              AND (r.id IS NULL OR r.status = 'NEW')
+            ORDER BY c."order" ASC
+            LIMIT ${newBudget}
+          `
+        : [];
+
+    const allCards = [...reviewCards, ...newCards];
+
     return NextResponse.json({
-      cards: cards.map(card => ({
-        id: card.id,
-        front: card.front,
-        back: card.back,
-        frontType: card.frontType,
-        backType: card.backType,
-        frontImage: card.frontImage,
-        backImage: card.backImage,
-        review: card.reviews[0] || null,
-      })),
+      cards: allCards.map(mapRawCard),
       learningMethod: deck.learningMethod,
+      meta: {
+        newCount: newCards.length,
+        reviewCount: reviewCards.length,
+        newBudget,
+        reviewBudget,
+        customStudy,
+      },
     });
   } catch (error) {
     console.error('Get review cards error:', error);
@@ -160,49 +221,26 @@ export async function POST(request: NextRequest) {
     const user = await getCurrentUser();
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
     const body = await request.json();
     const { cardId, rating } = body;
 
     if (!cardId || !rating) {
-      return NextResponse.json(
-        { error: 'cardId et rating requis' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'cardId et rating requis' }, { status: 400 });
     }
 
     if (!['again', 'hard', 'good', 'easy'].includes(rating)) {
-      return NextResponse.json(
-        { error: 'Rating invalide' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Rating invalide' }, { status: 400 });
     }
 
-    // Get or create review
     let currentReview = await prisma.review.findUnique({
-      where: {
-        cardId_userId: {
-          cardId,
-          userId: user.id,
-        },
-      },
-      include: {
-        card: {
-          include: {
-            deck: true,
-          },
-        },
-      },
+      where: { cardId_userId: { cardId, userId: user.id } },
+      include: { card: { include: { deck: true } } },
     });
 
-    // If no review exists, create one
     if (!currentReview) {
-      // Verify card exists and belongs to user's deck
       const card = await prisma.card.findUnique({
         where: { id: cardId },
         include: { deck: true },
@@ -216,40 +254,19 @@ export async function POST(request: NextRequest) {
       }
 
       currentReview = await prisma.review.create({
-        data: {
-          cardId,
-          userId: user.id,
-          reps: 0,
-          againCount: 0,
-          hardCount: 0,
-          goodCount: 0,
-          easyCount: 0,
-        },
-        include: {
-          card: {
-            include: {
-              deck: true,
-            },
-          },
-        },
+        data: { cardId, userId: user.id },
+        include: { card: { include: { deck: true } } },
       });
     }
 
-    // Verify deck belongs to user
     if (currentReview.card.deck.userId !== user.id) {
-      return NextResponse.json(
-        { error: 'Accès non autorisé' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
     }
 
-    // Determine which algorithm to use based on deck's learning method
     const learningMethod = currentReview.card.deck.learningMethod;
 
-    // Utiliser une transaction pour garantir la cohérence des données
     await prisma.$transaction(async (tx) => {
       if (learningMethod === 'ANKI') {
-        // Use Anki algorithm
         const ankiStats = updateAnkiReviewStats(
           {
             reps: currentReview.reps,
@@ -261,19 +278,16 @@ export async function POST(request: NextRequest) {
             interval: currentReview.interval,
             nextReview: currentReview.nextReview,
             easeFactor: currentReview.easeFactor,
+            stability: currentReview.stability,
+            difficulty: currentReview.difficulty,
+            lapses: currentReview.lapses,
             status: (currentReview.status as CardStatus) || 'NEW',
           },
           rating as AnkiRating
         );
 
-        // Update review with Anki-specific fields
         await tx.review.update({
-          where: {
-            cardId_userId: {
-              cardId,
-              userId: user.id,
-            },
-          },
+          where: { cardId_userId: { cardId, userId: user.id } },
           data: {
             reps: ankiStats.reps,
             againCount: ankiStats.againCount,
@@ -284,11 +298,13 @@ export async function POST(request: NextRequest) {
             interval: ankiStats.interval,
             nextReview: ankiStats.nextReview,
             easeFactor: ankiStats.easeFactor,
+            stability: ankiStats.stability,
+            difficulty: ankiStats.difficulty,
+            lapses: ankiStats.lapses,
             status: ankiStats.status,
           },
         });
       } else {
-        // Use IMMEDIATE algorithm (current behavior)
         const newStats = updateReviewStats(
           {
             reps: currentReview.reps,
@@ -301,14 +317,8 @@ export async function POST(request: NextRequest) {
           rating as Rating
         );
 
-        // Update review in database
         await tx.review.update({
-          where: {
-            cardId_userId: {
-              cardId,
-              userId: user.id,
-            },
-          },
+          where: { cardId_userId: { cardId, userId: user.id } },
           data: {
             reps: newStats.reps,
             againCount: newStats.againCount,
@@ -320,21 +330,12 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Common code for both methods
       const updatedReview = await tx.review.findUnique({
-        where: {
-          cardId_userId: {
-            cardId,
-            userId: user.id,
-          },
-        },
+        where: { cardId_userId: { cardId, userId: user.id } },
       });
 
-      if (!updatedReview) {
-        throw new Error('Review not found after update');
-      }
+      if (!updatedReview) throw new Error('Review not found after update');
 
-      // Créer un événement de révision pour le tracking du leaderboard
       await tx.reviewEvent.create({
         data: {
           reviewId: updatedReview.id,
@@ -344,20 +345,12 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Increment user's reviewed cards counter
       await tx.user.update({
-        where: {
-          id: user.id,
-        },
-        data: {
-          reviewedCardsCount: {
-            increment: 1,
-          },
-        },
+        where: { id: user.id },
+        data: { reviewedCardsCount: { increment: 1 } },
       });
     });
 
-    // Mettre à jour le streak de l'utilisateur après la révision
     try {
       await updateUserStreak(user.id);
     } catch (streakError) {

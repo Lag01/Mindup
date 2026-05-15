@@ -31,6 +31,7 @@ enum CardStatus {
   NEW
   LEARNING
   REVIEW
+  RELEARNING
 }
 
 model User {
@@ -73,6 +74,10 @@ model Deck {
   name           String
   createdAt      DateTime        @default(now())
   learningMethod LearningMethod  @default(IMMEDIATE)
+
+  // Limites quotidiennes FSRS
+  newCardsPerDay   Int  @default(20)
+  maxReviewsPerDay Int  @default(200)
 
   // Champs pour les decks publics
   isPublic       Boolean  @default(false)     // Indique si le deck est public
@@ -121,11 +126,14 @@ model Review {
   easyCount   Int       @default(0)        // Number of "Easy" responses
   lastReview  DateTime?                    // Last review timestamp
 
-  // Anki-specific fields
-  interval    Int?                         // Current interval in days (Anki)
-  nextReview  DateTime?                    // Next review date (Anki)
-  easeFactor  Float     @default(2.5)      // Ease factor (Anki)
-  status      CardStatus @default(NEW)     // Card status (Anki)
+  // FSRS fields
+  interval    Int?                         // Current interval in days
+  nextReview  DateTime?                    // Next review date
+  easeFactor  Float     @default(2.5)      // Obsolète (SM-2), conservé pour compatibilité
+  stability   Float     @default(0)        // Stabilité mémoire FSRS (en jours)
+  difficulty  Float     @default(0)        // Difficulté FSRS (échelle 1-10)
+  lapses      Int       @default(0)        // Nombre d'oublis (état RELEARNING)
+  status      CardStatus @default(NEW)     // État de la carte
 
   // Metadata
   createdAt   DateTime  @default(now())
@@ -140,6 +148,7 @@ model Review {
   @@index([userId])
   @@index([nextReview])
   @@index([userId, lastReview])
+  @@index([userId, createdAt])
 }
 
 model AppSettings {

@@ -230,7 +230,8 @@ export default function ReviewV2() {
     try {
       const mode: 'study' | 'review' = isStudyMode ? 'study' : 'review';
 
-      const response = await fetch(`/api/review?deckId=${deckId}`);
+      const customStudy = searchParams.get('customStudy') === 'true';
+      const response = await fetch(`/api/review?deckId=${deckId}${customStudy ? '&customStudy=true' : ''}`);
       if (!response.ok) {
         if (response.status === 401) {
           router.push('/');
@@ -572,6 +573,14 @@ export default function ReviewV2() {
             >
               Retour au dashboard
             </button>
+            {searchParams.get('customStudy') !== 'true' && (
+              <button
+                onClick={() => router.push(`/deck/${deckId}/review?customStudy=true`)}
+                className="bg-gradient-to-r from-cyan-700 to-cyan-600 hover:from-cyan-600 hover:to-cyan-500 text-white font-medium px-6 py-3 rounded-lg transition-all shadow-lg shadow-cyan-500/20"
+              >
+                Réviser plus
+              </button>
+            )}
             <button
               onClick={() => router.push(`/deck/${deckId}/review?mode=study`)}
               className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-medium px-6 py-3 rounded-lg transition-all shadow-lg shadow-purple-500/20"
@@ -627,7 +636,14 @@ export default function ReviewV2() {
                 {isStudyMode
                   ? 'Navigation libre'
                   : learningMethod === 'ANKI'
-                    ? `${cardQueue.length} carte${cardQueue.length > 1 ? 's' : ''} restante${cardQueue.length > 1 ? 's' : ''}`
+                    ? (() => {
+                        const nNew = cardQueue.filter(c => !c.review || (c.review as any).status === 'NEW').length;
+                        const nReview = cardQueue.length - nNew;
+                        const parts = [];
+                        if (nReview > 0) parts.push(`${nReview} révision${nReview > 1 ? 's' : ''}`);
+                        if (nNew > 0) parts.push(`${nNew} nouvelle${nNew > 1 ? 's' : ''}`);
+                        return parts.join(' · ') || 'Aucune carte';
+                      })()
                     : 'Session continue'
                 }
               </div>

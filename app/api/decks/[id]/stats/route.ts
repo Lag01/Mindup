@@ -71,8 +71,10 @@ export async function GET(
       ankiNew: bigint;
       ankiLearning: bigint;
       ankiReview: bigint;
+      ankiRelearning: bigint;
       ankiDueToday: bigint;
       avgInterval: number | null;
+      avgStability: number | null;
     }>>`
       SELECT
         COUNT(*) as "totalCards",
@@ -95,12 +97,14 @@ export async function GET(
         COUNT(CASE WHEN r."lastReview" >= ${today} THEN 1 END) as "reviewsToday",
         COUNT(CASE WHEN r."lastReview" >= ${weekAgo} THEN 1 END) as "reviewsThisWeek",
 
-        -- Stats ANKI
+        -- Stats ANKI / FSRS
         COUNT(CASE WHEN r."status" = 'NEW' THEN 1 END) as "ankiNew",
         COUNT(CASE WHEN r."status" = 'LEARNING' THEN 1 END) as "ankiLearning",
         COUNT(CASE WHEN r."status" = 'REVIEW' THEN 1 END) as "ankiReview",
-        COUNT(CASE WHEN r."nextReview" <= CURRENT_DATE THEN 1 END) as "ankiDueToday",
-        AVG(r."interval") as "avgInterval"
+        COUNT(CASE WHEN r."status" = 'RELEARNING' THEN 1 END) as "ankiRelearning",
+        COUNT(CASE WHEN r."nextReview" <= NOW() THEN 1 END) as "ankiDueToday",
+        AVG(r."interval") as "avgInterval",
+        AVG(CASE WHEN r.stability > 0 THEN r.stability END) as "avgStability"
       FROM "Card" c
       LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
       WHERE c."deckId" = ${deckId}
@@ -390,8 +394,10 @@ export async function GET(
         new: Number(mainStats.ankiNew),
         learning: Number(mainStats.ankiLearning),
         review: Number(mainStats.ankiReview),
+        relearning: Number(mainStats.ankiRelearning),
         dueToday: Number(mainStats.ankiDueToday),
         avgInterval: mainStats.avgInterval ? Math.round(mainStats.avgInterval) : 0,
+        avgStability: mainStats.avgStability ? Math.round(mainStats.avgStability * 10) / 10 : 0,
       } : null,
 
       // Nouvelles métriques enrichies

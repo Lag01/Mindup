@@ -20,15 +20,23 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const { id: deckId } = await context.params;
     const body = await request.json();
-    const { learningMethod } = body;
+    const { learningMethod, newCardsPerDay, maxReviewsPerDay } = body;
 
-    // Validation de la méthode d'apprentissage
-    if (!learningMethod || !['IMMEDIATE', 'ANKI'].includes(learningMethod)) {
+    if (learningMethod && !['IMMEDIATE', 'ANKI'].includes(learningMethod)) {
       return NextResponse.json(
         { error: 'Méthode d\'apprentissage invalide' },
         { status: 400 }
       );
     }
+
+    const validatedNewCardsPerDay =
+      typeof newCardsPerDay === 'number' && newCardsPerDay >= 1
+        ? Math.round(newCardsPerDay)
+        : undefined;
+    const validatedMaxReviewsPerDay =
+      typeof maxReviewsPerDay === 'number' && maxReviewsPerDay >= 1
+        ? Math.round(maxReviewsPerDay)
+        : undefined;
 
     // Vérifier que le deck existe et appartient à l'utilisateur
     const deck = await prisma.deck.findFirst({
@@ -49,31 +57,24 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Si changement de méthode : réinitialiser toutes les statistiques
-    if (deck.learningMethod !== learningMethod) {
-      await prisma.$transaction([
-        // Supprimer toutes les reviews du deck pour cet utilisateur
-        prisma.review.deleteMany({
-          where: {
-            userId: user.id,
-            card: {
-              deckId: deckId,
-            },
-          },
-        }),
+    const methodChanged = learningMethod && deck.learningMethod !== learningMethod;
 
-        // Mettre à jour la méthode d'apprentissage
+    if (methodChanged) {
+      // Changement de méthode : réinitialiser toutes les statistiques
+      await prisma.$transaction([
+        prisma.review.deleteMany({
+          where: { userId: user.id, card: { deckId } },
+        }),
         prisma.deck.update({
-          where: {
-            id: deckId,
-          },
+          where: { id: deckId },
           data: {
-            learningMethod: learningMethod,
+            learningMethod,
+            ...(validatedNewCardsPerDay !== undefined ? { newCardsPerDay: validatedNewCardsPerDay } : {}),
+            ...(validatedMaxReviewsPerDay !== undefined ? { maxReviewsPerDay: validatedMaxReviewsPerDay } : {}),
           },
         }),
       ]);
 
-      // Recalculer le streak après changement de méthode (ReviewEvent supprimés)
       try {
         await updateUserStreak(user.id);
       } catch (streakError) {
@@ -85,14 +86,24 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         message: 'Méthode d\'apprentissage modifiée et statistiques réinitialisées',
         methodChanged: true,
       });
-    } else {
-      // Pas de changement, juste confirmation
-      return NextResponse.json({
-        success: true,
-        message: 'Aucun changement nécessaire',
-        methodChanged: false,
+    }
+
+    // Mise à jour des limites uniquement (sans réinitialisation)
+    if (validatedNewCardsPerDay !== undefined || validatedMaxReviewsPerDay !== undefined) {
+      await prisma.deck.update({
+        where: { id: deckId },
+        data: {
+          ...(validatedNewCardsPerDay !== undefined ? { newCardsPerDay: validatedNewCardsPerDay } : {}),
+          ...(validatedMaxReviewsPerDay !== undefined ? { maxReviewsPerDay: validatedMaxReviewsPerDay } : {}),
+        },
       });
     }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Paramètres mis à jour',
+      methodChanged: false,
+    });
   } catch (error) {
     console.error('Update deck settings error:', error);
     return NextResponse.json(

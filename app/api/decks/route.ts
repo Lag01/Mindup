@@ -25,12 +25,15 @@ export async function GET() {
       isPublic: boolean;
       originalDeckId: string | null;
       learningMethod: string;
+      newCardsPerDay: number;
+      maxReviewsPerDay: number;
       totalCards: bigint;
       notStarted: bigint;
       totalReviews: bigint | null;
       ankiNew: bigint | null;
       ankiLearning: bigint | null;
       ankiReview: bigint | null;
+      ankiRelearning: bigint | null;
       ankiDue: bigint | null;
     }>>`
       SELECT
@@ -40,6 +43,8 @@ export async function GET() {
         d."isPublic",
         d."originalDeckId",
         d."learningMethod",
+        d."newCardsPerDay",
+        d."maxReviewsPerDay",
         COUNT(DISTINCT c.id) as "totalCards",
         COUNT(DISTINCT CASE WHEN r.reps IS NULL OR r.reps = 0 THEN c.id END) as "notStarted",
         COUNT(DISTINCT re.id) as "totalReviews",
@@ -58,7 +63,11 @@ export async function GET() {
           THEN c.id
         END) as "ankiReview",
         COUNT(DISTINCT CASE
-          WHEN d."learningMethod" = 'ANKI' AND (r."nextReview" IS NULL OR r."nextReview" <= CURRENT_DATE)
+          WHEN d."learningMethod" = 'ANKI' AND r."status" = 'RELEARNING'
+          THEN c.id
+        END) as "ankiRelearning",
+        COUNT(DISTINCT CASE
+          WHEN d."learningMethod" = 'ANKI' AND (r."nextReview" IS NULL OR r."nextReview" <= NOW())
           THEN c.id
         END) as "ankiDue"
 
@@ -67,7 +76,8 @@ export async function GET() {
       LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
       LEFT JOIN "ReviewEvent" re ON re."cardId" = c.id AND re."userId" = ${user.id}
       WHERE d."userId" = ${user.id}
-      GROUP BY d.id, d.name, d."createdAt", d."isPublic", d."originalDeckId", d."learningMethod"
+      GROUP BY d.id, d.name, d."createdAt", d."isPublic", d."originalDeckId", d."learningMethod",
+               d."newCardsPerDay", d."maxReviewsPerDay"
       ORDER BY d."createdAt" DESC
     `;
 
@@ -77,6 +87,8 @@ export async function GET() {
       name: deck.name,
       createdAt: deck.createdAt,
       learningMethod: deck.learningMethod,
+      newCardsPerDay: deck.newCardsPerDay,
+      maxReviewsPerDay: deck.maxReviewsPerDay,
       totalCards: Number(deck.totalCards),
       notStarted: Number(deck.notStarted),
       totalReviews: Number(deck.totalReviews),
@@ -88,6 +100,7 @@ export async function GET() {
         new: Number(deck.ankiNew),
         learning: Number(deck.ankiLearning),
         review: Number(deck.ankiReview),
+        relearning: Number(deck.ankiRelearning),
         due: Number(deck.ankiDue),
       } : null,
     }));

@@ -234,7 +234,8 @@ export default function ReviewV1() {
     try {
       const mode: 'study' | 'review' = isStudyMode ? 'study' : 'review';
 
-      const response = await fetch(`/api/review?deckId=${deckId}`);
+      const customStudy = searchParams.get('customStudy') === 'true';
+      const response = await fetch(`/api/review?deckId=${deckId}${customStudy ? '&customStudy=true' : ''}`);
       if (!response.ok) {
         if (response.status === 401) {
           router.push('/');
@@ -557,6 +558,14 @@ export default function ReviewV1() {
             >
               Retour au dashboard
             </button>
+            {searchParams.get('customStudy') !== 'true' && (
+              <button
+                onClick={() => router.push(`/deck/${deckId}/review?customStudy=true`)}
+                className="bg-cyan-700 hover:bg-cyan-600 text-white font-medium px-6 py-3 rounded-lg transition-colors"
+              >
+                Réviser plus
+              </button>
+            )}
             <button
               onClick={() => router.push(`/deck/${deckId}/review?mode=study`)}
               className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
@@ -607,7 +616,14 @@ export default function ReviewV1() {
                 {isStudyMode
                   ? 'Navigation libre'
                   : learningMethod === 'ANKI'
-                    ? `${cardQueue.length} carte${cardQueue.length > 1 ? 's' : ''} à réviser aujourd'hui`
+                    ? (() => {
+                        const nNew = cardQueue.filter(c => !c.review || (c.review as any).status === 'NEW').length;
+                        const nReview = cardQueue.length - nNew;
+                        const parts = [];
+                        if (nReview > 0) parts.push(`${nReview} révision${nReview > 1 ? 's' : ''}`);
+                        if (nNew > 0) parts.push(`${nNew} nouvelle${nNew > 1 ? 's' : ''}`);
+                        return parts.join(' · ') || 'Aucune carte';
+                      })()
                     : `Session continue • ${sessionStats.total} cartes révisées`
                 }
               </div>
