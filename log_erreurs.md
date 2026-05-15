@@ -123,3 +123,97 @@ Un Service Worker qui cache aveuglément toutes les réponses GET est un piège 
 - Ne pas cacher le HTML de navigation autrement qu'avec un fallback offline.
 - Laisser les assets versionnés (Next.js `_next/static/*`) au cache HTTP du browser (déjà optimal).
 - Bumper `CACHE_NAME` à chaque modification structurelle du SW pour forcer l'invalidation côté clients.
+
+---
+
+## Migration FSRS-5 : migration Prisma manquante (16/05/2026)
+
+### Symptôme
+Après le commit `528cf9d` (migration SM-2 → FSRS-5), `prisma/schema.prisma` contenait les nouveaux champs (`stability`, `difficulty`, `lapses`, valeur enum `RELEARNING`, `newCardsPerDay`, `maxReviewsPerDay`) mais le dossier `prisma/migrations/` n'avait pas de fichier de migration correspondant. Toute requête FSRS en production aurait planté avec `column "stability" does not exist` ou `invalid input value for enum "CardStatus": "RELEARNING"`.
+
+### Cause racine
+Le commit a probablement été testé localement avec `prisma db push` (qui synchronise le schéma sans créer de migration) au lieu de `prisma migrate dev` qui génère le `.sql` versionné.
+
+### Solution implémentée
+Création manuelle de `prisma/migrations/20260516000000_add_fsrs5_fields/migration.sql` avec :
+- `ALTER TYPE "CardStatus" ADD VALUE 'RELEARNING';`
+- `ALTER TABLE "Review" ADD COLUMN "stability"/"difficulty"/"lapses"` avec leurs défauts.
+- `ALTER TABLE "Deck" ADD COLUMN "newCardsPerDay" DEFAULT 20, "maxReviewsPerDay" DEFAULT 200;`
+- Ajout du `migration_lock.toml` manquant (`provider = "postgresql"`).
+
+### Leçon
+**Toujours** utiliser `prisma migrate dev --name <description>` plutôt que `db push` quand on modifie le schéma sur une branche destinée au déploiement. `db push` ne génère pas de SQL versionné et brise la chaîne de migration en prod.
+
+---
+
+## Reset stats : champs FSRS non réinitialisés (16/05/2026)
+
+### Symptôme
+Après avoir réinitialisé les statistiques d'un deck ANKI, la première carte révisée recevait un intervalle aberrant (parfois plusieurs centaines de jours dès la première note "Good").
+
+### Cause racine
+`app/api/decks/[id]/reset-stats/route.ts` remettait `status = 'NEW'` mais conservait les anciennes valeurs de `stability`, `difficulty` et `lapses`. Le scheduler FSRS-5 utilise ces trois champs comme état d'entrée — il calculait donc l'intervalle suivant à partir d'un état "REVIEW maîtrisée" malgré le `status = 'NEW'` affiché côté UI.
+
+### Solution implémentée
+Ajout de `stability: 0, difficulty: 0, lapses: 0` dans le `data:` du `prisma.review.updateMany` du reset (`app/api/decks/[id]/reset-stats/route.ts:50-62`).
+
+### Leçon
+Quand on étend un modèle de données utilisé par un algorithme (FSRS lit 3 champs en plus de `status`), **toujours auditer tous les endpoints qui réinitialisent ou clonent ce modèle**. Un reset partiel laisse l'algorithme dans un état incohérent.
+
+---
+
+## Cartes legacy SM-2 corrompues par FSRS-5 (16/05/2026)
+
+### Symptôme
+Sur un deck ANKI créé avant la migration FSRS-5, les cartes déjà étudiées (status `LEARNING` ou `REVIEW`) produisaient au premier rating sous FSRS-5 un `interval` aberrant (parfois `NaN`, parfois plusieurs milliers de jours ou 0), avec un risque de stocker `stability = NaN` / `difficulty = NaN` en base — corrompant définitivement la carte.
+
+### Cause racine
+Les cartes héritées de SM-2 ont :
+- `status = 'LEARNING'` ou `'REVIEW'` (ancien classement SM-2)
+- `interval`, `easeFactor`, `nextReview` calibrés SM-2
+- **`stability = 0`, `difficulty = 0`** (valeurs par défaut de la migration FSRS-5)
+
+`ts-fsrs` reçoit alors un état impossible : `state ≠ New` mais `stability = 0`. La formule de retrievability `R = exp(-elapsed / stability)` devient `exp(-elapsed / 0) = exp(-Infinity) = 0` ou `NaN` selon l'implémentation. Le scheduler propage la valeur jusqu'aux champs de sortie.
+
+### Solution implémentée
+Détection dans `lib/anki.ts:updateAnkiReviewStats` :
+```ts
+const isLegacy =
+  currentStats.stability === 0 &&
+  (currentStats.status !== 'NEW' || currentStats.reps > 0);
+
+const card = isLegacy
+  ? createEmptyCard(now)  // Re-initialise via init_stability(grade)
+  : { /* état FSRS normal */ };
+```
+
+Au retour, les compteurs historiques (`reps`, `*Count`, `lapses`) sont préservés et incrémentés manuellement, FSRS ne gère que le scheduling (`stability`, `difficulty`, `interval`, `nextReview`, `status`).
+
+**Coût** : sur les cartes déjà avancées en SM-2, la première révision FSRS donne un intervalle court (~1 jour pour `good`), puis le scheduler reprend la main normalement à partir de la seconde révision.
+
+### Leçon
+Quand un algorithme change d'état interne (SM-2 → FSRS-5), **les valeurs par défaut de la migration SQL sont un piège**. `stability DEFAULT 0` est syntaxiquement valide mais sémantiquement invalide pour `state ≠ New`. Trois options possibles à l'avenir :
+1. Migration de données : initialiser `stability/difficulty` depuis `interval/easeFactor` (calcul inverse approximatif).
+2. Reset forcé : passer `status = 'NEW'` pour toutes les cartes lors de la migration (perte de progression visible).
+3. Détection runtime (choix retenu ici) : repérer l'état incohérent dans le code applicatif.
+
+L'option 3 est la plus sûre car réversible et n'impose pas de fenêtre de downtime.
+
+---
+
+## ReviewV1 : cartes ajoutées invisibles en session IMMEDIATE (16/05/2026)
+
+### Symptôme
+Sur le dashboard V1, en mode IMMEDIATE, ajouter une carte au deck pendant une session en cours ne la faisait pas apparaître après reload de la page de révision (alors que V2 l'affichait correctement).
+
+### Cause racine
+Lors d'un audit `Projet.md` de mai 2026, la correction "réinjection des nouvelles cartes" avait été appliquée à `ReviewV2.tsx` mais oubliée dans `ReviewV1.tsx`. V1 se contentait de filtrer les cartes supprimées sans ajouter celles ajoutées au deck.
+
+### Solution implémentée
+Recopie dans `ReviewV1.tsx:268-298` de la logique de V2 :
+- `syncedIds = new Set(...)` puis `newCards = data.cards.filter(c => !syncedIds.has(c.id))`.
+- Reconstitution `finalBaseDeck = [...syncedBaseDeck, ...newCards]`.
+- Fallback "démarrage frais" si `finalBaseDeck.length === 0`.
+
+### Leçon
+Quand deux composants partagent une logique (V1/V2 du même flux), toute correction doit être appliquée aux deux **en même temps**. Idéalement, extraire la logique partagée dans un hook ou un util (`/lib/session-restore.ts`) pour éviter ces divergences.

@@ -57,6 +57,9 @@ export async function POST(
         interval: null,
         nextReview: null,
         easeFactor: 2.5,
+        stability: 0,
+        difficulty: 0,
+        lapses: 0,
         status: 'NEW',
       },
     });

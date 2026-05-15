@@ -152,4 +152,54 @@ Application web de révision par flashcards avec système de révision immédiat
 
 ---
 
-**Dernière mise à jour** : 08/05/2026
+## Migration FSRS-5 (16/05/2026)
+
+### Objectif
+Offrir deux algorithmes de révision aux utilisateurs :
+- **Mode IMMEDIATE** (« rapide ») — file cyclique, cartes qui reviennent rapidement dans la session selon la note. Apprentissage rapide d'une notion, sans rétention long terme garantie.
+- **Mode ANKI** (« béton ») — algorithme **FSRS-5** (Free Spaced Repetition Scheduler, version 5) via la lib `ts-fsrs ^5.2.3`. Calendrier optimisé pour la mémorisation à long terme.
+
+### Architecture FSRS-5
+- `lib/anki.ts` instancie un scheduler FSRS-5 avec `enable_fuzz: true` (rétention cible figée à 0.9, poids `w` par défaut).
+- Chaque révision met à jour : `stability` (jours), `difficulty` (1-10), `lapses`, `status` (`NEW` / `LEARNING` / `REVIEW` / `RELEARNING`), `interval`, `nextReview`.
+- `lib/fsrs.ts` (ancien code mort SM-2) a été supprimé.
+- `easeFactor` est conservé dans le schéma pour compatibilité mais n'est plus utilisé par FSRS.
+
+### Limites quotidiennes par deck
+- `newCardsPerDay` (défaut **20**) — nombre de cartes neuves servies par jour.
+- `maxReviewsPerDay` (défaut **200**) — plafond total de révisions par jour.
+- **Comportement Anki-like** : les nouvelles cartes consomment aussi le budget `maxReviewsPerDay` (même `ReviewEvent`). Si `maxReviewsPerDay = 200` et que l'utilisateur étudie 20 nouvelles cartes, il reste `200 - 20 = 180` révisions disponibles pour les cartes en `LEARNING/REVIEW/RELEARNING`.
+- Réglables sans réinitialisation des stats via `DeckSettingsV1/V2`.
+
+### File de révision (`GET /api/review?deckId=...`)
+1. Priorité aux cartes dues (`status IN (LEARNING, REVIEW, RELEARNING)` et `nextReview <= NOW()`), triées par `nextReview ASC`, limitées au `reviewBudget` restant.
+2. Puis cartes neuves (`status = 'NEW'` ou pas de `Review`), triées par `order`, limitées au `newBudget` restant.
+3. Override `customStudy=true` : ignore les quotas (bouton **Réviser plus** en fin de session).
+
+### Stats deck enrichies
+- `ankiStats.relearning` : cartes en ré-apprentissage (oubliées).
+- `ankiStats.avgStability` : stabilité moyenne (jours) sur les cartes ayant `stability > 0`.
+- `ankiStats.dueToday` filtre désormais sur `nextReview <= NOW()` (horaire précis, pas `CURRENT_DATE`).
+
+### Bugs corrigés en même temps
+- **Migration Prisma manquante** : ajout de `prisma/migrations/20260516000000_add_fsrs5_fields/migration.sql` (les colonnes `stability/difficulty/lapses`, l'enum value `RELEARNING` et les colonnes `newCardsPerDay/maxReviewsPerDay` étaient dans `schema.prisma` mais sans migration SQL).
+- **Reset stats** : `app/api/decks/[id]/reset-stats/route.ts` remet maintenant à zéro `stability`, `difficulty`, `lapses` en plus des compteurs (sinon FSRS produit des intervalles aberrants après reset).
+- **Cartes legacy SM-2** : `lib/anki.ts` détecte les cartes héritées (status `LEARNING/REVIEW` mais `stability = 0`) et démarre proprement le scheduler FSRS via `createEmptyCard()` au premier passage, tout en préservant les compteurs historiques (`reps`, `*Count`, `lapses`). Évite les `retrievability = NaN` qui auraient corrompu les decks ANKI existants au premier rating.
+- **Régression V1** : `ReviewV1.tsx` aligné sur V2 — les cartes ajoutées au deck après le démarrage d'une session IMMEDIATE sont désormais réinjectées dans le `baseDeck` au reload.
+- **Types** : `AnkiStats` étendu (`relearning`, `avgStability`), `Review` étendu (`status`, champs FSRS), `(c.review as any).status` nettoyé.
+
+### Comportement de transition pour les decks ANKI existants
+Les decks créés avant la migration FSRS-5 contiennent des cartes calibrées en SM-2 (`interval`, `easeFactor` cohérents, `stability = 0`). Au **premier rating** sous FSRS-5 :
+- Le scheduler est ré-initialisé via `createEmptyCard` (donc l'intervalle suivant sera calibré « première révision FSRS » : ~1 jour pour `good`, pas l'ancien intervalle SM-2 de 30 jours par ex.).
+- Les compteurs `reps`, `againCount`, `hardCount`, `goodCount`, `easyCount`, `lapses` sont **préservés et incrémentés** comme avant.
+- À partir du second rating, la carte suit le calendrier FSRS-5 normal.
+
+Concrètement : les utilisateurs verront des intervalles temporairement plus courts pendant 1–2 révisions sur les cartes déjà avancées en SM-2, puis FSRS prend le relais.
+
+### Pistes futures
+- Rendre la rétention FSRS (`request_retention`) configurable par deck (slider 80-97%). Actuellement figée à 0.9.
+- Supprimer définitivement la colonne legacy `easeFactor` après une période de transition.
+
+---
+
+**Dernière mise à jour** : 16/05/2026

@@ -637,7 +637,7 @@ export default function ReviewV2() {
                   ? 'Navigation libre'
                   : learningMethod === 'ANKI'
                     ? (() => {
-                        const nNew = cardQueue.filter(c => !c.review || (c.review as any).status === 'NEW').length;
+                        const nNew = cardQueue.filter(c => !c.review || c.review.status === 'NEW').length;
                         const nReview = cardQueue.length - nNew;
                         const parts = [];
                         if (nReview > 0) parts.push(`${nReview} révision${nReview > 1 ? 's' : ''}`);

@@ -44,12 +44,16 @@ export interface Deck {
   updatedAt?: string;
 }
 
-// Interface pour les statistiques Anki
+export type CardStatus = 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING';
+
+// Interface pour les statistiques Anki / FSRS-5
 export interface AnkiStats {
-  new: number;       // Cartes nouvelles (reps = 0)
-  learning: number;  // Cartes en apprentissage (taux < 50%)
-  review: number;    // Cartes apprises (taux >= 50%)
-  due: number;       // Cartes dues aujourd'hui
+  new: number;          // Cartes jamais étudiées
+  learning: number;     // Cartes en apprentissage initial
+  review: number;       // Cartes en révision long terme
+  relearning?: number;  // Cartes en ré-apprentissage après oubli (FSRS-5)
+  due: number;          // Cartes dues maintenant
+  avgStability?: number; // Stabilité mémoire moyenne (jours, FSRS-5)
 }
 
 // Interface pour le Deck avec statistiques (utilisé dans le Dashboard)
@@ -81,6 +85,13 @@ export interface Review {
   goodCount: number;
   easyCount: number;
   lastReview: Date | string;
+  // Champs FSRS-5 (présents uniquement en mode ANKI)
+  interval?: number | null;
+  nextReview?: Date | string | null;
+  stability?: number;
+  difficulty?: number;
+  lapses?: number;
+  status?: CardStatus;
 }
 
 export interface SessionStats {

@@ -48,26 +48,36 @@ export function updateAnkiReviewStats(
 ): AnkiReviewStats {
   const now = new Date();
 
-  const card = {
-    due: currentStats.nextReview ?? now,
-    stability: currentStats.stability,
-    difficulty: currentStats.difficulty,
-    elapsed_days: currentStats.lastReview
-      ? Math.max(0, Math.floor((now.getTime() - currentStats.lastReview.getTime()) / 86400000))
-      : 0,
-    scheduled_days: currentStats.interval ?? 0,
-    reps: currentStats.reps,
-    lapses: currentStats.lapses,
-    learning_steps: 0,
-    state: STATUS_TO_STATE[currentStats.status],
-    last_review: currentStats.lastReview ?? undefined,
-  };
+  // Carte legacy SM-2 : déjà révisée (reps>0 ou status != NEW) mais sans état FSRS.
+  // On la traite comme nouvelle côté scheduler pour éviter une retrievability NaN
+  // (exp(elapsed/0)), tout en conservant les compteurs historiques côté retour.
+  const isLegacy =
+    currentStats.stability === 0 &&
+    (currentStats.status !== 'NEW' || currentStats.reps > 0);
+
+  const card = isLegacy
+    ? createEmptyCard(now)
+    : {
+        due: currentStats.nextReview ?? now,
+        stability: currentStats.stability,
+        difficulty: currentStats.difficulty,
+        elapsed_days: currentStats.lastReview
+          ? Math.max(0, Math.floor((now.getTime() - currentStats.lastReview.getTime()) / 86400000))
+          : 0,
+        scheduled_days: currentStats.interval ?? 0,
+        reps: currentStats.reps,
+        lapses: currentStats.lapses,
+        learning_steps: 0,
+        state: STATUS_TO_STATE[currentStats.status],
+        last_review: currentStats.lastReview ?? undefined,
+      };
 
   const result = scheduler.next(card, now, RATING_MAP[rating]);
   const next = result.card;
 
   return {
-    reps: next.reps,
+    // En legacy on incrémente reps depuis l'historique SM-2 ; sinon on prend la valeur FSRS.
+    reps: isLegacy ? currentStats.reps + 1 : next.reps,
     againCount: currentStats.againCount + (rating === 'again' ? 1 : 0),
     hardCount: currentStats.hardCount + (rating === 'hard' ? 1 : 0),
     goodCount: currentStats.goodCount + (rating === 'good' ? 1 : 0),
@@ -78,7 +88,9 @@ export function updateAnkiReviewStats(
     easeFactor: currentStats.easeFactor,
     stability: next.stability,
     difficulty: next.difficulty,
-    lapses: next.lapses,
+    lapses: isLegacy
+      ? currentStats.lapses + (rating === 'again' ? 1 : 0)
+      : next.lapses,
     status: STATE_TO_STATUS[next.state] ?? 'LEARNING',
   };
 }

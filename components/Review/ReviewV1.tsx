@@ -273,19 +273,37 @@ export default function ReviewV1() {
             return { ...savedCard, front: freshCard.front, back: freshCard.back, frontType: freshCard.frontType, backType: freshCard.backType };
           }).filter(card => data.cards.some((c: Card) => c.id === card.id));
 
+          // Réinjecter les cartes ajoutées au deck après le démarrage de la session
+          const syncedIds = new Set(syncedBaseDeck.map(c => c.id));
+          const newCards = shuffleArray<Card>(
+            (data.cards as Card[]).filter(c => !syncedIds.has(c.id))
+          );
+          const finalBaseDeck = [...syncedBaseDeck, ...newCards];
+
           const syncedPending = (savedSession.pendingReinsertions || []).map(p => {
             const freshCard = data.cards.find((c: Card) => c.id === p.cardId);
             if (!freshCard) return p;
             return { ...p, card: { ...p.card, front: freshCard.front, back: freshCard.back, frontType: freshCard.frontType, backType: freshCard.backType } };
           }).filter(p => data.cards.some((c: Card) => c.id === p.cardId));
 
-          setBaseDeck(syncedBaseDeck);
-          setBaseIndex(savedSession.baseIndex ?? 0);
-          setPendingReinsertions(syncedPending);
-          setSessionStats(savedSession.sessionStats);
+          if (finalBaseDeck.length === 0) {
+            // Tout a été supprimé : démarrage frais
+            const shuffled = shuffleArray<Card>(data.cards);
+            setBaseDeck(shuffled);
+            setBaseIndex(1);
+            setPendingReinsertions([]);
+            if (shuffled.length > 0) {
+              setCurrentCard(shuffled[0]);
+            }
+          } else {
+            setBaseDeck(finalBaseDeck);
+            setBaseIndex(savedSession.baseIndex ?? 0);
+            setPendingReinsertions(syncedPending);
+            setSessionStats(savedSession.sessionStats);
 
-          const restoredCurrent = data.cards.find((c: Card) => c.id === savedSession!.currentCardId);
-          setCurrentCard(restoredCurrent || syncedBaseDeck[(savedSession.baseIndex ?? 0) % syncedBaseDeck.length]);
+            const restoredCurrent = data.cards.find((c: Card) => c.id === savedSession!.currentCardId);
+            setCurrentCard(restoredCurrent || finalBaseDeck[(savedSession.baseIndex ?? 0) % finalBaseDeck.length]);
+          }
         } else {
           // Démarrage frais pour IMMEDIATE
           const shuffled = shuffleArray<Card>(data.cards);
@@ -617,7 +635,7 @@ export default function ReviewV1() {
                   ? 'Navigation libre'
                   : learningMethod === 'ANKI'
                     ? (() => {
-                        const nNew = cardQueue.filter(c => !c.review || (c.review as any).status === 'NEW').length;
+                        const nNew = cardQueue.filter(c => !c.review || c.review.status === 'NEW').length;
                         const nReview = cardQueue.length - nNew;
                         const parts = [];
                         if (nReview > 0) parts.push(`${nReview} révision${nReview > 1 ? 's' : ''}`);
