@@ -67,7 +67,7 @@ Application web de révision par flashcards avec système de révision immédiat
 ### Infrastructure
 - Cron job quotidien : nettoyage des images orphelines (Vercel Cron, 2h UTC)
 - Service Worker PWA
-- Dashboard multi-versions (V1, V2, V3)
+- Dashboard à deux thèmes : V1 (header classique, défaut pour tous les utilisateurs) et V3 (sidebar fixe, réservé au compte admin)
 
 ## Sécurité - Audit du 25/03/2026
 
@@ -199,6 +199,38 @@ Concrètement : les utilisateurs verront des intervalles temporairement plus cou
 ### Pistes futures
 - Rendre la rétention FSRS (`request_retention`) configurable par deck (slider 80-97%). Actuellement figée à 0.9.
 - Supprimer définitivement la colonne legacy `easeFactor` après une période de transition.
+
+---
+
+## Nettoyage des thèmes dashboard (16/05/2026)
+
+### Contexte
+Trois interfaces de dashboard coexistaient : V1 (header classique, originale), V2 (HeroStats moderne) et V3 (sidebar latérale, codée mais non intégrée aux APIs). Un modal de choix proposait V1/V2 au premier login et un modal de feedback collectait un avis sur V2 après 3 jours.
+
+### Décisions
+- **Thème V2 supprimé** intégralement (page, composants, modal de choix, modal de feedback, route API `dashboard-feedback`).
+- **Tous les utilisateurs** sont désormais sur V1 par défaut, sans possibilité de choix.
+- **L'admin** dispose d'un sélecteur dans `/admin` (« Thème classique V1 » vs « Thème sidebar V3 ») et démarre par défaut sur V3.
+
+### Modifications techniques
+- Schéma Prisma : suppression de `dashboardChoiceDate`, `dashboardFeedbackRating`, `dashboardFeedbackDate`, `dashboardFeedbackGiven` et de l'index associé. `dashboardVersion` est conservé (utilisé uniquement pour la préférence admin V1/V3).
+- Migration `20260516120000_remove_dashboard_v2_and_feedback` :
+  - `UPDATE User SET dashboardVersion='v1' WHERE (dashboardVersion='v2' OR NULL) AND isAdmin=false`
+  - `UPDATE User SET dashboardVersion='v3' WHERE (dashboardVersion='v2' OR NULL) AND isAdmin=true`
+  - `DROP COLUMN` sur les 4 colonnes feedback.
+- `app/api/user/dashboard-preference` :
+  - GET retourne `{ version: 'v1' | 'v3', isAdmin }`. Pour les non-admin, la version effective est forcée à `v1` côté serveur, peu importe la valeur en BD.
+  - POST est restreint aux admins (403 sinon), accepte uniquement `v1` ou `v3`.
+- `components/DashboardRedirector.tsx` réécrit : appel à l'API préférence, redirection unique vers `/dashboard` ou `/dashboard-v3`. Plus de modals.
+- `components/DashboardPageWrapper.tsx` simplifié : redirige si l'utilisateur n'a pas le droit d'être sur la version en cours (non-admin sur V3 → V1 ; admin avec préférence inverse).
+- `app/admin/page.tsx` : nouveau bloc « Thème du tableau de bord » avec deux boutons (V1/V3) qui POST vers `/api/user/dashboard-preference`.
+
+### Fichiers supprimés
+- `app/dashboard-v2/` (dossier entier)
+- `components/DashboardChoiceModal.tsx`
+- `components/DashboardFeedbackModal.tsx`
+- `app/api/user/dashboard-feedback/route.ts`
+- `lib/dashboard-utils.ts` (la fonction `shouldShowFeedbackModal` était l'unique export)
 
 ---
 

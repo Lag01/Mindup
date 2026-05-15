@@ -55,17 +55,13 @@ model User {
   refreshTokens      RefreshToken[]
   auditLogs          AuditLog[]
 
-  // Dashboard adoption tracking
-  dashboardVersion         String?   // "v1", "v2", ou null (pas encore choisi)
-  dashboardChoiceDate      DateTime? // Date du choix initial
-  dashboardFeedbackRating  Int?      // Note de 1 à 5 étoiles
-  dashboardFeedbackDate    DateTime? // Date du feedback
-  dashboardFeedbackGiven   Boolean @default(false) // Évite de redemander
+  // Préférence de dashboard (utilisée uniquement pour les admins : "v1" ou "v3")
+  // Les utilisateurs non-admin sont toujours redirigés vers v1 côté serveur.
+  dashboardVersion         String?
 
   @@index([currentStreak])
   @@index([maxStreak])
   @@index([dashboardVersion])
-  @@index([dashboardChoiceDate])
 }
 
 model Deck {

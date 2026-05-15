@@ -87,10 +87,8 @@ export async function getCurrentUserWithDashboard() {
         id: true,
         email: true,
         createdAt: true,
+        isAdmin: true,
         dashboardVersion: true,
-        dashboardChoiceDate: true,
-        dashboardFeedbackGiven: true,
-        dashboardFeedbackRating: true,
       },
     });
     return user;

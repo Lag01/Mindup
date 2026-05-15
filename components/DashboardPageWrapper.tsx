@@ -6,55 +6,51 @@ import LoadingAnimation from './LoadingAnimation';
 
 interface DashboardPageWrapperProps {
   children: React.ReactNode;
-  expectedVersion: 'v1' | 'v2' | 'v3' | null; // null = accepte toutes les versions
+  expectedVersion: 'v1' | 'v3';
 }
 
 /**
- * Wrapper pour les pages dashboard qui vérifie la préférence utilisateur
- * et redirige si nécessaire
+ * Vérifie que l'utilisateur a bien le droit d'être sur cette version du dashboard.
+ * - Non-admin sur v3 -> redirigé vers v1
+ * - Admin avec préférence différente -> redirigé vers sa préférence
  */
 export default function DashboardPageWrapper({ children, expectedVersion }: DashboardPageWrapperProps) {
   const [isChecking, setIsChecking] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
+    let cancelled = false;
+
     async function checkDashboardPreference() {
       try {
         const response = await fetch('/api/user/dashboard-preference');
 
         if (!response.ok) {
-          // Si erreur, rediriger vers dashboard-entry
-          router.push('/dashboard-entry');
+          router.replace('/dashboard-entry');
           return;
         }
 
         const data = await response.json();
-        const userVersion = data.dashboardVersion;
+        if (cancelled) return;
 
-        // Si l'utilisateur n'a pas de préférence, rediriger vers dashboard-entry
-        if (userVersion === null) {
-          router.push('/dashboard-entry');
+        const effective: 'v1' | 'v3' = data.version === 'v3' ? 'v3' : 'v1';
+
+        if (effective !== expectedVersion) {
+          router.replace(effective === 'v3' ? '/dashboard-v3' : '/dashboard');
           return;
         }
 
-        // Si cette page a une version attendue et que l'utilisateur n'est pas sur la bonne version
-        if (expectedVersion && userVersion !== expectedVersion) {
-          // Rediriger vers le bon dashboard
-          const targetPath = userVersion === 'v1' ? '/dashboard' : `/dashboard-${userVersion}`;
-          router.push(targetPath);
-          return;
-        }
-
-        // Tout est bon, afficher la page
         setIsChecking(false);
-      } catch (error) {
-        console.error('Error checking dashboard preference:', error);
-        // En cas d'erreur, rediriger vers dashboard-entry
-        router.push('/dashboard-entry');
+      } catch (err) {
+        console.error('Error checking dashboard preference:', err);
+        if (!cancelled) router.replace('/dashboard-entry');
       }
     }
 
     checkDashboardPreference();
+    return () => {
+      cancelled = true;
+    };
   }, [router, expectedVersion]);
 
   if (isChecking) {

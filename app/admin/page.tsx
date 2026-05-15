@@ -41,6 +41,8 @@ export default function AdminDashboard() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editedDisplayName, setEditedDisplayName] = useState<string>('');
   const [savingDisplayName, setSavingDisplayName] = useState(false);
+  const [dashboardVersion, setDashboardVersion] = useState<'v1' | 'v3'>('v3');
+  const [savingTheme, setSavingTheme] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -76,6 +78,15 @@ export default function AdminDashboard() {
       if (decksResponse.ok) {
         const decksData = await decksResponse.json();
         setAdminDecks(decksData.decks);
+      }
+
+      // Récupérer la préférence de thème admin
+      const themeResponse = await fetch('/api/user/dashboard-preference');
+      if (themeResponse.ok) {
+        const themeData = await themeResponse.json();
+        if (themeData.version === 'v1' || themeData.version === 'v3') {
+          setDashboardVersion(themeData.version);
+        }
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -220,6 +231,31 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleChangeTheme = async (version: 'v1' | 'v3') => {
+    if (version === dashboardVersion || savingTheme) return;
+
+    setSavingTheme(true);
+    try {
+      const response = await fetch('/api/user/dashboard-preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erreur lors du changement de thème');
+      }
+
+      setDashboardVersion(version);
+    } catch (error) {
+      console.error('Error changing theme:', error);
+      alert(error instanceof Error ? error.message : 'Erreur lors du changement de thème');
+    } finally {
+      setSavingTheme(false);
+    }
+  };
+
   const handleStartEditDisplayName = (userId: string, currentDisplayName: string) => {
     setEditingUserId(userId);
     setEditedDisplayName(currentDisplayName);
@@ -321,6 +357,59 @@ export default function AdminDashboard() {
           >
             {saving ? 'Sauvegarde...' : 'Sauvegarder les paramètres'}
           </button>
+        </div>
+
+        {/* Préférence de thème admin */}
+        <div className="bg-gray-900 p-6 rounded-lg border border-gray-800 mb-8">
+          <h2 className="text-xl font-bold mb-2">Thème du tableau de bord</h2>
+          <p className="text-sm text-gray-400 mb-4">
+            Choisissez l'interface utilisée lorsque vous accédez au dashboard. Ce réglage ne concerne que votre compte admin.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => handleChangeTheme('v1')}
+              disabled={savingTheme}
+              className={`text-left p-4 rounded-lg border transition-colors ${
+                dashboardVersion === 'v1'
+                  ? 'border-blue-500 bg-blue-950/40'
+                  : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+              } disabled:opacity-60 disabled:cursor-not-allowed`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold">Thème classique (v1)</span>
+                {dashboardVersion === 'v1' && (
+                  <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">Actif</span>
+                )}
+              </div>
+              <div className="text-sm text-gray-400">
+                Interface originale avec header en haut de page.
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleChangeTheme('v3')}
+              disabled={savingTheme}
+              className={`text-left p-4 rounded-lg border transition-colors ${
+                dashboardVersion === 'v3'
+                  ? 'border-blue-500 bg-blue-950/40'
+                  : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+              } disabled:opacity-60 disabled:cursor-not-allowed`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold">Thème sidebar (v3)</span>
+                {dashboardVersion === 'v3' && (
+                  <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded">Actif</span>
+                )}
+              </div>
+              <div className="text-sm text-gray-400">
+                Nouvelle interface avec barre latérale fixe et statistiques intégrées.
+              </div>
+            </button>
+          </div>
+          {savingTheme && (
+            <div className="mt-3 text-sm text-gray-400">Mise à jour du thème...</div>
+          )}
         </div>
 
         {/* Gestion des Decks Publics */}

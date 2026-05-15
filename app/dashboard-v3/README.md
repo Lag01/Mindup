@@ -179,21 +179,20 @@ app/dashboard-v3/
 - `GET /api/decks/{id}/export?format=xml|csv` - Export deck
 - `POST /api/auth/logout` - Déconnexion
 
-## Migration depuis V2
+## Différences avec la V1
 
-La V3 est accessible via `/dashboard-v3` tandis que la V2 reste sur `/dashboard-v2`.
+La V3 est accessible via `/dashboard-v3` et est réservée au compte admin (sélecteur dans `/admin`).
 
 ### Différences majeures
-1. **Sidebar droite** vs header en haut
-2. **Stats toujours visibles** vs cachées
+1. **Sidebar fixe** vs header en haut (V1)
+2. **Stats toujours visibles** dans la sidebar
 3. **Navigation permanente** vs menu déroulant
 4. **Grille 2 colonnes** sur desktop vs 3 colonnes
 
 ### Compatibilité
-- ✅ Toutes les fonctionnalités V2 préservées
-- ✅ Même API endpoints
+- ✅ Même API endpoints que la V1
 - ✅ Même logique métier
-- ✅ Composants réutilisés (DeckCard, Filters, etc.)
+- ✅ Composants réutilisés
 
 ## Tests de Vérification
 
