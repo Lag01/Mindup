@@ -1,18 +1,16 @@
 -- Migration : suppression du thème v2 et du système de feedback
--- 1) Migrer les utilisateurs v2 vers v1 (non-admin), forcer v3 pour les admins sans préférence
+-- 1) Normaliser la préférence : tous les non-admin sur v1, tous les admin sur v3
 -- 2) Supprimer les colonnes liées au feedback v2
 
--- Étape 1 : utilisateurs non-admin en v2 ou sans préférence -> v1
+-- Étape 1 : non-admin -> v1 (couvre v2, null et toute valeur incohérente)
 UPDATE "User"
 SET "dashboardVersion" = 'v1'
-WHERE ("dashboardVersion" = 'v2' OR "dashboardVersion" IS NULL)
-  AND "isAdmin" = false;
+WHERE "isAdmin" = false;
 
--- Étape 2 : admins en v2 ou sans préférence -> v3 (nouveau thème par défaut pour l'admin)
+-- Étape 2 : admin -> v3 (thème sidebar par défaut pour l'admin)
 UPDATE "User"
 SET "dashboardVersion" = 'v3'
-WHERE ("dashboardVersion" = 'v2' OR "dashboardVersion" IS NULL)
-  AND "isAdmin" = true;
+WHERE "isAdmin" = true;
 
 -- Étape 3 : suppression de l'index inutile
 DROP INDEX IF EXISTS "User_dashboardChoiceDate_idx";
