@@ -271,4 +271,42 @@ Pour faciliter la migration depuis Anki, Mindup accepte désormais les exports `
 
 ---
 
+## Statistiques adaptées au mode de révision (16/05/2026)
+
+### Contexte
+Le système de statistiques avait été conçu autour du mode IMMEDIATE (cumuls lifetime `reps`/`*Count`). En mode Anki/FSRS-5, plusieurs métriques étaient inadaptées : `masteredCards` basé sur `easyCount/reps > 0.7` ignore la stabilité mnésique ; `difficultCards` basé sur ratio d'échecs ignore `lapses`/`stability` ; `estimatedCompletionDays` n'a pas de sens (cycles infinis) ; le bloc Anki se limitait à 4 compteurs de statut, sans exploitation des champs FSRS.
+
+### Approche : socle commun + section Anki enrichie
+- **Socle commun conservé** : heatmap, streak, distribution des notes, temps d'étude, comparaisons jour/semaine, taux de succès apparent.
+- **Adaptations conditionnelles** dans `app/api/decks/[id]/stats/route.ts` :
+  - `masteredCards` : IMMEDIATE = `easyCount/reps > 0.7` ; ANKI = `status = 'REVIEW' AND interval >= 21`.
+  - `difficultCards` : IMMEDIATE = `(again+hard)/reps > 0.5` ; ANKI = `lapses >= 3 OR (0 < stability < 7)`.
+  - La carte « Estimation maîtrise » du `StatsHeroSection` est masquée en mode Anki.
+- **4 nouveaux blocs Anki** (rendus uniquement si `learningMethod === 'ANKI'`) :
+  - **Forecast 30 jours** (`ForecastChart.tsx`) : bar chart Recharts de la charge journalière `nextReview` + KPI 1j/7j/30j.
+  - **True Retention** (`TrueRetentionCard.tsx`) : taux de réussite sur cartes matures (`interval >= 21`) sur 30 jours, gauge SVG colorée (vert ≥90% / bleu ≥85% / orange ≥75% / rouge sinon).
+    - *Limitation* : utilise l'`interval` actuel de `Review` comme proxy, faute de champ `intervalAtReview` sur `ReviewEvent`.
+  - **Distribution des intervalles** (`IntervalsHistogram.tsx`) : 6 buckets (1j, 2-7j, 8-30j, 31-90j, 91-180j, >180j).
+  - **Santé du deck** (`DeckHealthCard.tsx`) : barres horizontales empilées pour la distribution de stabilité (<7/<30/<90/≥90j) et de difficulté (1-3/4-7/8-10).
+  - **Cartes fragiles** (`FragileCardsList.tsx`) : top 5 par `stability ASC, lapses DESC` (filtre `lapses >= 3 OR stability < 7`).
+
+### Fichiers modifiés
+- `app/api/decks/[id]/stats/route.ts` : requête principale enrichie (définitions IMMEDIATE+ANKI calculées en parallèle), nouveau bloc `if (isAnki)` avec 4 requêtes additionnelles, payload `ankiStats` étendu.
+- `components/DeckStatistics/DeckStatisticsV1.tsx` : type `ExtendedDeckStats` étendu, anciens blocs Anki minimaux remplacés par composant interne `AnkiStatsSection` (factorisé desktop+mobile).
+- `components/DeckStatistics/v1/StatsHeroSection.tsx` : carte « Estimation maîtrise » masquée si `learningMethod === 'ANKI'`.
+
+### Fichiers créés
+- `components/DeckStatistics/v1/anki/ForecastChart.tsx`
+- `components/DeckStatistics/v1/anki/TrueRetentionCard.tsx`
+- `components/DeckStatistics/v1/anki/IntervalsHistogram.tsx`
+- `components/DeckStatistics/v1/anki/DeckHealthCard.tsx`
+- `components/DeckStatistics/v1/anki/FragileCardsList.tsx`
+
+### Pistes futures
+- Migration pour ajouter `intervalAtReview` à `ReviewEvent` → true retention exacte historique.
+- Heatmap de rétention par âge de carte (Card Ease report Anki).
+- Adapter `app/api/stats/global/route.ts` (stats multi-decks) sur le même modèle.
+
+---
+
 **Dernière mise à jour** : 16/05/2026

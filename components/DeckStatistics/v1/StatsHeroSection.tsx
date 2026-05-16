@@ -89,13 +89,15 @@ export default function StatsHeroSection({
             subtext={reviewsYesterday > 0 ? `${reviewsTrend.percentage}% vs hier` : undefined}
           />
 
-          {/* Estimation maîtrise */}
-          <StatCard
-            label="Estimation maîtrise"
-            value={formatCompletionDays(estimatedCompletionDays)}
-            color="purple"
-            subtext={estimatedCompletionDays > 0 ? `${estimatedCompletionDays} jour${estimatedCompletionDays > 1 ? 's' : ''}` : undefined}
-          />
+          {/* Estimation maîtrise — masquée en mode ANKI (peu pertinent : cycles infinis) */}
+          {learningMethod !== 'ANKI' && (
+            <StatCard
+              label="Estimation maîtrise"
+              value={formatCompletionDays(estimatedCompletionDays)}
+              color="purple"
+              subtext={estimatedCompletionDays > 0 ? `${estimatedCompletionDays} jour${estimatedCompletionDays > 1 ? 's' : ''}` : undefined}
+            />
+          )}
         </div>
       </div>
     </div>

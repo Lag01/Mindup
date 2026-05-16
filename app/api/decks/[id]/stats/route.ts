@@ -54,6 +54,8 @@ export async function GET(
 
     // Optimisation : requête SQL agrégée au lieu de charger toutes les cartes
     // Cela élimine les boucles forEach et réduit drastiquement la charge mémoire
+    // Calcule simultanément les définitions IMMEDIATE et ANKI ; la sélection finale
+    // est faite en TS selon deck.learningMethod.
     const [mainStats] = await prisma.$queryRaw<Array<{
       totalCards: bigint;
       notStarted: bigint;
@@ -64,8 +66,10 @@ export async function GET(
       hardCount: bigint;
       goodCount: bigint;
       easyCount: bigint;
-      difficultCards: bigint;
-      masteredCards: bigint;
+      difficultCardsImmediate: bigint;
+      difficultCardsAnki: bigint;
+      masteredCardsImmediate: bigint;
+      masteredCardsAnki: bigint;
       reviewsToday: bigint;
       reviewsThisWeek: bigint;
       ankiNew: bigint;
@@ -86,14 +90,27 @@ export async function GET(
         COALESCE(SUM(r."hardCount"), 0) as "hardCount",
         COALESCE(SUM(r."goodCount"), 0) as "goodCount",
         COALESCE(SUM(r."easyCount"), 0) as "easyCount",
+
+        -- Définition IMMEDIATE (ratio lifetime)
         COUNT(CASE
           WHEN r.reps > 0 AND (r."againCount" + r."hardCount")::float / r.reps > 0.5
           THEN 1
-        END) as "difficultCards",
+        END) as "difficultCardsImmediate",
         COUNT(CASE
           WHEN r.reps > 0 AND r."easyCount"::float / r.reps > 0.7
           THEN 1
-        END) as "masteredCards",
+        END) as "masteredCardsImmediate",
+
+        -- Définition ANKI (FSRS)
+        COUNT(CASE
+          WHEN r.lapses >= 3 OR (r.stability > 0 AND r.stability < 7)
+          THEN 1
+        END) as "difficultCardsAnki",
+        COUNT(CASE
+          WHEN r."status" = 'REVIEW' AND r.interval >= 21
+          THEN 1
+        END) as "masteredCardsAnki",
+
         COUNT(CASE WHEN r."lastReview" >= ${today} THEN 1 END) as "reviewsToday",
         COUNT(CASE WHEN r."lastReview" >= ${weekAgo} THEN 1 END) as "reviewsThisWeek",
 
@@ -109,6 +126,14 @@ export async function GET(
       LEFT JOIN "Review" r ON r."cardId" = c.id AND r."userId" = ${user.id}
       WHERE c."deckId" = ${deckId}
     `;
+
+    const isAnki = deck.learningMethod === 'ANKI';
+    const difficultCardsCount = isAnki
+      ? Number(mainStats.difficultCardsAnki)
+      : Number(mainStats.difficultCardsImmediate);
+    const masteredCardsCount = isAnki
+      ? Number(mainStats.masteredCardsAnki)
+      : Number(mainStats.masteredCardsImmediate);
 
     // Requête pour l'historique complet (max 180 jours)
     // Basé sur ReviewEvent.createdAt : compte chaque révision individuelle,
@@ -328,8 +353,7 @@ export async function GET(
 
     // 5. Prédictions
     const totalCards = Number(mainStats.totalCards);
-    const masteredCards = Number(mainStats.masteredCards);
-    const remainingCards = totalCards - masteredCards;
+    const remainingCards = totalCards - masteredCardsCount;
 
     // Calcul de la moyenne de cartes maîtrisées par jour (30 derniers jours)
     const masteryRateResult = await prisma.$queryRaw<Array<{ avgMasteredPerDay: number | null }>>`
@@ -348,7 +372,7 @@ export async function GET(
       : 0;
 
     const projectedMasteryRate = totalCards > 0 && avgMasteredPerDay > 0
-      ? Math.min(100, ((masteredCards + (avgMasteredPerDay * 30)) / totalCards) * 100)
+      ? Math.min(100, ((masteredCardsCount + (avgMasteredPerDay * 30)) / totalCards) * 100)
       : 0;
 
     // Temps total d'étude (estimation basée sur ReviewEvents)
@@ -366,6 +390,191 @@ export async function GET(
     `;
     const totalStudyTime = Math.round(totalStudyTimeResult[0]?.totalMinutes ?? 0);
 
+    // ============================================================
+    // Métriques spécifiques au mode ANKI (FSRS-5)
+    // ============================================================
+    let ankiExtended: {
+      forecast: {
+        dueToday: number;
+        due7d: number;
+        due30d: number;
+        dailyForecast: Array<{ date: string; count: number }>;
+      };
+      trueRetention: number;
+      intervalDistribution: { i1: number; i7: number; i30: number; i90: number; i180: number; iMax: number };
+      stabilityDistribution: { lt7: number; lt30: number; lt90: number; gte90: number };
+      difficultyDistribution: { easy: number; medium: number; hard: number };
+      fragileCards: Array<{
+        cardId: string;
+        front: string;
+        back: string;
+        frontType: 'TEXT' | 'LATEX';
+        backType: 'TEXT' | 'LATEX';
+        frontImage: string | null;
+        backImage: string | null;
+        stability: number;
+        lapses: number;
+      }>;
+    } | null = null;
+
+    if (isAnki) {
+      const in30Days = new Date(today);
+      in30Days.setDate(in30Days.getDate() + 30);
+
+      // a) Forecast journalier sur 30 jours (cartes à réviser par jour)
+      const forecastRaw = await prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
+        SELECT DATE(r."nextReview") as "date", COUNT(*) as "count"
+        FROM "Review" r
+        INNER JOIN "Card" c ON c.id = r."cardId"
+        WHERE c."deckId" = ${deckId}
+          AND r."userId" = ${user.id}
+          AND r."status" IN ('LEARNING', 'REVIEW', 'RELEARNING')
+          AND r."nextReview" >= ${today}
+          AND r."nextReview" < ${in30Days}
+        GROUP BY DATE(r."nextReview")
+        ORDER BY "date" ASC
+      `;
+
+      // Construire série complète sur 30 jours (avec zéros)
+      const forecastMap = new Map<string, number>();
+      const cursor = new Date(today);
+      for (let i = 0; i < 30; i++) {
+        forecastMap.set(cursor.toISOString().split('T')[0], 0);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      forecastRaw.forEach(row => {
+        const dateStr = new Date(row.date).toISOString().split('T')[0];
+        if (forecastMap.has(dateStr)) {
+          forecastMap.set(dateStr, Number(row.count));
+        }
+      });
+      const dailyForecast = Array.from(forecastMap.entries()).map(([date, count]) => ({
+        date,
+        count,
+      }));
+
+      const due7d = dailyForecast.slice(0, 7).reduce((sum, d) => sum + d.count, 0);
+      const due30d = dailyForecast.reduce((sum, d) => sum + d.count, 0);
+      const dueToday = dailyForecast[0]?.count ?? 0;
+
+      // b) True Retention sur cartes matures (interval >= 21) — 30 derniers jours
+      // Note : approximation, utilise l'intervalle actuel de Review (pas l'historique à la date du ReviewEvent)
+      const [retentionResult] = await prisma.$queryRaw<Array<{ trueRetention: number | null }>>`
+        SELECT
+          (COUNT(CASE WHEN re.rating IN ('good', 'easy') THEN 1 END)::float
+            / NULLIF(COUNT(*), 0)) * 100 as "trueRetention"
+        FROM "ReviewEvent" re
+        INNER JOIN "Review" r ON r.id = re."reviewId"
+        INNER JOIN "Card" c ON c.id = re."cardId"
+        WHERE c."deckId" = ${deckId}
+          AND re."userId" = ${user.id}
+          AND r.interval >= 21
+          AND re."createdAt" >= ${monthAgo}
+      `;
+
+      // c) Distribution des intervalles (6 buckets)
+      const [intervalDist] = await prisma.$queryRaw<Array<{
+        i1: bigint; i7: bigint; i30: bigint; i90: bigint; i180: bigint; iMax: bigint;
+      }>>`
+        SELECT
+          COUNT(CASE WHEN r.interval = 1 THEN 1 END) as "i1",
+          COUNT(CASE WHEN r.interval BETWEEN 2 AND 7 THEN 1 END) as "i7",
+          COUNT(CASE WHEN r.interval BETWEEN 8 AND 30 THEN 1 END) as "i30",
+          COUNT(CASE WHEN r.interval BETWEEN 31 AND 90 THEN 1 END) as "i90",
+          COUNT(CASE WHEN r.interval BETWEEN 91 AND 180 THEN 1 END) as "i180",
+          COUNT(CASE WHEN r.interval > 180 THEN 1 END) as "iMax"
+        FROM "Review" r
+        INNER JOIN "Card" c ON c.id = r."cardId"
+        WHERE c."deckId" = ${deckId}
+          AND r."userId" = ${user.id}
+          AND r.interval IS NOT NULL
+          AND r.interval > 0
+      `;
+
+      // d) Distribution stabilité / difficulté + cartes fragiles
+      const [healthDist] = await prisma.$queryRaw<Array<{
+        sLt7: bigint; sLt30: bigint; sLt90: bigint; sGte90: bigint;
+        dEasy: bigint; dMedium: bigint; dHard: bigint;
+      }>>`
+        SELECT
+          COUNT(CASE WHEN r.stability > 0 AND r.stability < 7 THEN 1 END) as "sLt7",
+          COUNT(CASE WHEN r.stability >= 7 AND r.stability < 30 THEN 1 END) as "sLt30",
+          COUNT(CASE WHEN r.stability >= 30 AND r.stability < 90 THEN 1 END) as "sLt90",
+          COUNT(CASE WHEN r.stability >= 90 THEN 1 END) as "sGte90",
+          COUNT(CASE WHEN r.difficulty > 0 AND r.difficulty <= 3 THEN 1 END) as "dEasy",
+          COUNT(CASE WHEN r.difficulty > 3 AND r.difficulty <= 7 THEN 1 END) as "dMedium",
+          COUNT(CASE WHEN r.difficulty > 7 THEN 1 END) as "dHard"
+        FROM "Review" r
+        INNER JOIN "Card" c ON c.id = r."cardId"
+        WHERE c."deckId" = ${deckId} AND r."userId" = ${user.id}
+      `;
+
+      const fragileCardsRaw = await prisma.$queryRaw<Array<{
+        cardId: string;
+        front: string;
+        back: string;
+        frontType: string;
+        backType: string;
+        frontImage: string | null;
+        backImage: string | null;
+        stability: number;
+        lapses: number;
+      }>>`
+        SELECT
+          c.id as "cardId",
+          c.front, c.back,
+          c."frontType", c."backType",
+          c."frontImage", c."backImage",
+          r.stability,
+          r.lapses
+        FROM "Card" c
+        INNER JOIN "Review" r ON r."cardId" = c.id
+        WHERE c."deckId" = ${deckId}
+          AND r."userId" = ${user.id}
+          AND r.reps > 0
+          AND (r.lapses >= 3 OR (r.stability > 0 AND r.stability < 7))
+        ORDER BY r.stability ASC, r.lapses DESC
+        LIMIT 5
+      `;
+
+      ankiExtended = {
+        forecast: { dueToday, due7d, due30d, dailyForecast },
+        trueRetention: retentionResult?.trueRetention != null
+          ? Math.round(retentionResult.trueRetention * 10) / 10
+          : 0,
+        intervalDistribution: {
+          i1: Number(intervalDist.i1),
+          i7: Number(intervalDist.i7),
+          i30: Number(intervalDist.i30),
+          i90: Number(intervalDist.i90),
+          i180: Number(intervalDist.i180),
+          iMax: Number(intervalDist.iMax),
+        },
+        stabilityDistribution: {
+          lt7: Number(healthDist.sLt7),
+          lt30: Number(healthDist.sLt30),
+          lt90: Number(healthDist.sLt90),
+          gte90: Number(healthDist.sGte90),
+        },
+        difficultyDistribution: {
+          easy: Number(healthDist.dEasy),
+          medium: Number(healthDist.dMedium),
+          hard: Number(healthDist.dHard),
+        },
+        fragileCards: fragileCardsRaw.map(card => ({
+          cardId: card.cardId,
+          front: card.front,
+          back: card.back,
+          frontType: card.frontType as 'TEXT' | 'LATEX',
+          backType: card.backType as 'TEXT' | 'LATEX',
+          frontImage: card.frontImage,
+          backImage: card.backImage,
+          stability: Math.round(card.stability * 10) / 10,
+          lapses: card.lapses,
+        })),
+      };
+    }
+
     // Construire l'objet stats final
     const stats = {
       totalCards: Number(mainStats.totalCards),
@@ -382,15 +591,15 @@ export async function GET(
         good: Number(mainStats.goodCount),
         easy: Number(mainStats.easyCount),
       },
-      difficultCards: Number(mainStats.difficultCards),
-      masteredCards: Number(mainStats.masteredCards),
+      difficultCards: difficultCardsCount,
+      masteredCards: masteredCardsCount,
       reviewsToday: reviewsTodayNum,
       reviewsThisWeek: reviewsThisWeekNum,
       reviewHistory,
       learningMethod: deck.learningMethod,
       currentStreak,
       // Stats Anki (null si méthode IMMEDIATE)
-      ankiStats: deck.learningMethod === 'ANKI' ? {
+      ankiStats: isAnki && ankiExtended ? {
         new: Number(mainStats.ankiNew),
         learning: Number(mainStats.ankiLearning),
         review: Number(mainStats.ankiReview),
@@ -398,6 +607,7 @@ export async function GET(
         dueToday: Number(mainStats.ankiDueToday),
         avgInterval: mainStats.avgInterval ? Math.round(mainStats.avgInterval) : 0,
         avgStability: mainStats.avgStability ? Math.round(mainStats.avgStability * 10) / 10 : 0,
+        ...ankiExtended,
       } : null,
 
       // Nouvelles métriques enrichies
