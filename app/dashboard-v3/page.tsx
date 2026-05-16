@@ -247,7 +247,7 @@ export default function DashboardV3Page() {
   // État de chargement
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <LoadingAnimation />
       </div>
     )
@@ -257,7 +257,7 @@ export default function DashboardV3Page() {
 
   return (
     <DashboardPageWrapper expectedVersion="v3">
-      <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
+      <div className="min-h-screen bg-background">
       {/* Mobile Header */}
       <MobileHeader
         currentStreak={userStreak?.current ?? 0}

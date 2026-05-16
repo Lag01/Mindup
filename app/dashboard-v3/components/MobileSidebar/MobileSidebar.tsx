@@ -81,21 +81,18 @@ export default function MobileSidebar({
     <>
       {/* Overlay */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden animate-[fadeIn_0.2s_ease-out]"
+        className="fixed inset-0 bg-black/70 z-40 lg:hidden animate-[fadeIn_0.2s_ease-out]"
         onClick={onClose}
       />
 
       {/* Sidebar slide from right */}
-      <aside className="fixed right-0 top-0 h-full w-80 max-w-[85vw] bg-zinc-900 z-50 lg:hidden animate-[slideInRight_0.3s_ease-out]">
-        {/* Gradient border glow */}
-        <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent" />
-
+      <aside className="fixed right-0 top-0 h-full w-80 max-w-[85vw] bg-zinc-900 border-l border-zinc-800 z-50 lg:hidden animate-[slideInRight_0.3s_ease-out]">
         {/* Content */}
         <div className="relative flex flex-col h-full p-6 gap-6 overflow-y-auto">
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 flex items-center justify-center w-8 h-8 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 rounded-lg transition-all"
+            className="absolute top-4 right-4 flex items-center justify-center w-8 h-8 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors"
             aria-label="Fermer le menu"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -127,12 +124,12 @@ export default function MobileSidebar({
           <QuickActions onCreateDeck={handleCreateDeck} onImportDeck={handleImportDeck} />
 
           {/* Separator */}
-          <div className="border-t border-zinc-800/50" />
+          <div className="border-t border-zinc-800" />
 
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 text-red-400 hover:bg-red-500/10 border border-red-500/30 hover:border-red-500/50 rounded-lg transition-all group"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors group"
           >
             <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

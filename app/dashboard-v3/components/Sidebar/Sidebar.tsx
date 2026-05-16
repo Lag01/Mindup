@@ -39,13 +39,7 @@ export default function Sidebar({
   }
 
   return (
-    <aside className="hidden lg:block fixed right-0 top-0 h-screen w-80 bg-zinc-900/95 backdrop-blur-xl border-l border-zinc-800/50 z-30">
-      {/* Gradient border glow */}
-      <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent" />
-
-      {/* Scanline effect */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent opacity-0 hover:opacity-100 transition-opacity pointer-events-none" />
-
+    <aside className="hidden lg:block fixed right-0 top-0 h-screen w-80 bg-zinc-900 border-l border-zinc-800 z-30">
       {/* Content */}
       <div className="relative flex flex-col h-full p-5 gap-3 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
         {/* User Profile */}
@@ -72,13 +66,13 @@ export default function Sidebar({
         <QuickActions onCreateDeck={onCreateDeck} onImportDeck={onImportDeck} />
 
         {/* Separator */}
-        <div className="border-t border-zinc-800/50" />
+        <div className="border-t border-zinc-800" />
 
         {/* Logout Button */}
         <button
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 text-red-400 hover:bg-red-500/10 border border-red-500/30 hover:border-red-500/50 rounded-lg transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg
             className={`w-5 h-5 transition-transform group-hover:translate-x-1 ${isLoggingOut ? 'animate-pulse' : ''}`}

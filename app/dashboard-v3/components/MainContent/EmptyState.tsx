@@ -56,7 +56,7 @@ export default function EmptyState({
                 height="96"
                 rx="8"
                 fill="rgba(24, 24, 27, 0.5)"
-                stroke="rgba(6, 182, 212, 0.3)"
+                stroke="rgba(59, 130, 246, 0.3)"
                 strokeWidth="2"
               />
 
@@ -69,7 +69,7 @@ export default function EmptyState({
               <path
                 d="M 40 50 L 40 90 L 88 90 L 88 58 L 70 58 L 64 50 Z"
                 fill="none"
-                stroke="rgba(6, 182, 212, 0.6)"
+                stroke="rgba(59, 130, 246, 0.6)"
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -77,9 +77,9 @@ export default function EmptyState({
               />
 
               {/* Dashed lines inside folder */}
-              <line x1="48" y1="64" x2="72" y2="64" stroke="rgba(6, 182, 212, 0.3)" strokeWidth="2" strokeDasharray="4 4" />
-              <line x1="48" y1="72" x2="80" y2="72" stroke="rgba(6, 182, 212, 0.3)" strokeWidth="2" strokeDasharray="4 4" />
-              <line x1="48" y1="80" x2="68" y2="80" stroke="rgba(6, 182, 212, 0.3)" strokeWidth="2" strokeDasharray="4 4" />
+              <line x1="48" y1="64" x2="72" y2="64" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="2" strokeDasharray="4 4" />
+              <line x1="48" y1="72" x2="80" y2="72" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="2" strokeDasharray="4 4" />
+              <line x1="48" y1="80" x2="68" y2="80" stroke="rgba(59, 130, 246, 0.3)" strokeWidth="2" strokeDasharray="4 4" />
             </svg>
           ) : (
             // Loupe avec X (no results)
@@ -107,7 +107,7 @@ export default function EmptyState({
                 cy="52"
                 r="28"
                 fill="none"
-                stroke="rgba(6, 182, 212, 0.6)"
+                stroke="rgba(59, 130, 246, 0.6)"
                 strokeWidth="3"
                 filter="url(#glow-search)"
               />
@@ -118,7 +118,7 @@ export default function EmptyState({
                 y1="72"
                 x2="96"
                 y2="96"
-                stroke="rgba(6, 182, 212, 0.6)"
+                stroke="rgba(59, 130, 246, 0.6)"
                 strokeWidth="3"
                 strokeLinecap="round"
                 filter="url(#glow-search)"
@@ -145,9 +145,9 @@ export default function EmptyState({
               />
 
               {/* Scan lines */}
-              <line x1="30" y1="46" x2="74" y2="46" stroke="rgba(6, 182, 212, 0.1)" strokeWidth="1" />
-              <line x1="30" y1="52" x2="74" y2="52" stroke="rgba(6, 182, 212, 0.1)" strokeWidth="1" />
-              <line x1="30" y1="58" x2="74" y2="58" stroke="rgba(6, 182, 212, 0.1)" strokeWidth="1" />
+              <line x1="30" y1="46" x2="74" y2="46" stroke="rgba(59, 130, 246, 0.1)" strokeWidth="1" />
+              <line x1="30" y1="52" x2="74" y2="52" stroke="rgba(59, 130, 246, 0.1)" strokeWidth="1" />
+              <line x1="30" y1="58" x2="74" y2="58" stroke="rgba(59, 130, 246, 0.1)" strokeWidth="1" />
             </svg>
           )}
         </div>
@@ -175,22 +175,11 @@ export default function EmptyState({
             <>
               Aucun deck ne correspond à votre recherche{' '}
               {searchQuery && (
-                <span className="text-cyan-400 font-semibold">« {searchQuery} »</span>
+                <span className="text-blue-400 font-semibold">« {searchQuery} »</span>
               )}
             </>
           )}
         </p>
-
-        {/* Terminal prompt indicator */}
-        <div
-          className="mb-8 flex items-center justify-center gap-2 text-xs text-zinc-500 opacity-0 animate-[slideUp_0.5s_ease-out_0.25s_forwards]"
-         
-        >
-          <span className="text-red-500/60">$</span>
-          <span>{isNoDecks ? 'ls decks/' : `search "${searchQuery || ''}"`}</span>
-          <span className="text-red-400/60">{isNoDecks ? '0 items' : 'no match'}</span>
-          <span className="inline-block w-2 h-3 bg-cyan-500/60 animate-[blink_1s_step-end_infinite] ml-0.5" />
-        </div>
 
         {/* Action buttons */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center items-center opacity-0 animate-[slideUp_0.5s_ease-out_0.3s_forwards]">
@@ -199,13 +188,9 @@ export default function EmptyState({
               {/* Primary: Create Deck */}
               <button
                 onClick={onCreateDeck}
-                className="group relative px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900"
-               
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
                 aria-label="Créer un nouveau deck"
               >
-                {/* Glow effect on hover */}
-                <div className="absolute inset-0 rounded-lg bg-cyan-500/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
-
                 <span className="flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -217,8 +202,7 @@ export default function EmptyState({
               {/* Secondary: Import Deck */}
               <button
                 onClick={onImportDeck}
-                className="group relative px-6 py-3 bg-transparent border-2 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500 rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900"
-               
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
                 aria-label="Importer un deck existant"
               >
                 <span className="flex items-center gap-2">
@@ -233,13 +217,9 @@ export default function EmptyState({
             // Clear search button
             <button
               onClick={onClearSearch}
-              className="group relative px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900"
-             
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
               aria-label="Effacer la recherche"
             >
-              {/* Glow effect on hover */}
-              <div className="absolute inset-0 rounded-lg bg-cyan-500/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
-
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -250,8 +230,6 @@ export default function EmptyState({
           )}
         </div>
 
-        {/* Glassmorphism background container */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-zinc-900/30 via-zinc-900/10 to-transparent backdrop-blur-sm rounded-2xl opacity-0 animate-[fadeIn_0.6s_ease-out_forwards]" />
       </div>
 
       <style jsx global>{`

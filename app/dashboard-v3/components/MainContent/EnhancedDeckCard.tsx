@@ -65,16 +65,10 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
 
   return (
     <article
-      className="group relative bg-zinc-900/50 backdrop-blur-md rounded-lg p-5 border border-zinc-700/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/10 hover:border-cyan-500/30"
+      className="group relative bg-zinc-900 rounded-xl p-5 border border-zinc-800 transition-colors duration-200 hover:border-zinc-700"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{
-        backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0) 100%)',
-      }}
     >
-      {/* Glow effect on hover */}
-      <div className="absolute inset-0 rounded-lg bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-xl" />
-
       {/* Top Row: Badges + Menu */}
       <div className="flex items-start justify-between mb-3">
         {/* Badges */}
@@ -105,7 +99,7 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
           <button
             ref={menuButtonRef}
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-3 md:p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-cyan-400 hover:bg-zinc-800/50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+            className="p-3 md:p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-blue-400 hover:bg-zinc-800 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-label="Menu d'actions du deck"
             aria-expanded={isMenuOpen}
           >
@@ -123,33 +117,33 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
             <div className="w-56 bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-xl shadow-black/50 overflow-hidden animate-[slideDown_0.2s_ease-out]">
               <button
                 onClick={() => { onStudy(deck.id); setIsMenuOpen(false); }}
-                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-colors flex items-center gap-2"
+                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors flex items-center gap-2"
               >
-                <span className="text-cyan-400">▶</span>
+                <span className="text-zinc-400">▶</span>
                 Étudier
               </button>
 
               <button
                 onClick={() => { onStats(deck.id); setIsMenuOpen(false); }}
-                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-colors flex items-center gap-2"
+                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors flex items-center gap-2"
               >
-                <span className="text-cyan-400">📊</span>
+                <span className="text-zinc-400">📊</span>
                 Statistiques
               </button>
 
               <button
                 onClick={() => { onSettings(deck.id); setIsMenuOpen(false); }}
-                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-colors flex items-center gap-2"
+                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors flex items-center gap-2"
               >
-                <span className="text-cyan-400">⚙</span>
+                <span className="text-zinc-400">⚙</span>
                 Paramètres
               </button>
 
               <button
                 onClick={() => { onResetStats(deck.id); setIsMenuOpen(false); }}
-                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-colors flex items-center gap-2"
+                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors flex items-center gap-2"
               >
-                <span className="text-cyan-400">↺</span>
+                <span className="text-zinc-400">↺</span>
                 Réinitialiser stats
               </button>
 
@@ -159,17 +153,17 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
                 <>
                   <button
                     onClick={() => { onQuickAdd(deck.id); setIsMenuOpen(false); }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-colors flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors flex items-center gap-2"
                   >
-                    <span className="text-cyan-400">+</span>
+                    <span className="text-zinc-400">+</span>
                     Ajout rapide
                   </button>
 
                   <button
                     onClick={() => { onRename(deck.id); setIsMenuOpen(false); }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-colors flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors flex items-center gap-2"
                   >
-                    <span className="text-cyan-400">✎</span>
+                    <span className="text-zinc-400">✎</span>
                     Renommer
                   </button>
                 </>
@@ -177,17 +171,17 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
 
               <button
                 onClick={() => { onExport(deck.id, 'xml'); setIsMenuOpen(false); }}
-                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-colors flex items-center gap-2"
+                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors flex items-center gap-2"
               >
-                <span className="text-cyan-400">⇩</span>
+                <span className="text-zinc-400">⇩</span>
                 Export XML
               </button>
 
               <button
                 onClick={() => { onExport(deck.id, 'csv'); setIsMenuOpen(false); }}
-                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-colors flex items-center gap-2"
+                className="w-full px-4 py-2.5 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors flex items-center gap-2"
               >
-                <span className="text-cyan-400">⇩</span>
+                <span className="text-zinc-400">⇩</span>
                 Export CSV
               </button>
 
@@ -275,7 +269,7 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
             <span className="text-zinc-600">·</span>
             <span className="flex items-center gap-1.5">
               <span className="text-red-400 font-semibold">{dueCount} à réviser</span>
-              <span className="inline-block w-1.5 h-1.5 bg-red-500 rounded-full animate-[pulse_2s_ease-in-out_infinite]" />
+              <span className="inline-block w-1.5 h-1.5 bg-red-500 rounded-full" />
             </span>
           </>
         )}
@@ -291,12 +285,11 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
         <button
           onClick={() => onReview(deck.id)}
           disabled={!canReview}
-          className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-900 ${
+          className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-900 ${
             canReview
-              ? 'bg-cyan-600 hover:bg-cyan-700 text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 focus:ring-cyan-500/50 hover:scale-[1.02] active:scale-[0.98]'
-              : 'bg-zinc-800/50 text-zinc-500 cursor-not-allowed'
+              ? 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
+              : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
           }`}
-         
           aria-label={canReview ? 'Réviser les cartes' : 'Aucune carte à réviser'}
         >
           {canReview ? '⚡ Réviser' : 'Aucune carte'}
@@ -306,8 +299,7 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
         {!deck.isImported && (
           <button
             onClick={() => onEdit(deck.id)}
-            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 rounded-lg font-medium text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-zinc-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900"
-           
+            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg font-medium text-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
             aria-label="Éditer le deck"
           >
             ✎ Éditer
@@ -317,21 +309,12 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
         {/* Study Button */}
         <button
           onClick={() => onStudy(deck.id)}
-          className="px-4 py-2 bg-transparent border-2 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500 rounded-lg font-medium text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900"
-         
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
           aria-label="Étudier le deck"
         >
           ▶ Étudier
         </button>
       </div>
-
-      {/* Corner LED indicator */}
-      {hasDueCards && (
-        <div className="absolute top-3 right-12 w-2 h-2 rounded-full bg-red-500 opacity-60 animate-[pulse_2s_ease-in-out_infinite]" />
-      )}
-
-      {/* Scanline effect */}
-      <div className="absolute inset-0 bg-gradient-to-b from-white/[0.01] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded-lg" />
 
       <style jsx global>{`
         @keyframes slideDown {

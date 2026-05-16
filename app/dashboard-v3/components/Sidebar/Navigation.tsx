@@ -81,11 +81,11 @@ export default function Navigation({ isAdmin = false }: NavigationProps) {
             href={item.href}
             className={`
               relative flex items-center gap-3 px-4 py-1.5 rounded-lg
-              transition-all duration-200 group
+              transition-colors duration-200 group
               ${
                 isActive
-                  ? 'bg-cyan-500/10 text-cyan-400 border-l-2 border-cyan-500'
-                  : 'text-zinc-300 hover:bg-zinc-800/50 hover:text-cyan-400 border-l-2 border-transparent'
+                  ? 'bg-blue-600/10 text-blue-400 border-l-2 border-blue-500'
+                  : 'text-zinc-300 hover:bg-zinc-800 hover:text-blue-400 border-l-2 border-transparent'
               }
             `}
           >
@@ -104,11 +104,6 @@ export default function Navigation({ isAdmin = false }: NavigationProps) {
               <span className="ml-auto px-2 py-0.5 text-xs font-bold text-purple-400 bg-purple-500/10 border border-purple-500/30 rounded">
                 ADMIN
               </span>
-            )}
-
-            {/* Glow effect au hover */}
-            {!isActive && (
-              <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan-500/0 via-cyan-500/5 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
             )}
           </Link>
         )
