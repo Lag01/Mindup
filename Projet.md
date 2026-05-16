@@ -37,7 +37,7 @@ Application web de révision par flashcards avec système de révision immédiat
 - CRUD complet des decks et cartes
 - Support texte et LaTeX (avec validation des commandes dangereuses)
 - Images recto/verso (upload admin, compression Sharp, Vercel Blob)
-- Import XML/CSV avec détection auto du type de contenu
+- Import APKG (Anki), XML et CSV avec détection auto du type de contenu
 - Export XML/CSV
 - Permutation recto/verso en masse
 - Modification des types de contenu en masse
@@ -231,6 +231,43 @@ Trois interfaces de dashboard coexistaient : V1 (header classique, originale), V
 - `components/DashboardFeedbackModal.tsx`
 - `app/api/user/dashboard-feedback/route.ts`
 - `lib/dashboard-utils.ts` (la fonction `shouldShowFeedbackModal` était l'unique export)
+
+---
+
+## Import natif Anki (.apkg) — 16/05/2026
+
+### Contexte
+Pour faciliter la migration depuis Anki, Mindup accepte désormais les exports `.apkg` natifs. Contrairement aux exports texte (`.xml`, `.csv`) qui ne contiennent que le contenu, le format `.apkg` embarque l'historique de révision (intervalles, ease factor SM-2 ou stats FSRS natives, lapses, revlog complet). L'utilisateur peut donc reprendre ses cartes là où il les avait laissées sur Anki.
+
+### Architecture
+- **Conteneur** : un `.apkg` est un ZIP contenant `collection.anki21b` (SQLite compressé en Zstandard), `collection.anki2` (SQLite legacy, souvent vide), `media` (JSON mapping zstd) et les fichiers médias numérotés.
+- **Pipeline de parsing** (`lib/parsers/apkg.ts`) :
+  1. Décompression ZIP via `jszip`
+  2. Décompression zstd via `fzstd` (pure JS, compatible serverless)
+  3. Lecture SQLite via `sql.js` (WASM, compatible Vercel serverless ; le binaire `sql-wasm.wasm` est explicitement embarqué via `outputFileTracingIncludes` dans `next.config.js`)
+  4. Extraction des notes (champs séparés par `\x1f`), cards (avec `ord` pour gérer Basic+Reverse), revlog (compteurs again/hard/good/easy)
+  5. Choix du deck principal : celui avec le plus de cartes ; les sous-decks Anki (`Parent\x1fChild`) sont aplatis en `Parent :: Child`
+- **Nettoyage HTML** (`lib/parsers.ts` → `cleanAnkiHtml`) : strip des balises `<div>`/`<p>`/`<br>`, décodage des entités (`&nbsp;`, `&amp;`, etc.), suppression des médias (`<img>`, `[sound:...]`), conversion des délimiteurs LaTeX Anki (`[$]...[/$]`, `[latex]...[/latex]`, `\(...\)`) vers `$...$`.
+- **Conversion SM-2 → FSRS-5** (`lib/anki-import.ts` → `convertAnkiCardToReviewStats`) :
+  - Si `cards.data` contient un état FSRS natif Anki (`{s, d}`), on l'utilise directement
+  - Sinon, fallback SM-2 : `stability ≈ ivl` (jours pour les cartes review), `difficulty` extrapolée linéairement depuis `factor` (ease 1.3 → 10, ease 3.5 → 1)
+  - Les compteurs `again/hard/good/easy` sont reconstitués depuis le `revlog`
+  - Mapping `type` Anki → `CardStatus` Mindup (0→NEW, 1→LEARNING, 2→REVIEW, 3→RELEARNING)
+
+### Interface
+- **Option utilisateur** : case à cocher « Préserver mon historique de révision Anki » dans `components/Import/ImportV1.tsx` et `ImportV2.tsx`, visible uniquement quand un fichier `.apkg` est sélectionné. Cochée par défaut.
+- **Limite de taille** : 4 Mo pour `.apkg` (les decks avec médias dépassent souvent cette limite et seraient de toute façon limités par Vercel à ~4,5 Mo). XML/CSV restent à 5 Mo.
+
+### Limitations connues (v1)
+- **Médias ignorés** : les images et l'audio embarqués dans le `.apkg` sont supprimés (les balises `<img>` et `[sound:...]` sont strippées). Le contenu textuel est préservé. Une v2 pourra uploader les images vers Vercel Blob.
+- **Formatage HTML perdu** : gras, italique, listes, couleurs sont effacés. Le contenu est ramené à du texte brut + LaTeX.
+- **Notetypes complexes** : Cloze et Image Occlusion fonctionnent partiellement (les champs sont importés mais la logique de masquage Anki n'est pas reproduite — un cloze `{{c1::mot}}` apparaît tel quel).
+- **Cartes suspendues/buried** (`queue < 0`) : exclues de l'import.
+
+### Dépendances ajoutées
+- `jszip ^3.10.1` (décompression ZIP)
+- `fzstd ^0.1.1` (décompression Zstandard, pure JS)
+- `sql.js ^1.13.0` + `@types/sql.js` (SQLite via WASM)
 
 ---
 

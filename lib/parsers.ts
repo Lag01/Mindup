@@ -1,11 +1,14 @@
 import { XMLParser } from 'fast-xml-parser';
 import Papa from 'papaparse';
+import type { AnkiReviewStats } from './anki';
 
 export interface ParsedCard {
   front: string;
   back: string;
   frontType: 'TEXT' | 'LATEX';
   backType: 'TEXT' | 'LATEX';
+  // Présent uniquement pour l'import APKG avec preserveHistory : stats FSRS converties depuis Anki.
+  stats?: AnkiReviewStats;
 }
 
 export interface ParsedDeck {
@@ -16,10 +19,10 @@ export interface ParsedDeck {
 /**
  * Détecte automatiquement si le contenu est du LaTeX
  */
-function detectContentType(content: string): 'TEXT' | 'LATEX' {
+export function detectContentType(content: string): 'TEXT' | 'LATEX' {
   if (!content) return 'TEXT';
 
-  // Indicateurs de LaTeX
+  // Indicateurs de LaTeX (formats standard + formats Anki)
   const latexIndicators = [
     '\\',           // Backslash (commandes LaTeX)
     '$',            // Délimiteurs de math inline
@@ -33,11 +36,86 @@ function detectContentType(content: string): 'TEXT' | 'LATEX' {
     '_{',           // Indice
     '\\left',       // Délimiteur gauche
     '\\right',      // Délimiteur droit
+    '[$]',          // LaTeX inline Anki : [$]formule[/$]
+    '[$$]',         // LaTeX display Anki : [$$]formule[/$$]
+    '[latex]',      // LaTeX bloc Anki : [latex]...[/latex]
+    '\\(',          // LaTeX inline MathJax : \(...\)
+    '\\[',          // LaTeX display MathJax : \[...\]
   ];
 
   return latexIndicators.some(indicator => content.includes(indicator))
     ? 'LATEX'
     : 'TEXT';
+}
+
+/**
+ * Nettoie le HTML produit par Anki : décode les entités, transforme les balises de
+ * structure basiques en sauts de ligne, supprime les médias (v1 ignore les images/audio),
+ * et convertit les délimiteurs LaTeX Anki vers le format projet ($...$).
+ *
+ * Cette fonction est volontairement défensive : elle ne tente pas de préserver le
+ * formatage avancé (gras/italique/listes) — voir le plan v2 pour le support HTML natif.
+ */
+export function cleanAnkiHtml(html: string): string {
+  if (!html) return '';
+
+  let text = html;
+
+  // 1. Supprimer les médias (Anki encode images et audio dans le HTML)
+  text = text.replace(/<img\b[^>]*>/gi, '');
+  text = text.replace(/\[sound:[^\]]*\]/gi, '');
+
+  // 2. Convertir les délimiteurs LaTeX Anki vers $...$
+  //    [$]...[/$] : math inline
+  //    [$$]...[/$$] : math display
+  //    [latex]...[/latex] : bloc latex
+  //    \(...\) et \[...\] : MathJax (laissés tels quels, ts-katex les supporte via $)
+  text = text.replace(/\[\$\]([\s\S]*?)\[\/\$\]/g, '$$$1$$');
+  text = text.replace(/\[\$\$\]([\s\S]*?)\[\/\$\$\]/g, '$$$1$$');
+  text = text.replace(/\[latex\]([\s\S]*?)\[\/latex\]/gi, '$$$1$$');
+
+  // 3. Transformer les balises de structure en sauts de ligne
+  text = text.replace(/<br\s*\/?\s*>/gi, '\n');
+  text = text.replace(/<\/(div|p|li|tr)>/gi, '\n');
+
+  // 4. Strip toutes les autres balises HTML
+  text = text.replace(/<[^>]+>/g, '');
+
+  // 5. Décoder les entités HTML les plus courantes
+  const entities: Record<string, string> = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&hellip;': '…',
+    '&mdash;': '—',
+    '&ndash;': '–',
+    '&laquo;': '«',
+    '&raquo;': '»',
+    '&rsquo;': '’',
+    '&lsquo;': '‘',
+  };
+  text = text.replace(/&[a-z]+;|&#\d+;/gi, (match) => {
+    if (entities[match]) return entities[match];
+    // Décoder &#NN; (entité numérique)
+    const m = match.match(/^&#(\d+);$/);
+    if (m) {
+      const code = Number(m[1]);
+      if (code > 0 && code < 0x110000) return String.fromCodePoint(code);
+    }
+    return match;
+  });
+
+  // 6. Normaliser les espaces : trim et collapse des espaces consécutifs
+  //    (mais on préserve les \n simples comme séparateurs de paragraphes)
+  text = text.replace(/[ \t]+/g, ' ');
+  text = text.replace(/\n{3,}/g, '\n\n');
+  text = text.replace(/[ \t]*\n[ \t]*/g, '\n');
+
+  return text.trim();
 }
 
 export function parseXML(content: string): ParsedDeck {

@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { getCurrentUser } from '@/lib/auth';
-import { parseXML, parseCSV } from '@/lib/parsers';
+import { parseXML, parseCSV, type ParsedDeck } from '@/lib/parsers';
+import { parseAPKG } from '@/lib/parsers/apkg';
 import { createNewReviewStats } from '@/lib/revision';
 import { getAppSettings } from '@/lib/settings';
+
+// Limites de taille (en octets). .apkg est binaire et peut contenir plus de cartes
+// mais reste petit sans médias (~1 Mo pour 1000 cartes). 4 Mo couvre largement les
+// usages standards et reste sous la limite Vercel serverless (~4.5 Mo payload).
+const MAX_TEXT_SIZE = 5 * 1024 * 1024;
+const MAX_APKG_SIZE = 4 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,6 +39,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    const preserveHistory = formData.get('preserveHistory') === 'true';
 
     if (!file) {
       return NextResponse.json(
@@ -40,19 +48,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const content = await file.text();
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    const fallbackName = file.name.replace(/\.[^.]+$/, '') || 'Deck importé';
 
-    let parsedDeck;
+    let parsedDeck: ParsedDeck;
 
     try {
       if (fileExtension === 'xml') {
-        parsedDeck = parseXML(content);
+        if (file.size > MAX_TEXT_SIZE) {
+          return NextResponse.json({ error: 'Fichier XML trop volumineux (max 5 Mo)' }, { status: 400 });
+        }
+        parsedDeck = parseXML(await file.text());
       } else if (fileExtension === 'csv') {
-        parsedDeck = await parseCSV(content);
+        if (file.size > MAX_TEXT_SIZE) {
+          return NextResponse.json({ error: 'Fichier CSV trop volumineux (max 5 Mo)' }, { status: 400 });
+        }
+        parsedDeck = await parseCSV(await file.text());
+      } else if (fileExtension === 'apkg') {
+        if (file.size > MAX_APKG_SIZE) {
+          return NextResponse.json(
+            { error: `Fichier .apkg trop volumineux (max ${MAX_APKG_SIZE / (1024 * 1024)} Mo). Les decks contenant des médias dépassent souvent cette limite ; cette version ignore les médias mais ne peut pas traiter de fichiers trop gros.` },
+            { status: 400 }
+          );
+        }
+        parsedDeck = await parseAPKG(await file.arrayBuffer(), {
+          preserveHistory,
+          fallbackName,
+        });
       } else {
         return NextResponse.json(
-          { error: 'Format de fichier non supporté. Utilisez .xml ou .csv' },
+          { error: 'Format de fichier non supporté. Utilisez .apkg, .xml ou .csv' },
           { status: 400 }
         );
       }
@@ -63,9 +88,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create deck and reviews in a transaction
+    // Création atomique du deck, des cartes et des reviews
     const deck = await prisma.$transaction(async (tx) => {
-      // Create the deck with cards
       const createdDeck = await tx.deck.create({
         data: {
           name: parsedDeck.name,
@@ -81,22 +105,46 @@ export async function POST(request: NextRequest) {
           },
         },
         include: {
-          cards: true,
+          cards: {
+            orderBy: { order: 'asc' },
+          },
         },
       });
 
-      // Create initial reviews for all cards
-      const newStats = createNewReviewStats();
-      const reviewsData = createdDeck.cards.map(card => ({
-        cardId: card.id,
-        userId: user.id,
-        reps: newStats.reps,
-        againCount: newStats.againCount,
-        hardCount: newStats.hardCount,
-        goodCount: newStats.goodCount,
-        easyCount: newStats.easyCount,
-        lastReview: newStats.lastReview ?? undefined,
-      }));
+      // Construire les Review : par défaut stats vierges, ou stats Anki préservées si APKG.
+      const defaultStats = createNewReviewStats();
+      const reviewsData = createdDeck.cards.map((card, index) => {
+        const ankiStats = parsedDeck.cards[index]?.stats;
+        if (ankiStats) {
+          return {
+            cardId: card.id,
+            userId: user.id,
+            reps: ankiStats.reps,
+            againCount: ankiStats.againCount,
+            hardCount: ankiStats.hardCount,
+            goodCount: ankiStats.goodCount,
+            easyCount: ankiStats.easyCount,
+            lastReview: ankiStats.lastReview ?? undefined,
+            interval: ankiStats.interval ?? undefined,
+            nextReview: ankiStats.nextReview ?? undefined,
+            easeFactor: ankiStats.easeFactor,
+            stability: ankiStats.stability,
+            difficulty: ankiStats.difficulty,
+            lapses: ankiStats.lapses,
+            status: ankiStats.status,
+          };
+        }
+        return {
+          cardId: card.id,
+          userId: user.id,
+          reps: defaultStats.reps,
+          againCount: defaultStats.againCount,
+          hardCount: defaultStats.hardCount,
+          goodCount: defaultStats.goodCount,
+          easyCount: defaultStats.easyCount,
+          lastReview: defaultStats.lastReview ?? undefined,
+        };
+      });
 
       await tx.review.createMany({
         data: reviewsData,

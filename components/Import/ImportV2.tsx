@@ -3,20 +3,35 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+const ACCEPTED_EXTENSIONS = ['xml', 'csv', 'apkg'] as const;
+type AcceptedExtension = (typeof ACCEPTED_EXTENSIONS)[number];
+
+function getExtension(filename: string): string | undefined {
+  return filename.split('.').pop()?.toLowerCase();
+}
+
+function isAccepted(extension: string | undefined): extension is AcceptedExtension {
+  return !!extension && (ACCEPTED_EXTENSIONS as readonly string[]).includes(extension);
+}
+
 export default function ImportV2() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [preserveHistory, setPreserveHistory] = useState(true);
   const router = useRouter();
+
+  const fileExtension = file ? getExtension(file.name) : undefined;
+  const isApkg = fileExtension === 'apkg';
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      const extension = selectedFile.name.split('.').pop()?.toLowerCase();
-      if (extension !== 'xml' && extension !== 'csv') {
-        setError('Format de fichier non supporté. Utilisez .xml ou .csv');
+      const extension = getExtension(selectedFile.name);
+      if (!isAccepted(extension)) {
+        setError('Format de fichier non supporté. Utilisez .apkg, .xml ou .csv');
         setFile(null);
         return;
       }
@@ -41,9 +56,9 @@ export default function ImportV2() {
     setIsDragOver(false);
     const droppedFile = e.dataTransfer.files?.[0];
     if (droppedFile) {
-      const extension = droppedFile.name.split('.').pop()?.toLowerCase();
-      if (extension !== 'xml' && extension !== 'csv') {
-        setError('Format de fichier non supporté. Utilisez .xml ou .csv');
+      const extension = getExtension(droppedFile.name);
+      if (!isAccepted(extension)) {
+        setError('Format de fichier non supporté. Utilisez .apkg, .xml ou .csv');
         setFile(null);
         return;
       }
@@ -67,6 +82,9 @@ export default function ImportV2() {
 
     const formData = new FormData();
     formData.append('file', file);
+    if (isApkg) {
+      formData.append('preserveHistory', String(preserveHistory));
+    }
 
     try {
       const response = await fetch('/api/import', {
@@ -158,7 +176,7 @@ export default function ImportV2() {
                       <span className="font-semibold">Cliquez pour sélectionner</span> ou glissez-déposez
                     </p>
                     <p className="text-xs text-zinc-500">
-                      Formats supportés : XML, CSV
+                      Formats supportés : APKG (Anki), XML, CSV
                     </p>
                     {file && (
                       <p className="mt-3 text-sm text-cyan-400 font-medium">
@@ -170,12 +188,34 @@ export default function ImportV2() {
                     id="file-input-v2"
                     type="file"
                     className="hidden"
-                    accept=".xml,.csv"
+                    accept=".apkg,.xml,.csv"
                     onChange={handleFileChange}
                   />
                 </label>
               </div>
             </div>
+
+            {isApkg && (
+              <div className="bg-zinc-800/40 border border-zinc-700/50 rounded-lg p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={preserveHistory}
+                    onChange={(e) => setPreserveHistory(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-zinc-900"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-zinc-200">
+                      Préserver mon historique de révision Anki
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Conserve les intervalles, le nombre de répétitions et les lapses
+                      (conversion SM-2 → FSRS-5). Décochez pour repartir à zéro.
+                    </p>
+                  </div>
+                </label>
+              </div>
+            )}
 
             {error && (
               <div className="bg-red-900/20 border border-red-500/30 text-red-200 px-4 py-3 rounded-lg text-sm">
@@ -199,7 +239,15 @@ export default function ImportV2() {
           </form>
 
           <div className="mt-8 p-4 bg-zinc-800/50 rounded-xl border border-zinc-700/50">
-            <h3 className="text-sm font-medium text-zinc-300 mb-2">Format XML attendu :</h3>
+            <h3 className="text-sm font-medium text-zinc-300 mb-2">Format APKG (Anki) :</h3>
+            <p className="text-xs text-zinc-400 mb-1">
+              Export standard depuis Anki Desktop : <span className="text-zinc-300">Fichier → Exporter → Package Anki</span>.
+            </p>
+            <p className="text-xs text-zinc-500">
+              Les médias (images, audio) sont ignorés dans cette version.
+              Limite : 4 Mo. Notetypes complexes (Cloze, Image Occlusion) partiellement supportés.
+            </p>
+            <h3 className="text-sm font-medium text-zinc-300 mb-2 mt-4">Format XML attendu :</h3>
             <pre className="text-xs text-zinc-400 overflow-x-auto">
 {`<deck name="Mon Deck">
   <cards>

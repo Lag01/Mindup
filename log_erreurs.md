@@ -217,3 +217,28 @@ Recopie dans `ReviewV1.tsx:268-298` de la logique de V2 :
 
 ### Leçon
 Quand deux composants partagent une logique (V1/V2 du même flux), toute correction doit être appliquée aux deux **en même temps**. Idéalement, extraire la logique partagée dans un hook ou un util (`/lib/session-restore.ts`) pour éviter ces divergences.
+
+---
+
+## Import Anki : SQLite invisible alors qu'il existe (16/05/2026)
+
+### Symptôme
+À l'inspection d'un `.apkg` moderne (Anki ≥ 2.1.50), la table `notes` de `collection.anki2` ne contenait qu'**une seule note** alors que le deck en contenait 10. Les autres tables (`cards`, `revlog`) étaient également quasi-vides ou n'avaient pas les bonnes colonnes (pas de `deck_config`, `notetypes`, `fields`, `templates`).
+
+### Cause racine
+Depuis Anki 2.1.50, l'export `.apkg` contient **deux fichiers SQLite** :
+- `collection.anki2` : **squelette legacy** maintenu pour la rétro-compatibilité avec les vieilles versions d'AnkiDroid/Anki. Contient un schéma minimal mais pas les vraies données.
+- `collection.anki21b` : SQLite **réel**, compressé en Zstandard (magic bytes `28 b5 2f fd`). Contient toutes les notes, cartes, revlog et le schéma moderne (`deck_config`, `notetypes`, `fields`, etc.).
+
+Un parser qui ouvre directement `collection.anki2` sans vérifier la présence de `collection.anki21b` lit donc des données vides ou incomplètes.
+
+### Solution implémentée
+Dans `lib/parsers/apkg.ts` → `extractSqliteBuffer()`, ordre de priorité strict :
+1. `collection.anki21b` (zstd) — Anki ≥ 2.1.50, source de vérité moderne
+2. `collection.anki21` (SQLite brut) — fallback intermédiaire
+3. `collection.anki2` (SQLite brut) — fallback ultime pour les très vieux exports
+
+La décompression zstd utilise `fzstd` (pure JS, compatible Vercel serverless). Important : `fzstd.decompress()` accepte un `Uint8Array` et retourne un `Uint8Array` ; éviter `zstandard.decompress()` côté Python avec frames sans content size (utiliser `stream_reader` à la place).
+
+### Leçon
+Pour les formats binaires propriétaires, toujours valider la structure réelle avec un échantillon avant d'écrire le parser. Ici, un `sqlite3 collection.anki2 ".tables"` montrait `COUNT=1` alors que le deck en contenait 10 — indice immédiat qu'on lisait le mauvais fichier.

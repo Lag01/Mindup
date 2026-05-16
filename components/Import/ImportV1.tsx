@@ -4,19 +4,25 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import SimpleHeader from '@/components/SimpleHeader';
 
+const ACCEPTED_EXTENSIONS = ['xml', 'csv', 'apkg'] as const;
+
 export default function ImportV1() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [preserveHistory, setPreserveHistory] = useState(true);
   const router = useRouter();
+
+  const fileExtension = file?.name.split('.').pop()?.toLowerCase();
+  const isApkg = fileExtension === 'apkg';
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       const extension = selectedFile.name.split('.').pop()?.toLowerCase();
-      if (extension !== 'xml' && extension !== 'csv') {
-        setError('Format de fichier non supporté. Utilisez .xml ou .csv');
+      if (!extension || !(ACCEPTED_EXTENSIONS as readonly string[]).includes(extension)) {
+        setError('Format de fichier non supporté. Utilisez .apkg, .xml ou .csv');
         setFile(null);
         return;
       }
@@ -40,6 +46,9 @@ export default function ImportV1() {
 
     const formData = new FormData();
     formData.append('file', file);
+    if (isApkg) {
+      formData.append('preserveHistory', String(preserveHistory));
+    }
 
     try {
       const response = await fetch('/api/import', {
@@ -110,7 +119,7 @@ export default function ImportV1() {
                       <span className="font-semibold">Cliquez pour sélectionner</span> ou glissez-déposez
                     </p>
                     <p className="text-xs text-zinc-500">
-                      Formats supportés : XML, CSV
+                      Formats supportés : APKG (Anki), XML, CSV
                     </p>
                     {file && (
                       <p className="mt-3 text-sm text-blue-400 font-medium">
@@ -122,12 +131,33 @@ export default function ImportV1() {
                     id="file-input"
                     type="file"
                     className="hidden"
-                    accept=".xml,.csv"
+                    accept=".apkg,.xml,.csv"
                     onChange={handleFileChange}
                   />
                 </label>
               </div>
             </div>
+
+            {isApkg && (
+              <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={preserveHistory}
+                    onChange={(e) => setPreserveHistory(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-zinc-200">
+                      Préserver mon historique de révision Anki
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Conserve intervalles, répétitions et lapses (conversion SM-2 → FSRS-5).
+                    </p>
+                  </div>
+                </label>
+              </div>
+            )}
 
             {error && (
               <div className="bg-red-900/30 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm">
@@ -151,6 +181,13 @@ export default function ImportV1() {
           </form>
 
           <div className="mt-8 p-4 bg-zinc-800 rounded-lg">
+            <h3 className="text-sm font-medium text-zinc-300 mb-2">Format APKG (Anki) :</h3>
+            <p className="text-xs text-zinc-400 mb-1">
+              Export Anki Desktop : Fichier → Exporter → Package Anki.
+            </p>
+            <p className="text-xs text-zinc-500 mb-4">
+              Médias ignorés. Limite 4 Mo.
+            </p>
             <h3 className="text-sm font-medium text-zinc-300 mb-2">Format XML attendu :</h3>
             <pre className="text-xs text-zinc-400 overflow-x-auto">
 {`<deck name="Mon Deck">

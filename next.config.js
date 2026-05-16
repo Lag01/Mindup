@@ -6,6 +6,16 @@ const nextConfig = {
     root: process.cwd(),
   },
 
+  // sql.js charge son WASM via fs/locateFile : on l'exclut du bundling serveur
+  // pour éviter que Next/Webpack ne tente de l'inliner.
+  serverExternalPackages: ['sql.js'],
+
+  // S'assure que le binaire WASM de sql.js est embarqué dans le bundle Vercel
+  // pour la route d'import (sinon process.cwd()/node_modules est introuvable en serverless).
+  outputFileTracingIncludes: {
+    '/api/import': ['./node_modules/sql.js/dist/sql-wasm.wasm'],
+  },
+
   images: {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
