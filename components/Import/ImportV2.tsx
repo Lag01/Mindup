@@ -2,6 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import DeckSelectionModal, {
+  type APKGDeckSummary,
+  type DeckSelectionResult,
+} from '@/components/Import/DeckSelectionModal';
+import { invalidateFetchCache } from '@/hooks/useFetch';
 
 const ACCEPTED_EXTENSIONS = ['xml', 'csv', 'apkg'] as const;
 type AcceptedExtension = (typeof ACCEPTED_EXTENSIONS)[number];
@@ -21,6 +26,8 @@ export default function ImportV2() {
   const [success, setSuccess] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
   const [preserveHistory, setPreserveHistory] = useState(true);
+  const [pendingDecks, setPendingDecks] = useState<APKGDeckSummary[] | null>(null);
+  const [pendingFallbackName, setPendingFallbackName] = useState('');
   const router = useRouter();
 
   const fileExtension = file ? getExtension(file.name) : undefined;
@@ -68,6 +75,59 @@ export default function ImportV2() {
     }
   };
 
+  const finalizeImport = (deckCount: number, firstDeckName: string, totalCards: number) => {
+    invalidateFetchCache('/api/decks');
+    invalidateFetchCache();
+    setSuccess(
+      deckCount > 1
+        ? `${deckCount} decks importés avec succès (${totalCards} cartes au total). Redirection…`
+        : `Deck "${firstDeckName}" importé avec succès (${totalCards} cartes). Redirection…`
+    );
+    setFile(null);
+    const fileInput = document.getElementById('file-input-v2') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+
+    setTimeout(() => {
+      router.push('/dashboard-entry');
+      router.refresh();
+    }, 300);
+  };
+
+  const performImport = async (
+    targetFile: File,
+    selection: DeckSelectionResult | null
+  ) => {
+    const formData = new FormData();
+    formData.append('file', targetFile);
+    if (targetFile.name.toLowerCase().endsWith('.apkg')) {
+      formData.append('preserveHistory', String(preserveHistory));
+    }
+    if (selection) {
+      formData.append('selectedDeckIds', JSON.stringify(selection.selectedIds));
+      formData.append('mergeMode', selection.mode);
+      if (selection.mode === 'merge') {
+        formData.append('mergedDeckName', selection.mergedName);
+      }
+    }
+
+    const response = await fetch('/api/import', {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Erreur lors de l\'importation');
+    }
+
+    const decks = Array.isArray(data.decks) ? data.decks : [data.deck];
+    const totalCards = decks.reduce(
+      (sum: number, d: { cardsCount: number }) => sum + (d?.cardsCount || 0),
+      0
+    );
+    finalizeImport(decks.length, decks[0]?.name || 'Deck', totalCards);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -80,42 +140,56 @@ export default function ImportV2() {
     setError('');
     setSuccess('');
 
-    const formData = new FormData();
-    formData.append('file', file);
-    if (isApkg) {
-      formData.append('preserveHistory', String(preserveHistory));
-    }
-
     try {
-      const response = await fetch('/api/import', {
+      const analyzeForm = new FormData();
+      analyzeForm.append('file', file);
+      const analyzeRes = await fetch('/api/import/analyze', {
         method: 'POST',
-        body: formData,
+        body: analyzeForm,
       });
+      const analyzeData = await analyzeRes.json();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Erreur lors de l\'importation');
+      if (!analyzeRes.ok) {
+        setError(analyzeData.error || 'Erreur lors de l\'analyse du fichier');
         setLoading(false);
         return;
       }
 
-      setSuccess(`Deck "${data.deck.name}" importé avec succès (${data.deck.cardsCount} cartes)`);
-      setFile(null);
+      if (
+        analyzeData.format === 'apkg' &&
+        Array.isArray(analyzeData.decks) &&
+        analyzeData.decks.length > 1
+      ) {
+        setPendingDecks(analyzeData.decks);
+        setPendingFallbackName(analyzeData.fallbackName || file.name);
+        setLoading(false);
+        return;
+      }
 
-      // Reset file input
-      const fileInput = document.getElementById('file-input-v2') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-
-      // Redirect to dashboard after 2 seconds
-      setTimeout(() => {
-        router.push('/dashboard-entry');
-      }, 2000);
-    } catch (err) {
-      setError('Erreur de connexion au serveur');
+      await performImport(file, null);
+    } catch (err: any) {
+      setError(err?.message || 'Erreur de connexion au serveur');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSelectionConfirm = async (selection: DeckSelectionResult) => {
+    if (!file) return;
+    setLoading(true);
+    setError('');
+    try {
+      await performImport(file, selection);
+      setPendingDecks(null);
+    } catch (err: any) {
+      setError(err?.message || 'Erreur lors de l\'importation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectionCancel = () => {
+    setPendingDecks(null);
   };
 
   return (
@@ -267,6 +341,15 @@ Question 2,Réponse 2`}
           </div>
         </div>
       </main>
+
+      <DeckSelectionModal
+        isOpen={pendingDecks !== null}
+        decks={pendingDecks ?? []}
+        defaultMergedName={pendingFallbackName}
+        isSubmitting={loading}
+        onConfirm={handleSelectionConfirm}
+        onCancel={handleSelectionCancel}
+      />
     </div>
   );
 }

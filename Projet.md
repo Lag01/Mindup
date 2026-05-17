@@ -309,4 +309,52 @@ Le système de statistiques avait été conçu autour du mode IMMEDIATE (cumuls 
 
 ---
 
-**Dernière mise à jour** : 16/05/2026
+## Import multi-decks APKG + robustesse CSV + UX post-import (17/05/2026)
+
+### Contexte
+Trois améliorations sur les fonctionnalités d'import :
+1. Un fichier `.apkg` peut contenir plusieurs decks (et sous-decks `Parent::Enfant` stockés avec `\x1f` dans la table `decks` Anki). Le parser fusionnait silencieusement tout dans un seul deck Mindup, ce qui rendait inutilisable l'import de fichiers Anki multi-decks.
+2. Le parser CSV manquait de garde-fous (BOM UTF-8, virgules non-échappées dans des CSV non standards, absence de diagnostic explicite des lignes ignorées).
+3. Après un import réussi, l'utilisateur attendait 2 s avant la redirection et devait rafraîchir la page pour voir son nouveau deck — le hook `useFetch` cache les GET pendant 5 min sans mécanisme d'invalidation.
+
+### Architecture multi-decks APKG
+- **Refactor `lib/parsers/apkg.ts`** :
+  - Nouvelle interface publique `APKGDeckSummary` (`ankiId`, `name`, `cardCount`).
+  - `listAPKGDecks(db)` : liste les decks contenant au moins une carte importable (`queue >= 0`), couvre le schéma moderne (table `decks`) et legacy (`col.decks` JSON).
+  - `analyzeAPKG(buffer)` : ouvre le `.apkg` et renvoie la liste des decks sans construire les cartes (pour la pré-analyse côté UI).
+  - `parseAPKG(buffer, options)` : signature étendue avec `selectedDeckIds`, `mergeMode` (`'split'` | `'merge'`), `mergedDeckName`. Retourne désormais `ParsedDeck[]` (potentiellement de longueur 1).
+- **Nouvel endpoint `POST /api/import/analyze`** (`app/api/import/analyze/route.ts`) : retourne `{ format, decks, totalCards, fallbackName }`. Pas de side-effect ; le client garde le `File` et le ré-uploade à l'étape de confirmation.
+- **Endpoint `POST /api/import` étendu** : lit `selectedDeckIds` (JSON), `mergeMode`, `mergedDeckName`. Crée N decks dans une transaction en mode `split`. Vérifie la limite `maxDecksPerUser` cumulée (`userDecksCount + parsedDecks.length`) avant insertion. Réponse rétro-compatible : champs `deck` (premier deck) et `decks` (tous).
+
+### UI de sélection
+- **`components/Import/DeckSelectionModal.tsx`** (nouveau) : modale affichée quand l'`.apkg` contient ≥2 decks. Checkboxes par deck avec compteur de cartes, raccourcis « Tout sélectionner / Aucun », boutons radio split/merge, champ texte pour le nom du deck fusionné (pré-rempli avec le nom du fichier).
+- **`ImportV1` et `ImportV2`** : flow analyze → modale (si multi-deck) → import. Le cas mono-deck (CSV, XML, ou APKG avec un seul deck) reste transparent : aucun écran intermédiaire.
+
+### Robustesse CSV (`lib/parsers.ts`)
+- Strip du BOM UTF-8 en tête de fichier.
+- `delimiter: ','` explicite pour neutraliser l'auto-détection sur des champs ambigus (dates `1914-1918`, etc.).
+- Tolérance aux virgules non-échappées : si `row.__parsed_extra` est non vide et le CSV n'a que 2 colonnes, les champs en trop sont recollés au `back`. Limité aux CSV à 2 colonnes pour ne pas masquer d'erreurs sur des formats >2 colonnes.
+- Messages d'erreur enrichis : nombre de lignes ignorées et colonnes détectées.
+
+### UX post-import
+- **`hooks/useFetch.ts`** : export d'une fonction `invalidateFetchCache(url?)` qui purge le `Map` de cache global (par URL ou en totalité).
+- **ImportV1/V2** : sur succès, `invalidateFetchCache('/api/decks')` + `invalidateFetchCache()` (purge globale), puis `router.push('/dashboard-entry')` après 300 ms (au lieu de 2 s) suivi d'un `router.refresh()`.
+
+### Fichiers créés
+- `app/api/import/analyze/route.ts`
+- `components/Import/DeckSelectionModal.tsx`
+
+### Fichiers modifiés
+- `lib/parsers/apkg.ts` (refactor majeur : multi-deck, analyze)
+- `lib/parsers.ts` (CSV : BOM, délimiteur, tolérance, diagnostic)
+- `app/api/import/route.ts` (paramètres de sélection, transaction multi-deck)
+- `hooks/useFetch.ts` (export `invalidateFetchCache`)
+- `components/Import/ImportV1.tsx`, `ImportV2.tsx` (flow analyze + cache invalidation)
+
+### Limitations connues
+- L'utilisateur ré-uploade le fichier entre `analyze` et `import` (pas de cache serveur entre les deux appels) ; sur de gros `.apkg` proches de 4 Mo, cela double le temps de transfert mais reste acceptable.
+- Le tri des decks affichés dans la modale suit l'ordre décroissant du nombre de cartes (déjà appliqué par `listAPKGDecks`).
+
+---
+
+**Dernière mise à jour** : 17/05/2026

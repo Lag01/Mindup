@@ -5,6 +5,20 @@ import { CACHE_TTL_MS, CACHE_MAX_SIZE } from '@/lib/constants';
 // Clé: URL → Valeur: { data, timestamp }
 const cache = new Map<string, { data: unknown; timestamp: number }>();
 
+/**
+ * Invalide une entrée du cache (par URL exacte) ou la totalité si appelé sans
+ * argument. À appeler après une mutation côté serveur pour forcer le prochain
+ * `execute(url)` à refetch — sinon la donnée stale reste affichée jusqu'à
+ * expiration du TTL.
+ */
+export function invalidateFetchCache(url?: string): void {
+  if (url === undefined) {
+    cache.clear();
+    return;
+  }
+  cache.delete(url);
+}
+
 interface UseFetchOptions<T> {
   onSuccess?: (data: T) => void;
   onError?: (error: Error) => void;

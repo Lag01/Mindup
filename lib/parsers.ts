@@ -207,37 +207,60 @@ export function parseXML(content: string): ParsedDeck {
 }
 
 export function parseCSV(content: string): Promise<ParsedDeck> {
+  // Strip BOM UTF-8 si présent : sans ça, la première colonne du header devient
+  // "﻿front" et casse la détection de la colonne Front.
+  const normalized = content.charCodeAt(0) === 0xfeff ? content.slice(1) : content;
+
   return new Promise((resolve, reject) => {
-    Papa.parse(content, {
+    Papa.parse(normalized, {
       header: true,
       skipEmptyLines: true,
+      // Délimiteur fixé pour éviter une mauvaise auto-détection sur des CSV
+      // commençant par des champs ambigus (ex: dates "1914-1918").
+      delimiter: ',',
       complete: (results) => {
         try {
           if (!results.data || results.data.length === 0) {
             throw new Error('Aucune donnée trouvée dans le fichier CSV');
           }
 
-          // Récupérer les noms des colonnes
           const fields = results.meta?.fields || [];
 
           if (fields.length < 2) {
-            throw new Error('Le fichier CSV doit contenir au moins 2 colonnes');
+            throw new Error(
+              'Le fichier CSV doit contenir au moins 2 colonnes (Front,Back). ' +
+                `Colonnes détectées : ${fields.length === 0 ? 'aucune' : fields.join(', ')}.`
+            );
           }
 
           const cards: ParsedCard[] = [];
+          let ignored = 0;
 
-          results.data.forEach((row: any, index: number) => {
-            // Essayer d'abord les noms de colonnes standards
+          // Pour la tolérance aux virgules non-échappées : on n'active la fusion
+          // de __parsed_extra que si le CSV a EXACTEMENT 2 colonnes (cas standard
+          // front/back). Avec ≥3 colonnes, des champs supplémentaires sont attendus,
+          // donc on n'a aucun moyen de deviner où s'arrête le back.
+          const allowExtraMerge = fields.length === 2;
+
+          results.data.forEach((row: any) => {
             let front = (row.Front || row.front || row.Question || row.question || '').trim();
             let back = (row.Back || row.back || row.Answer || row.answer || '').trim();
 
-            // Si aucun nom standard trouvé, utiliser les 2 premières colonnes
             if (!front && !back && fields.length >= 2) {
               front = (row[fields[0]] || '').trim();
               back = (row[fields[1]] || '').trim();
             }
 
-            // Validation stricte : front ET back requis
+            // Tolérance : si PapaParse a stocké des champs en trop (virgule
+            // non-quotée dans le back), on les recolle au back.
+            if (allowExtraMerge && Array.isArray(row.__parsed_extra) && row.__parsed_extra.length > 0) {
+              const extras = row.__parsed_extra
+                .map((v: unknown) => (v == null ? '' : String(v)))
+                .join(',');
+              back = back ? `${back},${extras}` : extras;
+              back = back.trim();
+            }
+
             if (front && back) {
               cards.push({
                 front,
@@ -246,12 +269,15 @@ export function parseCSV(content: string): Promise<ParsedDeck> {
                 backType: detectContentType(back),
               });
             } else if (front || back) {
-              console.warn(`Ligne ${index + 2} ignorée : front ou back manquant`);
+              ignored += 1;
             }
           });
 
           if (cards.length === 0) {
-            throw new Error('Aucune carte valide trouvée dans le fichier CSV');
+            throw new Error(
+              `Aucune carte valide trouvée dans le fichier CSV (${ignored} ligne(s) ignorée(s)). ` +
+                `Vérifiez que les colonnes "Front" et "Back" sont bien renseignées.`
+            );
           }
 
           resolve({

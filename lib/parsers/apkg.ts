@@ -123,52 +123,77 @@ function pickFrontBack(flds: string[], ord: number): { front: string; back: stri
   return { front: fieldAt(flds, 0), back: fieldAt(flds, 1) };
 }
 
+/** Représentation d'un deck Anki détecté dans un .apkg, exposée à l'UI. */
+export interface APKGDeckSummary {
+  /** Identifiant Anki du deck (table `decks`). */
+  ankiId: number;
+  /** Nom aplati (sous-decks séparés par " :: "). */
+  name: string;
+  /** Nombre de cartes importables (queue >= 0) appartenant à ce deck. */
+  cardCount: number;
+}
+
+function flattenDeckName(rawName: string): string {
+  return rawName.split(ANKI_FIELD_SEPARATOR).join(' :: ');
+}
+
 /**
- * Détermine le nom du deck à utiliser. Anki peut contenir plusieurs decks ;
- * on prend celui qui contient le plus de cartes. Aplatit les sous-decks séparés
- * par \x1f en " :: ".
+ * Liste les decks contenant au moins une carte importable. Couvre les deux schémas
+ * Anki :
+ *   - Moderne (anki21b/anki21) : table `decks`.
+ *   - Legacy (anki2) : col.decks au format JSON.
  */
-function pickDeckName(
-  db: Database,
-  fallback: string
-): string {
-  // La table 'decks' n'existe que dans le schéma anki21b/anki21 ; sur anki2 (legacy)
-  // les decks sont dans col.decks (JSON). On tente d'abord la table moderne.
+export function listAPKGDecks(db: Database): APKGDeckSummary[] {
+  // 1. Schéma moderne : table decks dédiée.
   try {
-    const rows = queryAll<{ id: number; name: string }>(
+    const rows = queryAll<{ id: number; name: string; cardCount: number }>(
       db,
-      `SELECT d.id, d.name
+      `SELECT d.id AS id, d.name AS name, COUNT(c.id) AS cardCount
          FROM decks d
-         LEFT JOIN cards c ON c.did = d.id
-         WHERE d.id != 1
+         INNER JOIN cards c ON c.did = d.id
+         WHERE c.queue >= 0
          GROUP BY d.id
-         ORDER BY COUNT(c.id) DESC
-         LIMIT 1`
+         HAVING cardCount > 0
+         ORDER BY cardCount DESC`
     );
-    if (rows.length > 0 && rows[0].name) {
-      return rows[0].name.split(ANKI_FIELD_SEPARATOR).join(' :: ');
-    }
-    // Si seul "Default" existe (id=1), on tente quand même
-    const def = queryAll<{ name: string }>(db, `SELECT name FROM decks WHERE id = 1`);
-    if (def.length > 0) {
-      return def[0].name.split(ANKI_FIELD_SEPARATOR).join(' :: ');
+    if (rows.length > 0) {
+      return rows
+        .filter((r) => !!r.name)
+        .map((r) => ({
+          ankiId: r.id,
+          name: flattenDeckName(r.name),
+          cardCount: Number(r.cardCount) || 0,
+        }));
     }
   } catch {
-    // Schéma legacy : col.decks contient un JSON
-    try {
-      const col = queryAll<{ decks: string }>(db, `SELECT decks FROM col LIMIT 1`);
-      if (col.length > 0 && col[0].decks) {
-        const decks = JSON.parse(col[0].decks) as Record<string, { name: string }>;
-        const values = Object.values(decks);
-        if (values.length > 0) {
-          return values[0].name.split(ANKI_FIELD_SEPARATOR).join(' :: ');
-        }
-      }
-    } catch {
-      // ignore et fallback
-    }
+    // Tombe sur le schéma legacy ci-dessous.
   }
-  return fallback;
+
+  // 2. Schéma legacy : col.decks (JSON) + comptage manuel via cards.did.
+  try {
+    const col = queryAll<{ decks: string }>(db, `SELECT decks FROM col LIMIT 1`);
+    if (col.length > 0 && col[0].decks) {
+      const decks = JSON.parse(col[0].decks) as Record<string, { id?: number; name: string }>;
+      const counts = queryAll<{ did: number; cardCount: number }>(
+        db,
+        `SELECT did, COUNT(id) AS cardCount FROM cards WHERE queue >= 0 GROUP BY did`
+      );
+      const countById = new Map<number, number>();
+      for (const c of counts) countById.set(c.did, Number(c.cardCount) || 0);
+
+      return Object.entries(decks)
+        .map(([key, value]) => {
+          const id = value.id ?? Number(key);
+          const cardCount = countById.get(id) ?? 0;
+          return { ankiId: id, name: flattenDeckName(value.name), cardCount };
+        })
+        .filter((d) => d.cardCount > 0)
+        .sort((a, b) => b.cardCount - a.cardCount);
+    }
+  } catch {
+    // ignore : on retourne un tableau vide ci-dessous.
+  }
+  return [];
 }
 
 export interface ParseAPKGOptions {
@@ -176,18 +201,23 @@ export interface ParseAPKGOptions {
   preserveHistory?: boolean;
   /** Nom de fichier (sans extension) utilisé en fallback si aucun nom de deck trouvé. */
   fallbackName?: string;
+  /** Liste des deck Anki IDs à importer. Si absent ou vide → tous les decks. */
+  selectedDeckIds?: number[];
+  /**
+   * Mode d'agrégation quand plusieurs decks sont sélectionnés :
+   *   - 'split' : un ParsedDeck par deck Anki sélectionné.
+   *   - 'merge' : un seul ParsedDeck agrégeant toutes les cartes (défaut historique).
+   */
+  mergeMode?: 'split' | 'merge';
+  /** Nom à utiliser pour le deck unique en mode 'merge'. */
+  mergedDeckName?: string;
 }
 
 /**
- * Point d'entrée : transforme un .apkg en ParsedDeck prêt à insérer en DB.
+ * Ouvre l'archive .apkg, en extrait la base SQLite et instancie la connexion sql.js.
+ * Le caller a la responsabilité d'appeler `db.close()` après usage.
  */
-export async function parseAPKG(
-  fileBuffer: ArrayBuffer,
-  options: ParseAPKGOptions = {}
-): Promise<ParsedDeck> {
-  const { preserveHistory = false, fallbackName = 'Deck Anki importé' } = options;
-
-  // 1. Décompression ZIP
+async function openAPKGDatabase(fileBuffer: ArrayBuffer): Promise<Database> {
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(fileBuffer);
@@ -196,114 +226,212 @@ export async function parseAPKG(
       `Fichier .apkg invalide (archive ZIP corrompue) : ${(err as Error).message}`
     );
   }
-
-  // 2. Extraction SQLite
   const sqliteBuffer = await extractSqliteBuffer(zip);
-
-  // 3. Ouverture sql.js
   const SQL = await loadSqlJs();
-  const db = new SQL.Database(sqliteBuffer);
+  return new SQL.Database(sqliteBuffer);
+}
+
+/**
+ * Analyse un .apkg sans construire les ParsedCards : retourne uniquement la liste
+ * des decks détectés (et leur nombre de cartes). Utilisé par l'UI pour permettre
+ * à l'utilisateur de choisir quels decks importer.
+ */
+export async function analyzeAPKG(fileBuffer: ArrayBuffer): Promise<APKGDeckSummary[]> {
+  const db = await openAPKGDatabase(fileBuffer);
+  try {
+    return listAPKGDecks(db);
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Extrait les ParsedCards pour un ensemble de deck IDs Anki (ou toutes les cartes
+ * si `ankiIds` est null). Retourne un Map deckAnkiId → ParsedCards correspondants.
+ */
+function extractParsedCardsByDeck(
+  db: Database,
+  ankiIds: number[] | null,
+  preserveHistory: boolean
+): Map<number, ParsedCard[]> {
+  // Notes (id → flds[])
+  const noteRows = queryAll<{ id: number; flds: string }>(
+    db,
+    `SELECT id, flds FROM notes`
+  );
+  const notesById = new Map<number, string[]>();
+  for (const n of noteRows) {
+    notesById.set(n.id, (n.flds || '').split(ANKI_FIELD_SEPARATOR));
+  }
+
+  // Cards (filtrées par deck ID si demandé)
+  let cardSql = `SELECT id, nid, did, ord, type, queue, ivl, factor, reps, lapses, data
+                   FROM cards
+                  WHERE queue >= 0`;
+  if (ankiIds && ankiIds.length > 0) {
+    // sql.js ne supporte pas les array params nativement ; on inline les IDs
+    // (validés en amont — ce sont des entiers issus de la table decks).
+    const safe = ankiIds.filter((n) => Number.isFinite(n)).map((n) => Math.trunc(n));
+    if (safe.length === 0) return new Map();
+    cardSql += ` AND did IN (${safe.join(',')})`;
+  }
+  cardSql += ` ORDER BY id ASC`;
+
+  const cardRows = queryAll<{
+    id: number;
+    nid: number;
+    did: number;
+    ord: number;
+    type: number;
+    queue: number;
+    ivl: number;
+    factor: number;
+    reps: number;
+    lapses: number;
+    data: string | null;
+  }>(db, cardSql);
+
+  // Revlog (groupé par cid) — uniquement si preserveHistory.
+  const revlogByCard = new Map<number, AnkiRevlogRow[]>();
+  if (preserveHistory) {
+    const revlogRows = queryAll<{ id: number; cid: number; ease: number; type: number }>(
+      db,
+      `SELECT id, cid, ease, type FROM revlog WHERE ease BETWEEN 1 AND 4`
+    );
+    for (const r of revlogRows) {
+      const list = revlogByCard.get(r.cid);
+      if (list) list.push({ id: r.id, ease: r.ease, type: r.type });
+      else revlogByCard.set(r.cid, [{ id: r.id, ease: r.ease, type: r.type }]);
+    }
+  }
+
+  const byDeck = new Map<number, ParsedCard[]>();
+  for (const c of cardRows) {
+    const flds = notesById.get(c.nid);
+    if (!flds) continue;
+
+    const { front: rawFront, back: rawBack } = pickFrontBack(flds, c.ord);
+    const front = cleanAnkiHtml(rawFront);
+    const back = cleanAnkiHtml(rawBack);
+
+    if (!front && !back) continue;
+
+    const cardRow: AnkiCardRow = {
+      type: c.type,
+      queue: c.queue,
+      ivl: c.ivl,
+      factor: c.factor,
+      reps: c.reps,
+      lapses: c.lapses,
+      data: c.data,
+    };
+    const stats = convertAnkiCardToReviewStats(
+      cardRow,
+      revlogByCard.get(c.id) ?? [],
+      preserveHistory
+    );
+
+    const list = byDeck.get(c.did);
+    const parsed: ParsedCard = {
+      front,
+      back,
+      frontType: detectContentType(front),
+      backType: detectContentType(back),
+      stats: preserveHistory ? stats : undefined,
+    };
+    if (list) list.push(parsed);
+    else byDeck.set(c.did, [parsed]);
+  }
+
+  return byDeck;
+}
+
+/**
+ * Point d'entrée principal : transforme un .apkg en un ou plusieurs `ParsedDeck`
+ * selon les options de sélection / fusion.
+ *
+ * - Aucune option → renvoie un unique ParsedDeck contenant toutes les cartes,
+ *   nommé d'après le deck Anki principal (rétro-compat avec l'ancien comportement).
+ * - `selectedDeckIds` fourni + `mergeMode === 'split'` (défaut) → un ParsedDeck
+ *   par deck Anki sélectionné.
+ * - `selectedDeckIds` fourni + `mergeMode === 'merge'` → un unique ParsedDeck
+ *   nommé `mergedDeckName` (ou `fallbackName`) agrégeant les cartes sélectionnées.
+ */
+export async function parseAPKG(
+  fileBuffer: ArrayBuffer,
+  options: ParseAPKGOptions = {}
+): Promise<ParsedDeck[]> {
+  const {
+    preserveHistory = false,
+    fallbackName = 'Deck Anki importé',
+    selectedDeckIds,
+    mergeMode = 'split',
+    mergedDeckName,
+  } = options;
+
+  const db = await openAPKGDatabase(fileBuffer);
 
   try {
-    // 4. Nom du deck
-    const deckName = pickDeckName(db, fallbackName);
-
-    // 5. Notes (id → flds[])
-    const noteRows = queryAll<{ id: number; flds: string }>(
-      db,
-      `SELECT id, flds FROM notes`
-    );
-    const notesById = new Map<number, string[]>();
-    for (const n of noteRows) {
-      notesById.set(n.id, (n.flds || '').split(ANKI_FIELD_SEPARATOR));
-    }
-
-    // 6. Cards (on exclut les suspended/buried : queue < 0)
-    const cardRows = queryAll<{
-      id: number;
-      nid: number;
-      ord: number;
-      type: number;
-      queue: number;
-      ivl: number;
-      factor: number;
-      reps: number;
-      lapses: number;
-      data: string | null;
-    }>(
-      db,
-      `SELECT id, nid, ord, type, queue, ivl, factor, reps, lapses, data
-         FROM cards
-        WHERE queue >= 0
-        ORDER BY id ASC`
-    );
-
-    if (cardRows.length === 0) {
+    const allDecks = listAPKGDecks(db);
+    if (allDecks.length === 0) {
       throw new Error('Aucune carte importable trouvée dans le deck Anki.');
     }
 
-    // 7. Revlog (groupé par cid) — uniquement si preserveHistory pour économiser
-    const revlogByCard = new Map<number, AnkiRevlogRow[]>();
-    if (preserveHistory) {
-      const revlogRows = queryAll<{ id: number; cid: number; ease: number; type: number }>(
-        db,
-        `SELECT id, cid, ease, type FROM revlog WHERE ease BETWEEN 1 AND 4`
-      );
-      for (const r of revlogRows) {
-        const list = revlogByCard.get(r.cid);
-        if (list) list.push({ id: r.id, ease: r.ease, type: r.type });
-        else revlogByCard.set(r.cid, [{ id: r.id, ease: r.ease, type: r.type }]);
+    // Détermine les decks effectivement importés.
+    const targetDecks = selectedDeckIds && selectedDeckIds.length > 0
+      ? allDecks.filter((d) => selectedDeckIds.includes(d.ankiId))
+      : allDecks;
+
+    if (targetDecks.length === 0) {
+      throw new Error('Aucun deck sélectionné pour l\'import.');
+    }
+
+    const ankiIdsFilter = selectedDeckIds && selectedDeckIds.length > 0
+      ? targetDecks.map((d) => d.ankiId)
+      : null;
+
+    const cardsByDeck = extractParsedCardsByDeck(db, ankiIdsFilter, preserveHistory);
+
+    // Mode merge OU appel sans sélection (rétro-compat : un seul ParsedDeck).
+    if (mergeMode === 'merge' || !selectedDeckIds || selectedDeckIds.length === 0) {
+      const allCards: ParsedCard[] = [];
+      for (const deck of targetDecks) {
+        const cards = cardsByDeck.get(deck.ankiId);
+        if (cards) allCards.push(...cards);
       }
+      if (allCards.length === 0) {
+        throw new Error(
+          'Aucune carte avec contenu textuel trouvée. Les notetypes complexes (Cloze, Image Occlusion) ne sont pas encore supportés.'
+        );
+      }
+
+      // Choix du nom : nom personnalisé > nom du fichier > nom du deck Anki principal.
+      let name: string;
+      if (mergeMode === 'merge') {
+        name = (mergedDeckName && mergedDeckName.trim()) || fallbackName;
+      } else {
+        // Rétro-compat : nom du deck Anki avec le plus de cartes.
+        name = targetDecks[0].name || fallbackName;
+      }
+
+      return [{ name, cards: allCards }];
     }
 
-    // 8. Construction des ParsedCard
-    const cards: ParsedCard[] = [];
-    for (const c of cardRows) {
-      const flds = notesById.get(c.nid);
-      if (!flds) continue; // note manquante (incohérence)
-
-      const { front: rawFront, back: rawBack } = pickFrontBack(flds, c.ord);
-      const front = cleanAnkiHtml(rawFront);
-      const back = cleanAnkiHtml(rawBack);
-
-      // Sauter les cartes totalement vides (peut arriver pour notetypes Cloze
-      // dont le template ne génère rien à partir du champ sélectionné).
-      if (!front && !back) continue;
-
-      const cardRow: AnkiCardRow = {
-        type: c.type,
-        queue: c.queue,
-        ivl: c.ivl,
-        factor: c.factor,
-        reps: c.reps,
-        lapses: c.lapses,
-        data: c.data,
-      };
-      const stats = convertAnkiCardToReviewStats(
-        cardRow,
-        revlogByCard.get(c.id) ?? [],
-        preserveHistory
-      );
-
-      cards.push({
-        front,
-        back,
-        frontType: detectContentType(front),
-        backType: detectContentType(back),
-        stats: preserveHistory ? stats : undefined,
-      });
+    // Mode split : un ParsedDeck par deck Anki sélectionné, dans l'ordre demandé.
+    const result: ParsedDeck[] = [];
+    for (const deck of targetDecks) {
+      const cards = cardsByDeck.get(deck.ankiId);
+      if (!cards || cards.length === 0) continue;
+      result.push({ name: deck.name || fallbackName, cards });
     }
 
-    if (cards.length === 0) {
+    if (result.length === 0) {
       throw new Error(
         'Aucune carte avec contenu textuel trouvée. Les notetypes complexes (Cloze, Image Occlusion) ne sont pas encore supportés.'
       );
     }
 
-    return {
-      name: deckName,
-      cards,
-    };
+    return result;
   } finally {
     db.close();
   }
