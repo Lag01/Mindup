@@ -6,6 +6,7 @@ import { parseXML, parseCSV, type ParsedDeck } from '@/lib/parsers';
 import { parseAPKG } from '@/lib/parsers/apkg';
 import { createNewReviewStats } from '@/lib/revision';
 import { getAppSettings } from '@/lib/settings';
+import { syncImportedDecks } from '@/lib/sync-decks';
 
 // Limites de taille (en octets). .apkg est binaire et peut contenir plus de cartes
 // mais reste petit sans médias (~1 Mo pour 1000 cartes). 4 Mo couvre largement les
@@ -57,6 +58,11 @@ export async function POST(request: NextRequest) {
       typeof mergedDeckNameRaw === 'string' && mergedDeckNameRaw.trim()
         ? mergedDeckNameRaw.trim()
         : undefined;
+    const targetDeckIdRaw = formData.get('targetDeckId');
+    const targetDeckId =
+      typeof targetDeckIdRaw === 'string' && targetDeckIdRaw.trim()
+        ? targetDeckIdRaw.trim()
+        : undefined;
 
     if (!file) {
       return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
@@ -64,6 +70,36 @@ export async function POST(request: NextRequest) {
 
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
     const fallbackName = file.name.replace(/\.[^.]+$/, '') || 'Deck importé';
+
+    if (targetDeckId && fileExtension !== 'csv' && fileExtension !== 'xml') {
+      return NextResponse.json(
+        { error: 'L\'ajout à un deck existant n\'est supporté que pour les imports CSV et XML.' },
+        { status: 400 }
+      );
+    }
+
+    // Si on cible un deck existant, on vérifie son existence/possession/statut maintenant
+    // pour échouer vite avant le parsing.
+    let targetDeck: { id: string; name: string; isPublic: boolean } | null = null;
+    if (targetDeckId) {
+      const found = await prisma.deck.findFirst({
+        where: { id: targetDeckId, userId: user.id },
+        select: { id: true, name: true, isPublic: true, originalDeckId: true },
+      });
+      if (!found) {
+        return NextResponse.json({ error: 'Deck cible introuvable' }, { status: 404 });
+      }
+      if (found.originalDeckId) {
+        return NextResponse.json(
+          {
+            error:
+              'Vous ne pouvez pas ajouter de cartes à un deck importé. Il est synchronisé avec le deck public.',
+          },
+          { status: 403 }
+        );
+      }
+      targetDeck = { id: found.id, name: found.name, isPublic: found.isPublic };
+    }
 
     let parsedDecks: ParsedDeck[];
 
@@ -111,6 +147,73 @@ export async function POST(request: NextRequest) {
         { error: `Erreur de parsing : ${error.message}` },
         { status: 400 }
       );
+    }
+
+    // Mode "ajout à un deck existant" : on ne crée pas de deck, on append des cartes.
+    if (targetDeck) {
+      if (parsedDecks.length !== 1) {
+        return NextResponse.json(
+          {
+            error:
+              'Plusieurs decks détectés dans le fichier, impossible de cibler un deck existant.',
+          },
+          { status: 400 }
+        );
+      }
+
+      const parsedDeck = parsedDecks[0];
+      const lastCard = await prisma.card.findFirst({
+        where: { deckId: targetDeck.id },
+        orderBy: { order: 'desc' },
+        select: { order: true },
+      });
+      const startOrder = lastCard ? lastCard.order + 1 : 0;
+
+      await prisma.$transaction(async (tx) => {
+        const cardsData = parsedDeck.cards.map((card, index) => ({
+          deckId: targetDeck!.id,
+          front: card.front,
+          back: card.back,
+          frontType: card.frontType,
+          backType: card.backType,
+          order: startOrder + index,
+        }));
+        await tx.card.createMany({ data: cardsData });
+
+        const newCards = await tx.card.findMany({
+          where: { deckId: targetDeck!.id, order: { gte: startOrder } },
+          select: { id: true },
+        });
+
+        const defaultStats = createNewReviewStats();
+        await tx.review.createMany({
+          data: newCards.map((card) => ({
+            cardId: card.id,
+            userId: user.id,
+            reps: defaultStats.reps,
+            againCount: defaultStats.againCount,
+            hardCount: defaultStats.hardCount,
+            goodCount: defaultStats.goodCount,
+            easyCount: defaultStats.easyCount,
+            lastReview: defaultStats.lastReview ?? undefined,
+          })),
+        });
+      });
+
+      // Propage l'ajout vers les decks importés en aval si le deck cible est public.
+      if (targetDeck.isPublic) {
+        await syncImportedDecks(targetDeck.id);
+      }
+
+      return NextResponse.json({
+        success: true,
+        mode: 'append',
+        deck: {
+          id: targetDeck.id,
+          name: targetDeck.name,
+          addedCards: parsedDeck.cards.length,
+        },
+      });
     }
 
     // Vérification de la limite cumulée (utile en mode split avec plusieurs decks).

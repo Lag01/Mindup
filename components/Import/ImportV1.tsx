@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import SimpleHeader from '@/components/SimpleHeader';
 import DeckSelectionModal, {
@@ -11,6 +11,15 @@ import { invalidateFetchCache } from '@/hooks/useFetch';
 
 const ACCEPTED_EXTENSIONS = ['xml', 'csv', 'apkg'] as const;
 
+type DestinationMode = 'new' | 'append';
+
+interface UserDeckSummary {
+  id: string;
+  name: string;
+  totalCards: number;
+  isImported: boolean;
+}
+
 export default function ImportV1() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,10 +28,47 @@ export default function ImportV1() {
   const [preserveHistory, setPreserveHistory] = useState(true);
   const [pendingDecks, setPendingDecks] = useState<APKGDeckSummary[] | null>(null);
   const [pendingFallbackName, setPendingFallbackName] = useState('');
+  const [destination, setDestination] = useState<DestinationMode>('new');
+  const [userDecks, setUserDecks] = useState<UserDeckSummary[]>([]);
+  const [targetDeckId, setTargetDeckId] = useState('');
   const router = useRouter();
 
   const fileExtension = file?.name.split('.').pop()?.toLowerCase();
   const isApkg = fileExtension === 'apkg';
+  const canAppend = !isApkg;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/decks');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !Array.isArray(data.decks)) return;
+        const eligible: UserDeckSummary[] = data.decks
+          .filter((d: UserDeckSummary) => !d.isImported)
+          .map((d: UserDeckSummary) => ({
+            id: d.id,
+            name: d.name,
+            totalCards: d.totalCards,
+            isImported: d.isImported,
+          }));
+        setUserDecks(eligible);
+        if (eligible.length > 0) setTargetDeckId((prev) => prev || eligible[0].id);
+      } catch {
+        // Silencieux : si la liste échoue, l'utilisateur reste en mode "nouveau deck".
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!canAppend && destination === 'append') {
+      setDestination('new');
+    }
+  }, [canAppend, destination]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -59,6 +105,22 @@ export default function ImportV1() {
     }, 300);
   };
 
+  const finalizeAppend = (deckId: string, deckName: string, addedCards: number) => {
+    invalidateFetchCache('/api/decks');
+    invalidateFetchCache();
+    setSuccess(
+      `${addedCards} carte${addedCards > 1 ? 's' : ''} ajoutée${addedCards > 1 ? 's' : ''} au deck « ${deckName} ». Redirection…`
+    );
+    setFile(null);
+    const fileInput = document.getElementById('file-input') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+
+    setTimeout(() => {
+      router.push(`/deck/${deckId}`);
+      router.refresh();
+    }, 600);
+  };
+
   const performImport = async (
     targetFile: File,
     selection: DeckSelectionResult | null
@@ -76,6 +138,11 @@ export default function ImportV1() {
       }
     }
 
+    const isAppendMode = destination === 'append' && canAppend && !!targetDeckId;
+    if (isAppendMode) {
+      formData.append('targetDeckId', targetDeckId);
+    }
+
     const response = await fetch('/api/import', {
       method: 'POST',
       body: formData,
@@ -84,6 +151,11 @@ export default function ImportV1() {
 
     if (!response.ok) {
       throw new Error(data.error || 'Erreur lors de l\'importation');
+    }
+
+    if (data.mode === 'append' && data.deck) {
+      finalizeAppend(data.deck.id, data.deck.name, data.deck.addedCards ?? 0);
+      return;
     }
 
     const decks = Array.isArray(data.decks) ? data.decks : [data.deck];
@@ -215,6 +287,64 @@ export default function ImportV1() {
                   />
                 </label>
               </div>
+            </div>
+
+            <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 space-y-3">
+              <p className="text-sm font-medium text-zinc-200">Destination</p>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="destination-v1"
+                  value="new"
+                  checked={destination === 'new'}
+                  onChange={() => setDestination('new')}
+                  className="mt-1 h-4 w-4 border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500"
+                />
+                <div>
+                  <p className="text-sm text-zinc-200">Créer un nouveau deck</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    Les cartes du fichier formeront un nouveau deck dans votre liste.
+                  </p>
+                </div>
+              </label>
+              <label
+                className={`flex items-start gap-3 ${
+                  canAppend && userDecks.length > 0 ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="destination-v1"
+                  value="append"
+                  checked={destination === 'append'}
+                  onChange={() => setDestination('append')}
+                  disabled={!canAppend || userDecks.length === 0}
+                  className="mt-1 h-4 w-4 border-zinc-600 bg-zinc-900 text-blue-500 focus:ring-blue-500"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-zinc-200">Ajouter à un deck existant</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    {!canAppend
+                      ? 'Disponible uniquement pour les fichiers CSV et XML.'
+                      : userDecks.length === 0
+                        ? 'Aucun deck éligible (les decks importés sont exclus).'
+                        : 'Les cartes seront ajoutées à la fin du deck choisi.'}
+                  </p>
+                  {destination === 'append' && canAppend && userDecks.length > 0 && (
+                    <select
+                      value={targetDeckId}
+                      onChange={(e) => setTargetDeckId(e.target.value)}
+                      className="mt-2 w-full bg-zinc-900 border border-zinc-700 text-zinc-200 text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {userDecks.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name} ({d.totalCards} carte{d.totalCards > 1 ? 's' : ''})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </label>
             </div>
 
             {isApkg && (
