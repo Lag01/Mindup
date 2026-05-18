@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import BaseModal from './Modal/BaseModal';
 
 interface EditDeckNameModalProps {
@@ -21,6 +21,16 @@ export default function EditDeckNameModal({
   const [name, setName] = useState(currentName);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Resynchronise l'état local avec la prop currentName à chaque (ré)ouverture
+  // ou changement de deck. Sans cela, le state initial persiste entre deux
+  // ouvertures et la modale affiche l'ancienne valeur du deck précédent.
+  useEffect(() => {
+    if (isOpen) {
+      setName(currentName);
+      setError('');
+    }
+  }, [isOpen, currentName, deckId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

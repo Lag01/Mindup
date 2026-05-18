@@ -7,13 +7,20 @@ import CreateDeckModal from '@/components/CreateDeckModal';
 import DashboardHeader from '@/components/DashboardHeader';
 import DashboardPageWrapper from '@/components/DashboardPageWrapper';
 import LoadingAnimation from '@/components/LoadingAnimation';
-import { DeckWithStats } from '@/lib/types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useUser } from '@/hooks/useUser';
+import { useDecks } from '@/hooks/useDecks';
 
 export default function Dashboard() {
-  const [decks, setDecks] = useState<DeckWithStats[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Source unique de vérité pour les decks : store Zustand via useDecks
+  const {
+    decks,
+    loading,
+    deleteDeck: deleteDeckFromStore,
+    updateDeck: updateDeckInStore,
+    refresh: refreshDecks,
+  } = useDecks();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [userStreak, setUserStreak] = useState<{ current: number; max: number } | null>(null);
 
@@ -37,28 +44,8 @@ export default function Dashboard() {
   const { isAdmin } = useUser();
 
   useEffect(() => {
-    fetchDecks();
     fetchUserStreak();
   }, []);
-
-  const fetchDecks = async () => {
-    try {
-      const response = await fetch('/api/decks');
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push('/');
-          return;
-        }
-        throw new Error('Failed to fetch decks');
-      }
-      const data = await response.json();
-      setDecks(data.decks);
-    } catch (error) {
-      console.error('Error fetching decks:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchUserStreak = async () => {
     try {
@@ -91,15 +78,8 @@ export default function Dashboard() {
 
     setOperations(prev => ({ ...prev, deleting: deckId }));
     try {
-      const response = await fetch(`/api/decks?id=${deckId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete deck');
-      }
-
-      setDecks(decks.filter(d => d.id !== deckId));
+      const ok = await deleteDeckFromStore(deckId);
+      if (!ok) throw new Error('Failed to delete deck');
     } catch (error) {
       console.error('Error deleting deck:', error);
       alert('Erreur lors de la suppression du deck');
@@ -109,12 +89,13 @@ export default function Dashboard() {
   };
 
   const handleRenameSuccess = (deckId: string, newName: string) => {
-    setDecks(decks.map(d => d.id === deckId ? { ...d, name: newName } : d));
+    // Le PATCH a déjà été fait par EditDeckNameModal ; on synchronise le store.
+    updateDeckInStore(deckId, { name: newName });
   };
 
   const handleCreateSuccess = async (deck: { id: string; name: string }) => {
     // Rafraîchir la liste des decks pour obtenir les stats complètes
-    await fetchDecks();
+    await refreshDecks();
     // Rediriger vers la page d'ajout de cartes
     router.push(`/deck/${deck.id}/add`);
   };
@@ -168,6 +149,8 @@ export default function Dashboard() {
         throw new Error('Failed to reset stats');
       }
 
+      // Refresh global pour récupérer les stats à jour.
+      await refreshDecks();
       alert('Statistiques réinitialisées avec succès');
     } catch (error) {
       console.error('Error resetting stats:', error);

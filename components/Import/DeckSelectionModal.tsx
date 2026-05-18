@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export interface APKGDeckSummary {
   ankiId: number;
@@ -38,6 +38,16 @@ export default function DeckSelectionModal({
   );
   const [mode, setMode] = useState<MergeMode>('split');
   const [mergedName, setMergedName] = useState(defaultMergedName);
+
+  // Resync à chaque ouverture pour éviter de garder l'état d'un import
+  // précédent (sélection, nom fusionné) quand on relance un nouvel import.
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedIds(new Set(decks.map((d) => d.ankiId)));
+      setMode('split');
+      setMergedName(defaultMergedName);
+    }
+  }, [isOpen, decks, defaultMergedName]);
 
   const totalCards = useMemo(
     () =>

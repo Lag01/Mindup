@@ -7,6 +7,7 @@ import DeckSelectionModal, {
   type DeckSelectionResult,
 } from '@/components/Import/DeckSelectionModal';
 import { invalidateFetchCache } from '@/hooks/useFetch';
+import { useDecksStore } from '@/lib/store/decks';
 
 const ACCEPTED_EXTENSIONS = ['xml', 'csv', 'apkg'] as const;
 type AcceptedExtension = (typeof ACCEPTED_EXTENSIONS)[number];
@@ -122,7 +123,9 @@ export default function ImportV2() {
   };
 
   const finalizeImport = (deckCount: number, firstDeckName: string, totalCards: number) => {
-    invalidateFetchCache('/api/decks');
+    // Repeuple le store Zustand (source de vérité) puis vide le cache useFetch
+    // pour les autres endpoints (stats, etc.).
+    void useDecksStore.getState().fetchDecks();
     invalidateFetchCache();
     setSuccess(
       deckCount > 1
@@ -140,7 +143,9 @@ export default function ImportV2() {
   };
 
   const finalizeAppend = (deckId: string, deckName: string, addedCards: number) => {
-    invalidateFetchCache('/api/decks');
+    // Repeuple le store Zustand (source de vérité) puis vide le cache useFetch
+    // pour les autres endpoints (stats, etc.).
+    void useDecksStore.getState().fetchDecks();
     invalidateFetchCache();
     setSuccess(
       `${addedCards} carte${addedCards > 1 ? 's' : ''} ajoutée${addedCards > 1 ? 's' : ''} au deck « ${deckName} ». Redirection…`

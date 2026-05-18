@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useUser } from '@/hooks/useUser'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useFetch } from '@/hooks/useFetch'
-import { DeckWithStats } from '@/lib/types'
+import { useDecks } from '@/hooks/useDecks'
 import LoadingAnimation from '@/components/LoadingAnimation'
 import DashboardPageWrapper from '@/components/DashboardPageWrapper'
 import CreateDeckModal from '@/components/CreateDeckModal'
@@ -31,14 +31,20 @@ export default function DashboardV3Page() {
   const { user, isAdmin } = useUser()
   const { success: toastSuccess, error: toastError, ToastContainer } = useToast()
 
-  // États données
-  const [decks, setDecks] = useState<DeckWithStats[]>([])
+  // Source unique de vérité pour les decks : store Zustand via useDecks
+  const {
+    decks,
+    loading: loadingDecks,
+    deleteDeck: deleteDeckFromStore,
+    updateDeck: updateDeckInStore,
+    refresh: refreshDecks,
+  } = useDecks()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [userStreak, setUserStreak] = useState<UserStreak | null>(null)
 
-  // Hooks de fetch avec cache
-  const { loading: loadingDecks, execute: fetchDecks } = useFetch<{ decks: DeckWithStats[] }>()
+  // Hook de fetch avec cache pour les stats (donnée distincte des decks)
   const { loading: loadingStats, execute: fetchStats } = useFetch<{ currentStreak: number; maxStreak: number }>()
   const loading = loadingDecks || loadingStats
 
@@ -64,23 +70,14 @@ export default function DashboardV3Page() {
     return decks.reduce((sum, deck) => sum + (deck.totalReviews ?? 0), 0)
   }, [decks])
 
-  // Chargement initial des données avec cache
+  // Chargement initial du streak (les decks sont gérés par useDecks)
   useEffect(() => {
     let mounted = true
 
-    const fetchData = async () => {
+    const loadStreak = async () => {
       try {
-        const [decksData, streakData] = await Promise.all([
-          fetchDecks('/api/decks'),
-          fetchStats('/api/stats/global'),
-        ])
-
+        const streakData = await fetchStats('/api/stats/global')
         if (!mounted) return
-
-        if (decksData?.decks) {
-          setDecks(decksData.decks)
-        }
-
         if (streakData) {
           setUserStreak({
             current: streakData.currentStreak ?? 0,
@@ -89,13 +86,13 @@ export default function DashboardV3Page() {
         }
       } catch (error) {
         if (!mounted) return
-        console.error('Erreur lors du chargement des données:', error)
+        console.error('Erreur lors du chargement du streak:', error)
       }
     }
 
-    fetchData()
+    loadStreak()
     return () => { mounted = false }
-  }, [fetchDecks, fetchStats])
+  }, [fetchStats])
 
   // Handlers
   const handleCreateDeck = useCallback(() => {
@@ -163,9 +160,10 @@ export default function DashboardV3Page() {
   }, [decks])
 
   const handleDeckRenamed = useCallback(async (deckId: string, newName: string) => {
-    setDecks((prev) => prev.map((d) => (d.id === deckId ? { ...d, name: newName } : d)))
+    // Le PATCH a déjà été fait par EditDeckNameModal ; on synchronise le store.
+    updateDeckInStore(deckId, { name: newName })
     setEditingDeck(null)
-  }, [])
+  }, [updateDeckInStore])
 
   const handleResetStats = useCallback(async (deckId: string) => {
     if (!window.confirm('Êtes-vous sûr de vouloir réinitialiser les statistiques de ce deck ?')) {
@@ -179,18 +177,14 @@ export default function DashboardV3Page() {
 
       if (!response.ok) throw new Error('Erreur lors de la réinitialisation')
 
-      // Recharger les decks
-      const decksRes = await fetch('/api/decks')
-      if (decksRes.ok) {
-        const decksData = await decksRes.json()
-        if (decksData?.decks) setDecks(decksData.decks)
-      }
+      // Refresh global pour récupérer les stats à jour de tous les decks.
+      await refreshDecks()
       toastSuccess('Statistiques réinitialisées')
     } catch (error) {
       console.error('Erreur:', error)
       toastError('Erreur lors de la réinitialisation des statistiques')
     }
-  }, [toastSuccess, toastError])
+  }, [refreshDecks, toastSuccess, toastError])
 
   const handleExport = useCallback(async (deckId: string, format: 'xml' | 'csv') => {
     try {
@@ -218,20 +212,13 @@ export default function DashboardV3Page() {
       return
     }
 
-    try {
-      const response = await fetch(`/api/decks?id=${deckId}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) throw new Error('Erreur lors de la suppression')
-
-      setDecks((prev) => prev.filter((d) => d.id !== deckId))
+    const ok = await deleteDeckFromStore(deckId)
+    if (ok) {
       toastSuccess('Deck supprimé')
-    } catch (error) {
-      console.error('Erreur:', error)
+    } else {
       toastError('Erreur lors de la suppression du deck')
     }
-  }, [toastSuccess, toastError])
+  }, [deleteDeckFromStore, toastSuccess, toastError])
 
   const handleLogout = useCallback(async () => {
     try {
@@ -348,6 +335,7 @@ export default function DashboardV3Page() {
       />
 
       <EditDeckNameModal
+        key={editingDeck?.id ?? 'none'}
         isOpen={!!editingDeck}
         deckId={editingDeck?.id ?? ''}
         currentName={editingDeck?.name ?? ''}
