@@ -528,15 +528,16 @@ export default function AddCardsV1() {
             <button
               onClick={createAndContinue}
               disabled={
+                saving ||
                 (!cardForm.front.trim() && !cardForm.frontImage) ||
                 (!cardForm.back.trim() && !cardForm.backImage)
               }
-              className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-3 rounded-lg transition-colors disabled:opacity-50 text-sm flex items-center justify-center gap-2 order-1 sm:order-2"
+              className="w-full sm:flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2 order-1 sm:order-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Ajouter et continuer
+              {saving ? 'Ajout en cours…' : 'Ajouter et continuer'}
             </button>
           </div>
           <div className="hidden sm:block text-center mt-2 text-zinc-500 text-xs">

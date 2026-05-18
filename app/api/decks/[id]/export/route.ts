@@ -33,11 +33,12 @@ export async function GET(
       );
     }
 
-    // Récupérer le deck avec toutes ses cartes
-    const deck = await prisma.deck.findUnique({
+    // Z2-09 : findFirst avec ownership explicite (findUnique n'accepte pas de filtre
+    // non-unique en strict mode).
+    const deck = await prisma.deck.findFirst({
       where: {
         id: deckId,
-        userId: user.id, // Vérifier que le deck appartient bien à l'utilisateur
+        userId: user.id,
       },
       include: {
         cards: {

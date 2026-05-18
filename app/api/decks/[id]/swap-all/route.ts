@@ -22,15 +22,10 @@ export async function PATCH(
 
     const { id: deckId } = await context.params;
 
-    // Verify deck belongs to user
+    // Vérifier l'ownership sans charger toutes les cartes
     const deck = await prisma.deck.findFirst({
-      where: {
-        id: deckId,
-        userId: user.id,
-      },
-      include: {
-        cards: true,
-      },
+      where: { id: deckId, userId: user.id },
+      select: { id: true, _count: { select: { cards: true } } },
     });
 
     if (!deck) {
@@ -40,26 +35,23 @@ export async function PATCH(
       );
     }
 
-    // Swap front and back for all cards
-    const updatePromises = deck.cards.map(card =>
-      prisma.card.update({
-        where: { id: card.id },
-        data: {
-          front: card.back,
-          back: card.front,
-          frontType: card.backType,
-          backType: card.frontType,
-          frontImage: card.backImage,
-          backImage: card.frontImage,
-        },
-      })
-    );
-
-    await Promise.all(updatePromises);
+    // Z2-12 : swap atomique en un seul UPDATE plutôt que N requêtes.
+    // Les enum frontType/backType sont castés explicitement pour Postgres.
+    await prisma.$executeRaw`
+      UPDATE "Card"
+      SET
+        front = back,
+        back = front,
+        "frontType" = "backType",
+        "backType" = "frontType",
+        "frontImage" = "backImage",
+        "backImage" = "frontImage"
+      WHERE "deckId" = ${deckId}
+    `;
 
     return NextResponse.json({
       success: true,
-      swappedCount: deck.cards.length,
+      swappedCount: deck._count.cards,
     });
   } catch (error) {
     console.error('Swap all cards error:', error);

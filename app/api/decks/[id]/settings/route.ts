@@ -60,10 +60,26 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const methodChanged = learningMethod && deck.learningMethod !== learningMethod;
 
     if (methodChanged) {
-      // Changement de méthode : réinitialiser toutes les statistiques
+      // Z2-03 : changement de méthode = reset des stats SANS supprimer Review (sinon les
+      // ReviewEvent en cascade disparaissent → leaderboard et admin perdent l'historique).
       await prisma.$transaction([
-        prisma.review.deleteMany({
+        prisma.review.updateMany({
           where: { userId: user.id, card: { deckId } },
+          data: {
+            reps: 0,
+            againCount: 0,
+            hardCount: 0,
+            goodCount: 0,
+            easyCount: 0,
+            lastReview: null,
+            interval: null,
+            nextReview: null,
+            easeFactor: 2.5,
+            stability: 0,
+            difficulty: 0,
+            lapses: 0,
+            status: 'NEW',
+          },
         }),
         prisma.deck.update({
           where: { id: deckId },

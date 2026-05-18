@@ -8,7 +8,7 @@ import { validateImageUrl } from '@/lib/security';
 
 const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'cards');
 
-export async function DELETE(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     // Vérifier que l'utilisateur est admin
     try {

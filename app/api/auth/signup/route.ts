@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, createSession } from '@/lib/auth';
 import rateLimiter, { RATE_LIMITS, getClientIp } from '@/lib/rate-limiter';
 import { getAppSettings } from '@/lib/settings';
 import { generateDisplayNameFromEmail } from '@/lib/utils/display-name';
+
+// Format basique RFC 5321 simplifié. Pas une validation parfaite, juste un garde-fou contre
+// les chaînes manifestement invalides ("foo", "a@b", domaine sans point…).
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const MAX_EMAIL_LENGTH = 254;
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,21 +45,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (password.length < 8) {
+    // Z1-03 / Z1-08 : validation de format et longueur d'email
+    if (typeof email !== 'string' || email.length > MAX_EMAIL_LENGTH || !EMAIL_REGEX.test(email)) {
       return NextResponse.json(
-        { error: 'Le mot de passe doit contenir au moins 8 caractères' },
+        { error: 'Adresse email invalide' },
         { status: 400 }
       );
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
+    if (password.length < 8) {
       return NextResponse.json(
-        { error: 'Un compte existe déjà avec cet email' },
+        { error: 'Le mot de passe doit contenir au moins 8 caractères' },
         { status: 400 }
       );
     }
@@ -69,22 +71,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create user
+    // Create user — Z1-02 : on s'appuie sur l'unique constraint (email) pour gérer les
+    // signups concurrents. Le catch P2002 ci-dessous retourne un message propre.
     const hashedPassword = await hashPassword(password);
     const displayName = generateDisplayNameFromEmail(email);
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        displayName,
-      },
-      select: {
-        id: true,
-        email: true,
-        displayName: true,
-        createdAt: true,
-      },
-    });
+    let user;
+    try {
+      user = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          displayName,
+        },
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          createdAt: true,
+        },
+      });
+    } catch (createError) {
+      if (
+        createError instanceof Prisma.PrismaClientKnownRequestError &&
+        createError.code === 'P2002'
+      ) {
+        return NextResponse.json(
+          { error: 'Un compte existe déjà avec cet email' },
+          { status: 400 }
+        );
+      }
+      throw createError;
+    }
 
     // Create session
     await createSession(user.id);

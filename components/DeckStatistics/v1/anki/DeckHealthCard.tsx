@@ -15,11 +15,13 @@ interface SegmentProps {
 
 function Segment({ count, total, color, label }: SegmentProps) {
   const pct = total > 0 ? (count / total) * 100 : 0;
-  if (pct === 0) return null;
+  if (count === 0) return null;
+  // Z5-10 : garantir une largeur min visible pour les buckets non-vides (sinon les segments
+  // < 5% disparaissent et l'utilisateur croit qu'il n'y a aucune carte dans la catégorie).
   return (
     <div
       className="flex items-center justify-center text-xs font-semibold text-white transition-all"
-      style={{ width: `${pct}%`, backgroundColor: color, minWidth: pct > 5 ? 'auto' : 0 }}
+      style={{ width: `${pct}%`, backgroundColor: color, minWidth: '6px' }}
       title={`${label}: ${count} (${Math.round(pct)}%)`}
     >
       {pct >= 8 ? `${Math.round(pct)}%` : ''}

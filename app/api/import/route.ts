@@ -7,6 +7,22 @@ import { parseAPKG } from '@/lib/parsers/apkg';
 import { createNewReviewStats } from '@/lib/revision';
 import { getAppSettings } from '@/lib/settings';
 import { syncImportedDecks } from '@/lib/sync-decks';
+import { validateCardContent } from '@/lib/utils/validate-card';
+
+// Skip les cartes invalides (LaTeX dangereux ou contenu trop long) plutôt que de planter
+// l'import complet. Retourne le deck filtré + le nombre de cartes ignorées.
+function sanitizeParsedDeck(deck: ParsedDeck): { deck: ParsedDeck; skipped: number } {
+  let skipped = 0;
+  const safeCards = deck.cards.filter((card) => {
+    const v = validateCardContent(card.front, card.back, card.frontType, card.backType);
+    if (!v.valid) {
+      skipped++;
+      return false;
+    }
+    return true;
+  });
+  return { deck: { ...deck, cards: safeCards }, skipped };
+}
 
 // Limites de taille (en octets). .apkg est binaire et peut contenir plus de cartes
 // mais reste petit sans médias (~1 Mo pour 1000 cartes). 4 Mo couvre largement les
@@ -143,8 +159,27 @@ export async function POST(request: NextRequest) {
         );
       }
     } catch (error: any) {
+      // Z1-07 : on log côté serveur, on expose un message générique côté client
+      console.error('Import parsing error:', error?.message, error);
       return NextResponse.json(
-        { error: `Erreur de parsing : ${error.message}` },
+        { error: 'Fichier invalide ou corrompu — vérifie le format puis réessaye.' },
+        { status: 400 }
+      );
+    }
+
+    // Z3-01 : sanitiser TOUS les decks importés (filtrer cartes LaTeX dangereuses ou trop longues)
+    let totalSkipped = 0;
+    parsedDecks = parsedDecks.map((d) => {
+      const { deck, skipped } = sanitizeParsedDeck(d);
+      totalSkipped += skipped;
+      return deck;
+    });
+    // Si un deck devient vide après filtrage, on échoue proprement.
+    if (parsedDecks.every((d) => d.cards.length === 0)) {
+      return NextResponse.json(
+        {
+          error: `Aucune carte valide après filtrage de sécurité (${totalSkipped} carte(s) ignorée(s) car contenant des commandes LaTeX non autorisées ou trop longues).`,
+        },
         { status: 400 }
       );
     }

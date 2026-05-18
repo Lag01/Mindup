@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
@@ -53,8 +54,8 @@ export async function PATCH(
       );
     }
 
-    // Build update data object
-    const updateData: any = {};
+    // Build update data object — Z2-07 : typage strict via Prisma.CardUpdateManyMutationInput
+    const updateData: Prisma.CardUpdateManyMutationInput = {};
     if (updateFront) {
       updateData.frontType = targetType;
     }

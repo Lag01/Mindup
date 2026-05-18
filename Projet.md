@@ -357,4 +357,68 @@ Trois améliorations sur les fonctionnalités d'import :
 
 ---
 
-**Dernière mise à jour** : 17/05/2026
+## Audit transverse — Ratissage complet du projet (18/05/2026)
+
+### Contexte
+Ratissage exhaustif des 7 zones fonctionnelles du projet (auth/sécurité, decks/cartes/review API, import/export, UI révision/édition, dashboard/stats UI, public decks/leaderboard/VeryFastMath, admin/cron/upload). Exécution par 7 agents d'exploration en parallèle, consolidation et vérification manuelle, puis application des corrections évidentes.
+
+Le tableau de bord persistant inter-session est `AUDIT.md` (racine du projet). Avant de relancer un ratissage similaire, consulter sa section *Couverture* pour ne pas refaire le travail.
+
+### Bilan
+- **116 findings** remontés au total, **17 corrections appliquées**, **~30 faux positifs**, **~60 sujets différés** en attente de validation produit ou refactor structurel.
+
+### Corrections appliquées
+**Sécurité / bugs S1**
+- `delete-card-image` route : `export DELETE` → `export POST` (les 6 clients appelaient en POST, suppression d'images cassée silencieusement).
+- Validation LaTeX (`validateCardContent`) appliquée à toutes les cartes importées via CSV/XML/APKG (3 chemins). Auparavant, du LaTeX dangereux pouvait être importé sans contrôle.
+
+**Bugs fonctionnels S2**
+- `app/api/decks/[id]/settings/route.ts` : changement de méthode IMMEDIATE↔ANKI passe à `updateMany` (préserve `ReviewEvent` pour le leaderboard, même fix que `reset-stats` du 08/05).
+- `app/api/auth/signup/route.ts` : catch P2002 Prisma pour message propre en cas de signups concurrents.
+- `app/api/veryfastmath/leaderboard/route.ts` : tie-breaker par `createdAt` (stabilité d'ordre).
+- `lib/sync-decks.ts` : N+1 sur ajout de cartes → `createMany` batch.
+- `components/DeckStatistics/v1/anki/TrueRetentionCard.tsx` : affichage neutre (`—` + label `N/A`) si aucune carte mature, au lieu d'un score trompeur de 0% noté « Faible ».
+- `app/api/import/route.ts` : messages d'erreur de parsing masqués au client (logs serveur uniquement).
+
+**S3 / qualité**
+- Validation regex email + limite 254 chars (`signup`, `login`).
+- `app/api/decks/[id]/export/route.ts` : `findUnique` → `findFirst` avec ownership.
+- `app/api/decks/[id]/swap-all/route.ts` : N requêtes → 1 `$executeRaw UPDATE` atomique (~100× plus rapide).
+- `app/api/veryfastmath/save-score/route.ts` : rate-limit 10/min/user via `lib/rate-limiter.ts`.
+- `app/api/admin/users/[id]/display-name/route.ts` : regex unicode bloque caractères de contrôle, RTL marks, ZWJ.
+- `components/DeckStatistics/v1/anki/DeckHealthCard.tsx` : segments non-vides garantis visibles (`minWidth: 6px`).
+- Types `any` → types Prisma stricts dans `sync-decks.ts` (`ContentType`) et `bulk-update-types/route.ts` (`Prisma.CardUpdateManyMutationInput`).
+
+**S4 / micro-corrections**
+- `AddCardsV1/V2.tsx` : `disabled={saving}` + label « Ajout en cours… » sur le bouton "Ajouter et continuer".
+
+### Sujets différés (synthèse)
+- **Timezone transverse** (statsdeck, streak, trendchart) — décision globale à prendre.
+- **Refresh token httpOnly** — refonte mineure de la lib auth.
+- **Anti-triche VFM** — token de session côté serveur.
+- **Pagination DB** sur leaderboards et liste admin users.
+- **`alert()`/`confirm()` → toasts** — ~18 sites à remplacer.
+- **A11y modales** : escape/click-outside/focus restore (pattern réutilisable).
+- **Suppression du champ legacy `easeFactor`** après période de transition.
+
+Tous les détails (avec sévérités, fichiers, statuts) sont dans `AUDIT.md`.
+
+### Fichiers modifiés (corrections)
+- `app/api/auth/{signup,login}/route.ts`
+- `app/api/import/route.ts`
+- `app/api/upload/delete-card-image/route.ts`
+- `app/api/decks/[id]/{settings,export,swap-all,bulk-update-types}/route.ts`
+- `app/api/veryfastmath/{leaderboard,save-score}/route.ts`
+- `app/api/admin/users/[id]/display-name/route.ts`
+- `lib/sync-decks.ts`
+- `components/AddCards/{AddCardsV1,AddCardsV2}.tsx`
+- `components/DeckStatistics/v1/anki/{TrueRetentionCard,DeckHealthCard}.tsx`
+
+### Fichiers documentaires créés/mis à jour
+- `AUDIT.md` (nouveau) — tableau de bord persistant inter-session.
+- `log_erreurs.md` — entrées formelles pour les bugs non triviaux corrigés.
+- `Projet.md` — cette section.
+
+---
+
+**Dernière mise à jour** : 18/05/2026

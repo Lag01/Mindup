@@ -4,6 +4,92 @@ Ce fichier consigne les bugs rencontrés sur l'application, leur cause racine et
 
 ---
 
+## 2026-05-18 — HTTP method mismatch sur la suppression d'images
+
+### Symptôme
+Les images uploadées ne sont jamais effectivement supprimées du Vercel Blob (ni du dossier local) quand un utilisateur retire une image d'une carte. Le bug est silencieux côté UI — aucun message d'erreur. Le cron quotidien finit par nettoyer les images orphelines, mais l'opération immédiate échoue.
+
+### Cause racine
+La route `app/api/upload/delete-card-image/route.ts` exporte un handler `DELETE`. Or les 6 appels clients (`AddCardsV1.tsx`, `AddCardsV2.tsx`, `CardEditor.tsx`, `lib/image-service.ts`) utilisent `method: 'POST'`. Next.js retourne donc `405 Method Not Allowed` et le `try/catch` côté client log l'erreur dans la console sans la remonter à l'utilisateur.
+
+### Solution implémentée
+Renommer le handler `export async function DELETE` en `export async function POST`. Aucun client à modifier (tous appellent déjà en POST). Vérifié : `tsc --noEmit` passe.
+
+---
+
+## 2026-05-18 — Validation LaTeX contournée à l'import
+
+### Symptôme
+Un utilisateur peut importer un fichier CSV/XML/APKG contenant des commandes LaTeX dangereuses (`\input`, `\write`, `\documentclass`, etc.) et les cartes sont créées sans aucun filtrage. La fonction `validateCardContent` n'est invoquée que dans `POST /api/decks/[id]/cards` (création manuelle de carte).
+
+### Cause racine
+Trois chemins d'import dans `app/api/import/route.ts` (split-multi-decks, single deck, append à un deck existant) créent directement les cartes via `prisma.card.create*` sans passer par la validation. Oubli historique : `validateCardContent` a été ajoutée pour la création manuelle uniquement.
+
+### Solution implémentée
+Helper `sanitizeParsedDeck` ajouté dans `app/api/import/route.ts` qui filtre chaque carte via `validateCardContent` après le parsing et avant la persistance. Les cartes invalides sont silencieusement ignorées et un compteur `totalSkipped` est calculé. Si tous les decks ressortent vides, on retourne une erreur 400 explicite mentionnant le nombre de cartes rejetées.
+
+---
+
+## 2026-05-18 — Reset stats du deck V2 (changement de méthode) supprimait l'historique global
+
+### Symptôme
+Quand un utilisateur change la méthode d'apprentissage d'un deck (IMMEDIATE ↔ ANKI), toutes ses révisions du deck disparaissent du leaderboard global et du dashboard admin (`_count.reviewEvents` chute). C'est exactement le même symptôme que le bug du 2026-05-08 sur `reset-stats`, mais sur une route différente.
+
+### Cause racine
+`app/api/decks/[id]/settings/route.ts:65` utilisait `prisma.review.deleteMany(...)` lors du changement de méthode. La FK `ReviewEvent.reviewId` est en `onDelete: Cascade` dans `prisma/schema.prisma`, donc supprimer les `Review` cascade-supprime tous les `ReviewEvent` associés. Or le leaderboard et l'admin lisent précisément `ReviewEvent`, pas `Review`. Le pattern correct (déjà appliqué sur `reset-stats`) n'avait pas été propagé sur cette route.
+
+### Solution implémentée
+Passage à `prisma.review.updateMany` qui remet à zéro tous les compteurs (`reps`, `*Count`, `lastReview`, `interval`, `nextReview`, `easeFactor`, `stability`, `difficulty`, `lapses`, `status='NEW'`) sans toucher aux lignes `Review`. `ReviewEvent` est ainsi préservé. Mêmes valeurs par défaut que `reset-stats/route.ts` pour rester cohérent.
+
+---
+
+## 2026-05-18 — Leaderboard VeryFastMath instable en cas d'égalité de scores
+
+### Symptôme
+Deux utilisateurs avec le même score VFM voient leurs rangs s'inverser aléatoirement à chaque rafraîchissement de la page leaderboard.
+
+### Cause racine
+`app/api/veryfastmath/leaderboard/route.ts:58` triait uniquement par `b.score - a.score`. Pour des scores égaux, l'ordre dépendait de l'ordre d'itération de la `Map` JavaScript (insertion order) qui est lui-même fonction de l'ordre de retour de la requête SQL non déterministe pour les égalités.
+
+### Solution implémentée
+Tie-breaker par `createdAt` ascendant (le premier à atteindre ce score est ranké plus haut) : `if (b[1].score !== a[1].score) return b[1].score - a[1].score; return a[1].createdAt.getTime() - b[1].createdAt.getTime();`.
+
+---
+
+## 2026-05-18 — Synchronisation deck importé : N+1 sur l'ajout de cartes
+
+### Symptôme
+Quand un admin ajoute des cartes à un deck public, la synchronisation vers tous les decks importés des utilisateurs prend un temps proportionnel à `nb_decks_importés × nb_cartes_ajoutées` à cause d'une requête par carte.
+
+### Cause racine
+`lib/sync-decks.ts:309` utilisait une boucle `for (const sourceCard of cardsToAdd) await tx.card.create(...)`. Chaque création était une requête SQL indépendante.
+
+### Solution implémentée
+Batch en deux temps dans la transaction : un `tx.card.createMany({ data })` pour insérer toutes les cartes d'un coup, puis `tx.card.findMany` pour récupérer leurs IDs par `order`, puis `tx.review.createMany` pour insérer les Review associées. Réduit de N+1 à 3 requêtes constantes.
+
+---
+
+## 2026-05-18 — Audit transverse : autres corrections sécurisées en lot
+
+Dans la même session, plusieurs corrections évidentes ont été appliquées sans incident majeur ; chacune mérite une mention rapide :
+
+- **Validation email** (`signup`, `login`) : regex `^[^\s@]+@[^\s@]+\.[^\s@]{2,}$` + limite 254 chars.
+- **Race signup** : catch `P2002` Prisma pour message propre au lieu d'une erreur 500.
+- **Erreur parsing import** : message générique côté client, détails loggés côté serveur (Z1-07).
+- **Export deck** : `findUnique` → `findFirst` avec ownership explicite.
+- **`swap-all`** : N requêtes → 1 `$executeRaw UPDATE` atomique. Pour un deck de 500 cartes, ~500ms → ~5ms.
+- **`TrueRetentionCard`** : affichage neutre `—` + label `N/A` si aucune carte mature (au lieu d'un score trompeur de 0% catalogué « Faible »).
+- **`DeckHealthCard`** : segments non-vides garantis visibles (`minWidth: 6px`) — auparavant les buckets <5% disparaissaient et donnaient l'impression qu'il n'y avait aucune carte mature.
+- **Admin `displayName`** : regex unicode (`/^[\p{L}\p{N} \-'._]+$/u`) bloque caractères de contrôle, RTL marks, ZWJ.
+- **Rate-limit VFM `save-score`** : 10 requêtes/minute par user pour éviter le spam.
+- **Type strict `sync-decks`** : `any` → `ContentType` Prisma.
+- **`bulk-update-types`** : `any` → `Prisma.CardUpdateManyMutationInput`.
+- **AddCards "Ajouter et continuer"** : `disabled={saving}` ajouté pour empêcher les doubles soumissions pendant l'upload.
+
+Le détail complet des findings, des corrections, des faux positifs identifiés et des sujets différés est consigné dans `AUDIT.md`.
+
+---
+
 ## 2026-05-08 — Mode Immédiate : cartes manquantes en révision
 
 ### Symptôme

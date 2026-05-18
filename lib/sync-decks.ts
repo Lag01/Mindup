@@ -6,6 +6,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import type { ContentType } from '@prisma/client';
 import { deleteImagesAsync } from '@/lib/image-cleanup';
 
 /**
@@ -218,8 +219,8 @@ async function syncSingleDeck(
     id: string;
     front: string;
     back: string;
-    frontType: any;
-    backType: any;
+    frontType: ContentType;
+    backType: ContentType;
     order: number;
   }>,
   userId: string
@@ -305,28 +306,37 @@ async function syncSingleDeck(
       });
     }
 
-    // Ajouter les nouvelles cartes
-    for (const sourceCard of cardsToAdd) {
-      await tx.card.create({
-        data: {
+    // Z6-06 : ajouter les nouvelles cartes en un seul createMany pour éviter N+1.
+    // Les Review associées sont créées dans un second createMany après récupération des IDs.
+    if (cardsToAdd.length > 0) {
+      const orderRange = cardsToAdd.map((c) => c.order);
+      await tx.card.createMany({
+        data: cardsToAdd.map((sourceCard) => ({
           deckId: importedDeckId,
           front: sourceCard.front,
           back: sourceCard.back,
           frontType: sourceCard.frontType,
           backType: sourceCard.backType,
           order: sourceCard.order,
-          reviews: {
-            create: {
-              userId,
-              reps: 0,
-              againCount: 0,
-              hardCount: 0,
-              goodCount: 0,
-              easyCount: 0
-            }
-          }
-        }
+        })),
       });
+      const insertedCards = await tx.card.findMany({
+        where: { deckId: importedDeckId, order: { in: orderRange } },
+        select: { id: true },
+      });
+      if (insertedCards.length > 0) {
+        await tx.review.createMany({
+          data: insertedCards.map((card) => ({
+            cardId: card.id,
+            userId,
+            reps: 0,
+            againCount: 0,
+            hardCount: 0,
+            goodCount: 0,
+            easyCount: 0,
+          })),
+        });
+      }
     }
   });
 

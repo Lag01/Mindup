@@ -37,6 +37,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Z1-08 : garde-fou taille pour éviter de hasher des payloads géants
+    if (typeof email !== 'string' || email.length > 254 || typeof password !== 'string') {
+      return NextResponse.json(
+        { error: 'Email ou mot de passe incorrect' },
+        { status: 401 }
+      );
+    }
+
     // Find user
     const user = await prisma.user.findUnique({
       where: { email },

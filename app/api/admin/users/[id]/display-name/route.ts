@@ -36,6 +36,16 @@ export async function PATCH(
       );
     }
 
+    // Z7-05 : accepter lettres, chiffres, espaces et quelques séparateurs courants.
+    // Rejette les caractères de contrôle, RTL marks, ZWJ etc. qui cassent l'affichage.
+    const DISPLAY_NAME_RE = /^[\p{L}\p{N} \-'._]+$/u;
+    if (!DISPLAY_NAME_RE.test(displayName.trim())) {
+      return NextResponse.json(
+        { error: 'Le pseudo contient des caractères non autorisés' },
+        { status: 400 }
+      );
+    }
+
     // Vérifier que l'utilisateur existe
     const user = await prisma.user.findUnique({
       where: { id },

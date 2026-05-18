@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import rateLimiter from '@/lib/rate-limiter';
 
 type MathMode = 'ADDITION' | 'SUBTRACTION' | 'MULTIPLICATION' | 'DIVISION';
 
@@ -12,6 +13,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Non authentifié' },
         { status: 401 }
+      );
+    }
+
+    // Z6-07 : empêche le spam de soumissions (10 max / minute par user). Une partie dure
+    // 60s donc une cadence légitime tourne autour de 1/min.
+    const rateCheck = rateLimiter.check(`vfm-save:${user.id}`, 10, 60 * 1000);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `Trop de soumissions. Réessayez dans ${rateCheck.retryAfter}s.` },
+        { status: 429, headers: { 'Retry-After': String(rateCheck.retryAfter ?? 60) } }
       );
     }
 

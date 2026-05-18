@@ -18,9 +18,15 @@ export default function TrueRetentionCard({
   apparentSuccessRate,
   matureCardsCount,
 }: TrueRetentionCardProps) {
-  const tone = retentionTone(trueRetention);
+  const hasData = matureCardsCount > 0;
+  // Z5-03 : sans cartes matures la métrique n'a pas de sens — afficher un état neutre plutôt
+  // qu'une couleur/jugement trompeur basé sur une valeur de 0%.
+  const tone = hasData
+    ? retentionTone(trueRetention)
+    : { color: 'text-zinc-400', ring: '#3f3f46', label: 'N/A' };
   const circumference = 2 * Math.PI * 48;
-  const offset = circumference - (trueRetention / 100) * circumference;
+  const displayValue = hasData ? trueRetention : 0;
+  const offset = circumference - (displayValue / 100) * circumference;
 
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">
@@ -57,7 +63,7 @@ export default function TrueRetentionCard({
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className={`text-2xl font-bold tabular-nums ${tone.color}`}>
-              {Math.round(trueRetention)}%
+              {hasData ? `${Math.round(trueRetention)}%` : '—'}
             </span>
             <span className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">
               {tone.label}

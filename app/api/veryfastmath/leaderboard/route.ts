@@ -54,9 +54,13 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Trier par score décroissant
+    // Z6-04 : trier par score décroissant puis par date du record (plus ancien d'abord)
+    // pour éviter un ordre instable entre rechargements en cas d'égalité.
     const sorted = Array.from(userBestScores.entries())
-      .sort((a, b) => b[1].score - a[1].score);
+      .sort((a, b) => {
+        if (b[1].score !== a[1].score) return b[1].score - a[1].score;
+        return a[1].createdAt.getTime() - b[1].createdAt.getTime();
+      });
 
     // Récupérer les informations des utilisateurs
     const userIds = sorted.map(([userId]) => userId);
