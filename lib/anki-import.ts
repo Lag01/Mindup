@@ -71,7 +71,11 @@ function sm2EaseToDifficulty(factor: number): number {
   return Math.max(1, Math.min(10, d));
 }
 
-/** Compte les ratings depuis le revlog d'une carte. */
+/** Compte les ratings depuis le revlog d'une carte.
+ * ease 0 = "manual reschedule" Anki (filtered deck rebuild, set due, etc.) — on le
+ * traite comme un "Good" implicite plutôt que de l'ignorer, pour ne pas perdre les
+ * cartes reschedulées manuellement de l'historique.
+ */
 function countRatings(revlog: AnkiRevlogRow[]): {
   again: number;
   hard: number;
@@ -81,6 +85,7 @@ function countRatings(revlog: AnkiRevlogRow[]): {
   const counts = { again: 0, hard: 0, good: 0, easy: 0 };
   for (const r of revlog) {
     switch (r.ease) {
+      case 0: counts.good++; break;
       case 1: counts.again++; break;
       case 2: counts.hard++; break;
       case 3: counts.good++; break;
@@ -128,9 +133,17 @@ export function convertAnkiCardToReviewStats(
   }
 
   // Fallback SM-2 → FSRS : stability ≈ intervalle en jours, difficulty ≈ inverse ease.
-  // ivl est en jours pour les cartes review (type 2), en secondes négatives pour learning.
-  if (stability === 0 && card.type === 2 && card.ivl > 0) {
-    stability = card.ivl;
+  // ivl est en jours pour les cartes review (type 2) quand ivl > 0, et en secondes
+  // négatives quand ivl < 0 (cartes en learning ou ivl sub-day). On normalise en jours.
+  const ivlDays =
+    card.ivl > 0
+      ? card.ivl
+      : card.ivl < 0
+      ? Math.abs(card.ivl) / 86400
+      : 0;
+
+  if (stability === 0 && card.type === 2 && ivlDays > 0) {
+    stability = ivlDays;
   }
   if (difficulty === 0) {
     difficulty = sm2EaseToDifficulty(card.factor);
@@ -141,9 +154,10 @@ export function convertAnkiCardToReviewStats(
   // soit re-vue dans la prochaine session.
   let interval: number | null = null;
   let nextReview: Date | null = null;
-  if (card.type === 2 && card.ivl > 0 && lastReview) {
-    interval = card.ivl;
-    nextReview = new Date(lastReview.getTime() + card.ivl * 86400000);
+  if (card.type === 2 && ivlDays > 0 && lastReview) {
+    // Review.interval est un Int (jours) : on arrondit en gardant minimum 1.
+    interval = Math.max(1, Math.round(ivlDays));
+    nextReview = new Date(lastReview.getTime() + ivlDays * 86400000);
   } else if (card.reps > 0) {
     nextReview = new Date(); // dû maintenant
   }

@@ -135,17 +135,13 @@ export default function DeckStatisticsV1({ deckId }: DeckStatisticsV1Props) {
   if (loading) {
     return (
       <div className="space-y-6">
-        {/* Loading Skeleton */}
-        <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
-          <div className="flex items-center justify-center">
-            <div className="h-[200px] w-[200px] animate-pulse rounded-full bg-zinc-800" />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-32 animate-pulse rounded-lg bg-zinc-800" />
-            ))}
-          </div>
+        {/* Loading Skeleton — léger, évite le bloc circulaire 200×200 trop voyant. */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-24 animate-pulse rounded-lg bg-zinc-800" />
+          ))}
         </div>
+        <div className="h-48 animate-pulse rounded-lg bg-zinc-800" />
       </div>
     );
   }

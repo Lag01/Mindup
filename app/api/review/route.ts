@@ -146,12 +146,17 @@ export async function GET(request: NextRequest) {
     const reviewsDoneToday = Number(doneReviewsResult[0].count);
     const newCardsDoneToday = Number(doneNewResult[0].count);
 
-    const reviewBudget = customStudy
-      ? 99999
-      : Math.max(0, deck.maxReviewsPerDay - reviewsDoneToday);
-    const newBudget = customStudy
-      ? 99999
-      : Math.max(0, deck.newCardsPerDay - newCardsDoneToday);
+    // Plafond dur pour éviter qu'un budget anormalement élevé (customStudy ou paramètre
+     // user mal configuré) ne génère une requête SQL avec LIMIT illimité.
+    const MAX_REVIEW_LIMIT = 1000;
+    const reviewBudget = Math.min(
+      MAX_REVIEW_LIMIT,
+      customStudy ? 99999 : Math.max(0, deck.maxReviewsPerDay - reviewsDoneToday)
+    );
+    const newBudget = Math.min(
+      MAX_REVIEW_LIMIT,
+      customStudy ? 99999 : Math.max(0, deck.newCardsPerDay - newCardsDoneToday)
+    );
 
     // Récupérer les cartes de révision (LEARNING / REVIEW / RELEARNING, dues maintenant)
     const reviewCards: RawCard[] =

@@ -24,6 +24,25 @@ import { convertAnkiCardToReviewStats, type AnkiCardRow, type AnkiRevlogRow } fr
 const ANKI_FIELD_SEPARATOR = '\x1f';
 
 /**
+ * Anki `cards.queue` : valeurs négatives = exclues du scheduling normal,
+ * valeurs ≥ 0 = importables dans notre app.
+ *   -3 : buried by user
+ *   -2 : buried by scheduler
+ *   -1 : suspended
+ *    0 : new
+ *    1 : learning
+ *    2 : review
+ *    3 : day learning
+ */
+const ANKI_QUEUE_NEW = 0;
+
+/**
+ * Limite de taille post-décompression zstd : protège contre les "zip-bombs" zstd
+ * (un .apkg de quelques Mo peut décompresser en plusieurs GB et faire OOM le serveur).
+ */
+const MAX_DECOMPRESSED_BYTES = 500 * 1024 * 1024; // 500 Mo
+
+/**
  * Charge le module sql.js. On lit le WASM depuis node_modules à la demande
  * (Vercel serverless le préserve grâce à outputFileTracingIncludes dans next.config).
  */
@@ -43,9 +62,18 @@ async function loadSqlJs(): Promise<SqlJsStatic> {
 
 /**
  * Décompresse un buffer zstd. fzstd attend un Uint8Array et renvoie un Uint8Array.
+ * Le buffer décompressé est plafonné à MAX_DECOMPRESSED_BYTES pour éviter les
+ * "zstd bombs" : sans cette garde, un .apkg de 4 Mo peut s'étendre à plusieurs GB
+ * et faire OOM le runtime Vercel.
  */
 function decompressZstd(data: Uint8Array): Uint8Array {
-  return fzstd.decompress(data);
+  const out = fzstd.decompress(data);
+  if (out.length > MAX_DECOMPRESSED_BYTES) {
+    throw new Error(
+      `Archive trop volumineuse après décompression (${(out.length / 1024 / 1024).toFixed(0)} Mo, limite ${(MAX_DECOMPRESSED_BYTES / 1024 / 1024).toFixed(0)} Mo).`
+    );
+  }
+  return out;
 }
 
 /**
@@ -151,7 +179,7 @@ export function listAPKGDecks(db: Database): APKGDeckSummary[] {
       `SELECT d.id AS id, d.name AS name, COUNT(c.id) AS cardCount
          FROM decks d
          INNER JOIN cards c ON c.did = d.id
-         WHERE c.queue >= 0
+         WHERE c.queue >= ${ANKI_QUEUE_NEW}
          GROUP BY d.id
          HAVING cardCount > 0
          ORDER BY cardCount DESC`
@@ -176,7 +204,7 @@ export function listAPKGDecks(db: Database): APKGDeckSummary[] {
       const decks = JSON.parse(col[0].decks) as Record<string, { id?: number; name: string }>;
       const counts = queryAll<{ did: number; cardCount: number }>(
         db,
-        `SELECT did, COUNT(id) AS cardCount FROM cards WHERE queue >= 0 GROUP BY did`
+        `SELECT did, COUNT(id) AS cardCount FROM cards WHERE queue >= ${ANKI_QUEUE_NEW} GROUP BY did`
       );
       const countById = new Map<number, number>();
       for (const c of counts) countById.set(c.did, Number(c.cardCount) || 0);
@@ -218,6 +246,23 @@ export interface ParseAPKGOptions {
  * Le caller a la responsabilité d'appeler `db.close()` après usage.
  */
 async function openAPKGDatabase(fileBuffer: ArrayBuffer): Promise<Database> {
+  // Validation des magic bytes ZIP avant d'appeler jszip : permet de retourner
+  // un message d'erreur clair pour un fichier non-ZIP (ex: renommé en .apkg)
+  // plutôt qu'une exception jszip opaque.
+  // Signatures ZIP : PK\x03\x04 (entrée locale) ou PK\x05\x06 (archive vide).
+  if (fileBuffer.byteLength < 4) {
+    throw new Error("Le fichier n'est pas une archive ZIP valide (.apkg attendu).");
+  }
+  const head = new Uint8Array(fileBuffer.slice(0, 4));
+  const isZip =
+    head[0] === 0x50 &&
+    head[1] === 0x4b &&
+    ((head[2] === 0x03 && head[3] === 0x04) ||
+      (head[2] === 0x05 && head[3] === 0x06));
+  if (!isZip) {
+    throw new Error("Le fichier n'est pas une archive ZIP valide (.apkg attendu).");
+  }
+
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(fileBuffer);
@@ -267,7 +312,7 @@ function extractParsedCardsByDeck(
   // Cards (filtrées par deck ID si demandé)
   let cardSql = `SELECT id, nid, did, ord, type, queue, ivl, factor, reps, lapses, data
                    FROM cards
-                  WHERE queue >= 0`;
+                  WHERE queue >= ${ANKI_QUEUE_NEW}`;
   if (ankiIds && ankiIds.length > 0) {
     // sql.js ne supporte pas les array params nativement ; on inline les IDs
     // (validés en amont — ce sont des entiers issus de la table decks).
@@ -292,11 +337,14 @@ function extractParsedCardsByDeck(
   }>(db, cardSql);
 
   // Revlog (groupé par cid) — uniquement si preserveHistory.
+  // Note : on inclut ease=0 (Anki "manual reschedule" / "filtered deck reschedule") en
+  // plus de 1..4. Ces entrées sont remappées sur "Good" côté countRatings pour ne pas
+  // perdre silencieusement l'historique des cartes reschedulées manuellement.
   const revlogByCard = new Map<number, AnkiRevlogRow[]>();
   if (preserveHistory) {
     const revlogRows = queryAll<{ id: number; cid: number; ease: number; type: number }>(
       db,
-      `SELECT id, cid, ease, type FROM revlog WHERE ease BETWEEN 1 AND 4`
+      `SELECT id, cid, ease, type FROM revlog WHERE ease BETWEEN 0 AND 4`
     );
     for (const r of revlogRows) {
       const list = revlogByCard.get(r.cid);

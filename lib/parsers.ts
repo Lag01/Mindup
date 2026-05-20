@@ -242,6 +242,27 @@ export function parseCSV(content: string): Promise<ParsedDeck> {
           // donc on n'a aucun moyen de deviner où s'arrête le back.
           const allowExtraMerge = fields.length === 2;
 
+          // Z3-10 : CSV strict — rejette les erreurs PapaParse (lignes mal formées,
+          // colonnes manquantes, retours-chariot non quotés, etc.) avec un message
+          // explicite indiquant les lignes en cause. La seule erreur tolérée reste
+          // TooManyFields en mode 2 colonnes, gérée plus bas via __parsed_extra.
+          const blockingErrors = (results.errors || []).filter((err) => {
+            if (allowExtraMerge && err.code === 'TooManyFields') return false;
+            return true;
+          });
+          if (blockingErrors.length > 0) {
+            const sample = blockingErrors
+              .slice(0, 5)
+              .map((e) => `ligne ${e.row != null ? e.row + 2 : '?'} : ${e.message}`)
+              .join(' ; ');
+            const suffix = blockingErrors.length > 5 ? ` (et ${blockingErrors.length - 5} autre(s))` : '';
+            throw new Error(
+              `Le fichier CSV est mal formé : ${sample}${suffix}. ` +
+                `Vérifiez que chaque ligne a le bon nombre de colonnes et que les ` +
+                `champs contenant des virgules ou des retours à la ligne sont entre guillemets.`
+            );
+          }
+
           results.data.forEach((row: any) => {
             let front = (row.Front || row.front || row.Question || row.question || '').trim();
             let back = (row.Back || row.back || row.Answer || row.answer || '').trim();

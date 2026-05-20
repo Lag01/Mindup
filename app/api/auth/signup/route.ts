@@ -103,8 +103,20 @@ export async function POST(request: NextRequest) {
       throw createError;
     }
 
-    // Create session
-    await createSession(user.id);
+    // Z1-06 : atomicité signup. createSession() ne touche pas la BD (JWT + cookie),
+    // mais si la pose du cookie échoue (erreur runtime, cookies() KO), on aurait un
+    // compte créé sans session : on compense en supprimant le user pour permettre un
+    // nouveau signup propre.
+    try {
+      await createSession(user.id);
+    } catch (sessionError) {
+      try {
+        await prisma.user.delete({ where: { id: user.id } });
+      } catch (rollbackError) {
+        console.error('Signup rollback failed:', rollbackError);
+      }
+      throw sessionError;
+    }
 
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) {

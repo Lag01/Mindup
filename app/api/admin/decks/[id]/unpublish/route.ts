@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { unpublishDeck } from '@/lib/sync-decks';
+import { prisma } from '@/lib/prisma';
 
 /**
  * POST /api/admin/decks/[id]/unpublish
@@ -12,12 +13,28 @@ export async function POST(
 ) {
   try {
     // Vérifier que l'utilisateur est admin
-    await requireAdmin();
+    const admin = await requireAdmin();
 
     const { id: deckId } = await context.params;
 
     // Dépublier le deck
     await unpublishDeck(deckId);
+
+    // Audit log de l'action admin (action destructive : suppression des decks importés).
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: admin.id,
+          action: 'DECK_UNPUBLISH',
+          targetType: 'deck',
+          targetId: deckId,
+          ipAddress: request.headers.get('x-forwarded-for') ?? null,
+          userAgent: request.headers.get('user-agent') ?? null,
+        },
+      });
+    } catch (logError) {
+      console.error('Audit log unpublish failure:', logError);
+    }
 
     return NextResponse.json({
       success: true,

@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
         displayName: true,
         currentStreak: true,
         maxStreak: true,
+        lastStreakUpdate: true,
       },
       orderBy: {
         [orderByField]: 'desc',
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
       displayName: u.displayName,
       currentStreak: u.currentStreak,
       maxStreak: u.maxStreak,
+      lastStreakUpdate: u.lastStreakUpdate,
     }));
 
     return NextResponse.json({

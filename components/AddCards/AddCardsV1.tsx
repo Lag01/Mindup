@@ -37,7 +37,19 @@ export default function AddCardsV1() {
   const [showBackImage, setShowBackImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const frontInputRef = useRef<HTMLTextAreaElement>(null);
+  const rafIdRef = useRef<number | null>(null);
   const { isAdmin } = useUser();
+
+  // Cleanup du requestAnimationFrame pendant si le composant se démonte avant
+  // que la frame ne soit jouée (évite un focus orphelin sur input démonté).
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const fetchDeck = async () => {
@@ -113,7 +125,11 @@ export default function AddCardsV1() {
     setShowBackText(true);
     setShowBackLatex(false);
     setShowBackImage(false);
-    requestAnimationFrame(() => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = null;
       frontInputRef.current?.focus();
     });
   }, []);
@@ -188,14 +204,15 @@ export default function AddCardsV1() {
       return;
     }
     if (showFrontImage && cardForm.frontImage) {
+      const imagePath = cardForm.frontImage;
       try {
         await fetch('/api/upload/delete-card-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imagePath: cardForm.frontImage }),
+          body: JSON.stringify({ imagePath }),
         });
       } catch (error) {
-        console.error('Error deleting image:', error);
+        console.error('Error deleting front image:', { imagePath, error });
       }
       setCardForm(prev => ({ ...prev, frontImage: null }));
     }
@@ -232,14 +249,15 @@ export default function AddCardsV1() {
       return;
     }
     if (showBackImage && cardForm.backImage) {
+      const imagePath = cardForm.backImage;
       try {
         await fetch('/api/upload/delete-card-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imagePath: cardForm.backImage }),
+          body: JSON.stringify({ imagePath }),
         });
       } catch (error) {
-        console.error('Error deleting image:', error);
+        console.error('Error deleting back image:', { imagePath, error });
       }
       setCardForm(prev => ({ ...prev, backImage: null }));
     }

@@ -85,18 +85,32 @@ export async function revokeAllUserTokens(userId: string): Promise<void> {
 }
 
 /**
- * Nettoyer les tokens expirés (à exécuter périodiquement)
+ * Nettoyer les tokens expirés (à exécuter périodiquement).
+ * Z7-12 : suppression par batches de 10 000 pour éviter qu'un cleanup tardif
+ * (grosse volumétrie de tokens expirés accumulés) ne tienne une transaction
+ * Postgres pendant plusieurs secondes / minutes.
  */
 export async function cleanupExpiredTokens(): Promise<number> {
-  const result = await prisma.refreshToken.deleteMany({
-    where: {
-      expiresAt: {
-        lt: new Date(),
-      },
-    },
-  });
+  const BATCH_SIZE = 10000;
+  const MAX_BATCHES = 100; // garde-fou : 100 × 10k = 1M tokens max par run
+  const now = new Date();
+  let total = 0;
 
-  return result.count;
+  for (let i = 0; i < MAX_BATCHES; i++) {
+    const deleted = await prisma.$executeRaw`
+      DELETE FROM "RefreshToken"
+      WHERE id IN (
+        SELECT id FROM "RefreshToken"
+        WHERE "expiresAt" < ${now}
+        LIMIT ${BATCH_SIZE}
+      )
+    `;
+    const count = Number(deleted);
+    total += count;
+    if (count < BATCH_SIZE) break;
+  }
+
+  return total;
 }
 
 /**

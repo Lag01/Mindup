@@ -57,6 +57,23 @@ export async function POST(
       }
     });
 
+    // Audit log de l'action admin (table AuditLog déjà présente côté Prisma).
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: admin.id,
+          action: 'DECK_PUBLISH',
+          targetType: 'deck',
+          targetId: deckId,
+          ipAddress: request.headers.get('x-forwarded-for') ?? null,
+          userAgent: request.headers.get('user-agent') ?? null,
+          metadata: JSON.stringify({ deckName: updatedDeck.name }),
+        },
+      });
+    } catch (logError) {
+      console.error('Audit log publish failure:', logError);
+    }
+
     return NextResponse.json({
       success: true,
       deck: updatedDeck

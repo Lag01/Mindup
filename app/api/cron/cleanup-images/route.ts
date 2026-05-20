@@ -14,7 +14,13 @@ import {
 import { prisma } from '@/lib/prisma';
 import { verifyBearerToken } from '@/lib/security';
 
+// Z7-04 : seuil à partir duquel un lock posé est considéré comme orphelin
+// (un cron qui aurait crashé sans libérer son lock) et peut être écrasé.
+const LOCK_STALE_AFTER_MS = 60 * 60 * 1000; // 1 heure
+const SETTINGS_ID = 'default';
+
 export async function GET(request: NextRequest) {
+  let lockAcquired = false;
   try {
     // Vérifier l'authentification Vercel Cron (sécurité renforcée anti timing-attack)
     const authHeader = request.headers.get('authorization');
@@ -27,6 +33,30 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Z7-04 : lock optimiste pour éviter qu'un deuxième cron déclenché en parallèle
+    // ne tente les mêmes suppressions (Vercel ne garantit pas l'unicité absolue).
+    // updateMany atomique : pose le lock si null ou trop ancien.
+    const staleBefore = new Date(Date.now() - LOCK_STALE_AFTER_MS);
+    const lockResult = await prisma.appSettings.updateMany({
+      where: {
+        id: SETTINGS_ID,
+        OR: [
+          { imageCleanupLockedAt: null },
+          { imageCleanupLockedAt: { lt: staleBefore } },
+        ],
+      },
+      data: { imageCleanupLockedAt: new Date() },
+    });
+    if (lockResult.count === 0) {
+      console.log('[CRON] ⏭️  Cleanup déjà en cours (lock actif), abandon de ce déclenchement.');
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        reason: 'Cleanup déjà en cours (lock actif).',
+      });
+    }
+    lockAcquired = true;
 
     console.log('[CRON] 🧹 Démarrage de la tâche de nettoyage des images orphelines...');
 
@@ -153,5 +183,18 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 }
     );
+  } finally {
+    // Libération du lock : on ne reset que si on l'a effectivement acquis ici,
+    // pour ne pas relâcher le lock d'un cron concurrent qui aurait commencé entretemps.
+    if (lockAcquired) {
+      try {
+        await prisma.appSettings.updateMany({
+          where: { id: SETTINGS_ID },
+          data: { imageCleanupLockedAt: null },
+        });
+      } catch (unlockError) {
+        console.error('[CRON] ⚠️  Impossible de libérer le lock cleanup:', unlockError);
+      }
+    }
   }
 }

@@ -805,3 +805,62 @@ Lire ce fichier puis attaquer les `🔵 différés` par thème :
 6. **Anti-triche VFM** (Z6-01) — token de session côté serveur.
 
 Les `🔴` à investiguer concernent surtout des index DB à vérifier (Z1-19, Z7-03, Z7-13) — un coup d'œil rapide à `prisma/schema.prisma` suffira.
+
+---
+
+## Re-vérification du 2026-05-20
+
+> Deuxième passe de classification : pour chaque finding 🟠/🔴 restant après la session du 2026-05-18, j'ai re-vérifié le code et classé en **rien à faire / certitude / questionnement**. Les certitudes ont été appliquées sans demande ; les questionnements ont été tranchés par l'utilisateur (réponses ci-dessous).
+
+### Faux positifs confirmés à la re-vérification (rien à faire)
+
+| Réf | Statut | Justification |
+|-----|--------|---------------|
+| Z1-19 | ⚪ | Index `RefreshToken.userId` déjà déclaré (`prisma/schema.prisma:208`). |
+| Z3-05 | ⚪ | Le mode "append" hérite déjà de `sanitizeParsedDeck` (validateCardContent appliqué en amont par Z3-01). |
+| Z4-09 | ⚪ | `localStorage.setItem` déjà encapsulé dans try/catch (`ReviewV1.tsx:143-151`, `ReviewV2.tsx:139-147`). |
+| Z4-14 | ⚪ | Les dépendances du `useCallback` correspondent à des états réellement utilisés dans la validation — pas de recréation parasite. |
+| Z5-17 | ⚪ | Pas de réouverture du dropdown : la promise async ne re-touche pas l'état d'ouverture. |
+| Z7-08 | ⚪ | Buffer length déjà vérifié (`card-image/route.ts:35`). |
+
+### Corrections appliquées (certitudes)
+
+| Réf | Sév. | Fichier | Résumé |
+|-----|------|---------|--------|
+| 🟢 Z1-09 | S4 | `lib/utils/display-name.ts` | Sanitisation Unicode + trim + limite 50 chars + fallback `Utilisateur`. |
+| 🟢 Z2-13 | S4 | `app/api/review/route.ts` | `MAX_REVIEW_LIMIT = 1000` plafonne `reviewBudget` / `newBudget` (y compris customStudy). |
+| 🟢 Z3-17 | S4 | `lib/parsers/apkg.ts` | Constante `ANKI_QUEUE_NEW` documentée, remplace les `0` magiques aux 3 endroits. |
+| 🟢 Z4-08 | S4 | `components/AddCards/AddCardsV1.tsx` | `rafIdRef` + `cancelAnimationFrame` au cleanup useEffect (évite focus orphelin). |
+| 🟢 Z4-12 | S4 | `components/AddCards/AddCardsV1.tsx` | `console.error` inclut désormais `{ imagePath, error }` pour front et back. |
+| 🟢 Z5-18 | S4 | `components/DeckStatistics/DeckStatisticsV1.tsx` | Skeleton allégé : 4 cards + 1 rectangle, plus de gros disque 200×200. |
+| 🟢 Z6-11 | S3 | `app/api/leaderboard/streak/route.ts` | `lastStreakUpdate` exposé dans le payload pour permettre une UI "fraîcheur". |
+| 🟢 Z7-11 | S4 | `app/api/admin/decks/[id]/{publish,unpublish}/route.ts` | Audit log via `prisma.auditLog.create` (table déjà présente avec `DECK_PUBLISH` / `DECK_UNPUBLISH`). |
+| 🟢 Z3-03 | S3 | `lib/parsers/apkg.ts` | Validation signature ZIP (`PK\x03\x04` / `PK\x05\x06`) avant `jszip.loadAsync` → message clair. |
+
+### Décisions utilisateur intégrées (questionnements)
+
+| Réf | Sév. | Choix | Implémentation |
+|-----|------|-------|----------------|
+| 🟢 Z1-06 | S3 | **A** — compensation post-création | Si `createSession` lève, le user juste créé est supprimé (`app/api/auth/signup/route.ts`) pour permettre un nouveau signup propre. |
+| 🟢 Z3-04 | S2 | **B** — limite 500 Mo | `MAX_DECOMPRESSED_BYTES = 500 * 1024 * 1024` ; `decompressZstd` lève si dépassé (`lib/parsers/apkg.ts`). |
+| 🟢 Z3-07 | S4 | **B** — `ease=0` traité comme `Good` | Query SQL passe à `WHERE ease BETWEEN 0 AND 4` (`lib/parsers/apkg.ts`) ; `countRatings` mappe `case 0` sur `good` (`lib/anki-import.ts`). |
+| 🟢 Z3-11 | S4 | **A** — conversion secondes→jours | `ivlDays = Math.abs(ivl) / 86400` quand `ivl < 0` ; `interval` arrondi en jours min 1 (`lib/anki-import.ts`). |
+| 🟢 Z3-10 | S4 | **A** — rejet strict avec message | PapaParse `results.errors` (hors `TooManyFields` toléré en mode 2 colonnes) → erreur listant les 5 premières lignes en cause (`lib/parsers.ts`). |
+| 🟢 Z7-03 | S3 | **A** — index isolé | Migration `20260520000000_add_reviewevent_createdat_index_and_cleanup_lock` : `CREATE INDEX "ReviewEvent_createdAt_idx"` + `@@index([createdAt])` dans le schéma. |
+| 🟢 Z7-04 | S3 | **A** — lock optimiste | Colonne `AppSettings.imageCleanupLockedAt` ; cron pose le lock via `updateMany` conditionnel (null ou plus vieux qu'1h), libère en `finally`. Si lock déjà posé : skip propre. |
+| 🟢 Z7-12 | S4 | **batch 10 000** | `cleanupExpiredTokens` boucle `$executeRaw DELETE … WHERE id IN (SELECT … LIMIT 10000)` jusqu'à épuisement (garde-fou 100 batches max). |
+
+### Non implémenté (refusé ou différé volontairement dans cette passe)
+
+| Réf | Raison |
+|-----|--------|
+| Z1-11 | Choix **B** — middleware laissé inchangé. Les pages `/public-decks`, `/leaderboard`, `/veryfastmath` restent derrière le redirect login (statu quo assumé). |
+| Tous les 🔵 historiques | Restent différés : timezone transverse (Z2-04, Z5-04, Z6-02, Z5-13), refresh token httpOnly (Z1-01), modales a11y (Z4-03/04/05, Z5-08), `alert→toast` (Z4-01, Z5-01), pagination leaderboards (Z6-03, Z6-05, Z7-02), anti-triche VFM (Z6-01), refacto AddCards (Z4-11), 2FA admin (Z1-16), reset password (Z1-17), durabilité rate-limiter (Z1-12). |
+| Z3-02 | Edge case `</card>` dans le contenu — reste 🔵 (refonte parser XML coûteuse, occurrence très improbable). |
+
+### Vérification
+
+- `npx prisma generate` : ✅ client régénéré.
+- `npx tsc --noEmit` : ✅ aucune erreur dans le code de production (les erreurs `__tests__/` préexistantes restent inchangées — `@types/jest` manquant, déjà identifié dans la passe du 2026-05-18).
+- **Migration à appliquer manuellement** : `npx prisma migrate deploy` (en prod) ou `npx prisma migrate dev` (en local) pour exécuter `20260520000000_add_reviewevent_createdat_index_and_cleanup_lock`.
+- Smoke test recommandé (utilisateur) : signup (transaction), import APKG (zstd 500 Mo + magic bytes + ease=0 + ivl<0 + CSV strict), leaderboard streak (lastStreakUpdate), admin publish/unpublish (audit log), cron cleanup images (lock).

@@ -152,6 +152,11 @@ model AppSettings {
   maxDecksPerUser Int    @default(10)
   maxTotalUsers   Int    @default(5)
   updatedAt       DateTime @updatedAt
+
+  // Lock optimiste pour le cron de cleanup des images : on pose la date du
+  // démarrage du cron, et un cron concurrent voit que c'est en cours et abandonne.
+  // (Z7-04) Une valeur "vieille" est considérée comme lock orphelin et écrasable.
+  imageCleanupLockedAt DateTime?
 }
 
 model ReviewEvent {
@@ -168,6 +173,9 @@ model ReviewEvent {
 
   @@index([userId, createdAt])
   @@index([reviewId])
+  // Z7-03 : index isolé pour les requêtes admin filtrant par fenêtre temporelle
+  // sans filtre user (stats globales, cleanup par date, etc.).
+  @@index([createdAt])
 }
 
 model VeryFastMathScore {
