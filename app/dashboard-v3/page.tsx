@@ -126,7 +126,7 @@ export default function DashboardV3Page() {
 
   const handleStudy = useCallback(
     (deckId: string) => {
-      router.push(`/deck/${deckId}/study`)
+      router.push(`/deck/${deckId}/review?mode=study`)
     },
     [router]
   )
