@@ -4,6 +4,27 @@ Ce fichier consigne les bugs rencontrés sur l'application, leur cause racine et
 
 ---
 
+## 2026-05-21 — 500 sur PATCH /api/admin/settings (migration prod non appliquée)
+
+### Symptôme
+Dans le panel admin, modifier `maxTotalUsers` ou `maxDecksPerUser` renvoie `500 Internal Server Error` côté `PATCH /api/admin/settings`. Le `GET` continue de répondre avec des valeurs en apparence correctes (10 et 5), ce qui masque le problème.
+
+### Cause racine
+La migration `prisma/migrations/20260520000000_add_reviewevent_createdat_index_and_cleanup_lock/` (ajoutant la colonne `AppSettings.imageCleanupLockedAt` et l'index `ReviewEvent_createdAt_idx`) n'a jamais été appliquée sur la prod Neon. `prisma migrate deploy` était bloqué par une migration en échec : `20251121222750_add_reviewed_cards_count` apparaissait deux fois dans `_prisma_migrations`, la deuxième entrée avec `finished_at = NULL` et le log `column "reviewedCardsCount" of relation "User" already exists`.
+
+Conséquence : le client Prisma (généré depuis le schéma local) sélectionnait `imageCleanupLockedAt` dans tous les SELECT sur `AppSettings`, ce qui faisait planter chaque requête côté PostgreSQL. Le `GET` survivait parce que `lib/settings.ts:23-32` avale toute erreur et renvoie des défauts. Le `PATCH` propageait l'erreur → 500.
+
+### Solution implémentée
+Correction directe sur la DB prod (`raspy-dawn-60994491` / Mindup) en transaction :
+1. `DELETE FROM _prisma_migrations WHERE migration_name='20251121222750_add_reviewed_cards_count' AND finished_at IS NULL` — supprime l'entrée en échec sans toucher à celle déjà résolue.
+2. `CREATE INDEX IF NOT EXISTS "ReviewEvent_createdAt_idx" ON "ReviewEvent"("createdAt")`.
+3. `ALTER TABLE "AppSettings" ADD COLUMN IF NOT EXISTS "imageCleanupLockedAt" TIMESTAMP(3)`.
+4. Insertion d'un enregistrement `_prisma_migrations` pour `20260520000000_add_reviewevent_createdat_index_and_cleanup_lock` avec le SHA256 du fichier `migration.sql`, pour que Prisma considère la migration appliquée.
+
+À retenir : ne JAMAIS ajouter de fallback silencieux qui mange les erreurs DB (cf. `lib/settings.ts:23-32`). Ça a masqué un crash en prod pendant plusieurs déploiements.
+
+---
+
 ## 2026-05-18 — HTTP method mismatch sur la suppression d'images
 
 ### Symptôme
