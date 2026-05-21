@@ -421,4 +421,34 @@ Tous les détails (avec sévérités, fichiers, statuts) sont dans `AUDIT.md`.
 
 ---
 
-**Dernière mise à jour** : 18/05/2026
+## Mise à jour 21/05/2026 — VeryFastMath unifié + correctifs Anki
+
+### VeryFastMath : suppression du résidu Theme 2
+- L'écran de sélection des modes affichait un style "V2" (gradients/glows hérités du theme 2 supprimé) lorsque l'utilisateur était en theme 3, mais un style sobre "V1" en theme 1.
+- `app/veryfastmath/page.tsx` : retrait de la branche `isV1 ? V1 : V2` et de `useDashboardVersion`. Les deux thèmes utilisent désormais le même menu.
+- Suppression de `app/veryfastmath/components/ModeSelectionScreen.tsx` et `ResultsScreen.tsx` (versions V2 obsolètes), puis renommage des V1 vers ces noms standards.
+- `hooks/useDashboardVersion.ts` : fallback d'erreur `'v2'` → `'v1'` (l'API ne supporte plus `v2`).
+
+### Système Anki : correctifs bugs Z2-04 / Z2-05 et améliorations UX
+- **Z2-05 corrigé** : la détection "première révision aujourd'hui" repose maintenant sur `MIN(ReviewEvent.createdAt) >= todayStart` au lieu de `Review.createdAt`. Les cartes créées ou importées sans révision ne consomment plus à tort le budget `newCardsPerDay`.
+- **Z2-04 corrigé** : le client transmet `X-Timezone` (`Intl.DateTimeFormat`), et le serveur calcule `todayStart` dans le fuseau local de l'utilisateur via le nouveau `lib/dates.ts::computeLocalDayStart`. Plus de décalage 1-2h pour les utilisateurs en France.
+- **API enrichie** : `GET /api/review` renvoie maintenant `meta.doneToday` (compteurs et limites journalières) et `meta.nextDueAt` (prochaine carte due).
+- **UI Anki** (`components/Review/ReviewV1.tsx`) :
+  - Badge "🆕 Nouvelle carte" ou "🔄 Révision" sur la carte courante.
+  - Compteurs distincts visibles : "X nouvelles restantes · Y révisions restantes".
+  - Ligne de progression journalière : "Aujourd'hui : N/limit nouvelles · M/limit révisions".
+  - Écran "Tout révisé" enrichi : distingue "limite atteinte" vs "aucune carte due", affiche la prochaine carte due au format date locale.
+
+### Fichiers modifiés
+- `app/veryfastmath/page.tsx`
+- `app/veryfastmath/components/ModeSelectionScreen.tsx` (renommé depuis V1)
+- `app/veryfastmath/components/ResultsScreen.tsx` (renommé depuis V1)
+- `hooks/useDashboardVersion.ts`
+- `app/api/review/route.ts`
+- `components/Review/ReviewV1.tsx`
+- `lib/dates.ts` (nouveau)
+- `AUDIT.md` (Z2-04 et Z2-05 marqués 🟢)
+
+---
+
+**Dernière mise à jour** : 21/05/2026

@@ -175,16 +175,14 @@
 - **Fichier** : `app/api/decks/[id]/stats/route.ts:45`, `app/api/review/route.ts:118-120`
 - **Symptôme** : `new Date(); .setHours(0,0,0,0)` calcule minuit en timezone du serveur. Vercel = UTC. User en UTC+8 : à 22h locale (14h UTC), ses révisions "d'aujourd'hui" sont déjà dans "demain" UTC.
 - **Sévérité** : S2 (compteurs "aujourd'hui" décalés pour users hors UTC)
-- **Statut** : 🟠 confirmé
-- **Action proposée** : prendre la timezone en compte (paramètre user ou header `X-Timezone`). 🔵 différé (décision produit).
+- **Statut** : 🟢 corrigé 2026-05-21 (`app/api/review/route.ts`). Le client envoie désormais `X-Timezone` (Intl.DateTimeFormat), et le serveur reconstruit minuit local via `lib/dates.ts::computeLocalDayStart`. Les autres endpoints stats/global suivront dans une passe ultérieure.
 
 ### [Z2-05] [S2] Détection "carte nouvelle aujourd'hui" basée sur `Review.createdAt`
 - **Fichier** : `app/api/review/route.ts:134-143`
 - **Symptôme** : une carte créée le J1 jamais révisée puis vue le J7 n'est pas comptée comme "nouvelle aujourd'hui".
 - **Cause racine** : pour les cartes créées manuellement (`app/api/decks/[id]/cards/route.ts:248`) ou importées, une `Review` est créée dès la création → `Review.createdAt = création de la carte`, pas première review.
 - **Sévérité** : S2
-- **Statut** : 🟠 confirmé
-- **Action proposée** : utiliser `MIN(ReviewEvent.createdAt) >= todayStart` comme critère "première révision aujourd'hui", ou ajouter une colonne `Review.firstReviewedAt`. 🔵 différé.
+- **Statut** : 🟢 corrigé 2026-05-21. Critère remplacé par `MIN(ReviewEvent.createdAt) >= todayStart` : la "première révision" est désormais reconnue via l'événement de révision le plus ancien (table `ReviewEvent`), pas via la création du record `Review`.
 
 ### [Z2-06] [S2] Budget `newBudget` mal limité dans la requête (LEFT JOIN)
 - **Fichier** : `app/api/review/route.ts:188-195`

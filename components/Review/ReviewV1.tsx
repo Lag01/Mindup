@@ -213,6 +213,13 @@ export default function ReviewV1() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [learningMethod, setLearningMethod] = useState<'IMMEDIATE' | 'ANKI'>('IMMEDIATE');
   const [noDueCards, setNoDueCards] = useState(false);
+  const [doneToday, setDoneToday] = useState<{
+    newCards: number;
+    reviews: number;
+    newCardsLimit: number;
+    reviewsLimit: number;
+  } | null>(null);
+  const [nextDueAt, setNextDueAt] = useState<string | null>(null);
   const router = useRouter();
   const isMobile = useIsMobile();
 
@@ -235,7 +242,11 @@ export default function ReviewV1() {
       const mode: 'study' | 'review' = isStudyMode ? 'study' : 'review';
 
       const customStudy = searchParams.get('customStudy') === 'true';
-      const response = await fetch(`/api/review?deckId=${deckId}${customStudy ? '&customStudy=true' : ''}`);
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const response = await fetch(
+        `/api/review?deckId=${deckId}${customStudy ? '&customStudy=true' : ''}`,
+        { headers: { 'X-Timezone': tz } }
+      );
       if (!response.ok) {
         if (response.status === 401) {
           router.push('/');
@@ -248,6 +259,8 @@ export default function ReviewV1() {
       const method = data.learningMethod || 'IMMEDIATE';
       setLearningMethod(method);
       setAllCards(data.cards);
+      if (data.meta?.doneToday) setDoneToday(data.meta.doneToday);
+      if (data.meta?.nextDueAt !== undefined) setNextDueAt(data.meta.nextDueAt);
 
       if (method === 'ANKI' && data.cards.length === 0 && !isStudyMode) {
         setNoDueCards(true);
@@ -555,6 +568,11 @@ export default function ReviewV1() {
   }
 
   if (noDueCards && learningMethod === 'ANKI') {
+    const limitReached =
+      doneToday !== null &&
+      doneToday.newCards >= doneToday.newCardsLimit &&
+      doneToday.reviews >= doneToday.reviewsLimit;
+    const nextDueDate = nextDueAt ? new Date(nextDueAt) : null;
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="text-center max-w-md">
@@ -564,11 +582,33 @@ export default function ReviewV1() {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-2">
-            Toutes les cartes sont révisées !
+            {limitReached ? 'Limite quotidienne atteinte !' : 'Toutes les cartes sont révisées !'}
           </h2>
-          <p className="text-zinc-400 mb-6">
-            Vous avez terminé vos révisions pour aujourd'hui. Revenez demain pour de nouvelles cartes.
+          <p className="text-zinc-400 mb-3">
+            {limitReached
+              ? `Vous avez atteint vos plafonds du jour (${doneToday!.newCardsLimit} nouvelles, ${doneToday!.reviewsLimit} révisions).`
+              : 'Aucune carte n\'est due pour le moment.'}
           </p>
+          {doneToday && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-4 text-sm">
+              <div className="flex justify-between text-zinc-300 mb-1">
+                <span>Nouvelles cartes aujourd'hui</span>
+                <span className="font-mono">{doneToday.newCards} / {doneToday.newCardsLimit}</span>
+              </div>
+              <div className="flex justify-between text-zinc-300">
+                <span>Révisions aujourd'hui</span>
+                <span className="font-mono">{doneToday.reviews} / {doneToday.reviewsLimit}</span>
+              </div>
+            </div>
+          )}
+          {nextDueDate && (
+            <p className="text-zinc-500 text-sm mb-6">
+              Prochaine carte due : {nextDueDate.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+            </p>
+          )}
+          {!nextDueDate && (
+            <p className="text-zinc-500 text-sm mb-6">Revenez demain pour de nouvelles cartes.</p>
+          )}
           <div className="flex gap-3 justify-center flex-wrap">
             <button
               onClick={() => router.push('/dashboard-entry')}
@@ -623,28 +663,46 @@ export default function ReviewV1() {
       {/* Header */}
       <header className="bg-zinc-900 border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-3">
+          <div className="flex justify-between items-center gap-3 mb-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               {isStudyMode && (
                 <span className="bg-purple-900/30 text-purple-400 px-3 py-1 rounded-full text-xs font-medium border border-purple-800/50">
                   Mode Étude
                 </span>
               )}
-              <div className="text-zinc-400 text-sm">
-                {isStudyMode
-                  ? 'Navigation libre'
-                  : learningMethod === 'ANKI'
-                    ? (() => {
-                        const nNew = cardQueue.filter(c => !c.review || c.review.status === 'NEW').length;
-                        const nReview = cardQueue.length - nNew;
-                        const parts = [];
-                        if (nReview > 0) parts.push(`${nReview} révision${nReview > 1 ? 's' : ''}`);
-                        if (nNew > 0) parts.push(`${nNew} nouvelle${nNew > 1 ? 's' : ''}`);
-                        return parts.join(' · ') || 'Aucune carte';
-                      })()
-                    : `Session continue • ${sessionStats.total} cartes révisées`
-                }
-              </div>
+              {!isStudyMode && learningMethod === 'ANKI' && (() => {
+                const nNew = cardQueue.filter(c => !c.review || c.review.status === 'NEW').length;
+                const nReview = cardQueue.length - nNew;
+                const isCurrentNew = currentCard && (!currentCard.review || currentCard.review.status === 'NEW');
+                return (
+                  <>
+                    <span
+                      title={isCurrentNew ? 'Cette carte n\'a jamais été révisée' : 'Cette carte a déjà été révisée auparavant'}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                        isCurrentNew
+                          ? 'bg-blue-900/30 text-blue-300 border-blue-800/50'
+                          : 'bg-emerald-900/30 text-emerald-300 border-emerald-800/50'
+                      }`}
+                    >
+                      {isCurrentNew ? '🆕 Nouvelle carte' : '🔄 Révision'}
+                    </span>
+                    <span className="bg-blue-900/20 text-blue-300 px-3 py-1 rounded-full text-xs font-medium border border-blue-800/40">
+                      {nNew} nouvelle{nNew > 1 ? 's' : ''} restante{nNew > 1 ? 's' : ''}
+                    </span>
+                    <span className="bg-emerald-900/20 text-emerald-300 px-3 py-1 rounded-full text-xs font-medium border border-emerald-800/40">
+                      {nReview} révision{nReview > 1 ? 's' : ''} restante{nReview > 1 ? 's' : ''}
+                    </span>
+                  </>
+                );
+              })()}
+              {!isStudyMode && learningMethod === 'IMMEDIATE' && (
+                <div className="text-zinc-400 text-sm">
+                  Session continue • {sessionStats.total} cartes révisées
+                </div>
+              )}
+              {isStudyMode && (
+                <div className="text-zinc-400 text-sm">Navigation libre</div>
+              )}
             </div>
             <button
               onClick={() => router.push('/dashboard-entry')}
@@ -653,6 +711,21 @@ export default function ReviewV1() {
               Quitter
             </button>
           </div>
+          {!isStudyMode && learningMethod === 'ANKI' && doneToday && (
+            <div className="flex gap-4 text-xs text-zinc-400 mt-1">
+              <span>
+                Aujourd'hui :{' '}
+                <span className="text-zinc-200 font-mono">
+                  {doneToday.newCards}/{doneToday.newCardsLimit}
+                </span>{' '}
+                nouvelles ·{' '}
+                <span className="text-zinc-200 font-mono">
+                  {doneToday.reviews}/{doneToday.reviewsLimit}
+                </span>{' '}
+                révisions
+              </span>
+            </div>
+          )}
         </div>
       </header>
 

@@ -17,7 +17,7 @@ export function useDashboardVersion(): { version: string | null; loading: boolea
         setVersion(data.dashboardVersion);
       } catch (error) {
         console.error('Error fetching dashboard version:', error);
-        setVersion('v2');
+        setVersion('v1');
       } finally {
         setLoading(false);
       }

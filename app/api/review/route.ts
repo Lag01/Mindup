@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { updateReviewStats, Rating } from '@/lib/revision';
 import { updateAnkiReviewStats, AnkiRating, CardStatus } from '@/lib/anki';
 import { updateUserStreak } from '@/lib/streak';
+import { computeLocalDayStart } from '@/lib/dates';
 
 interface RawCard {
   id: string;
@@ -116,8 +117,11 @@ export async function GET(request: NextRequest) {
 
     // --- Mode ANKI ---
     const now = new Date();
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // Timezone client transmise via header (X-Timezone). Si absente ou invalide,
+    // computeLocalDayStart retombe sur UTC. Cela évite que la "fenêtre du jour"
+    // soit calée sur le fuseau du serveur (Vercel = UTC) pour les users hors UTC.
+    const tz = request.headers.get('x-timezone') || 'UTC';
+    const todayStart = computeLocalDayStart(now, tz);
     const customStudy = searchParams.get('customStudy') === 'true';
 
     // Compter les cartes déjà révisées aujourd'hui (cartes distinctes)
@@ -130,16 +134,20 @@ export async function GET(request: NextRequest) {
           AND c."deckId" = ${deckId}
           AND re."createdAt" >= ${todayStart}
       `,
-      // Nouvelles cartes = Review créé aujourd'hui (première révision de la carte)
+      // Nouvelles cartes vues aujourd'hui = cartes dont la TOUTE PREMIÈRE révision
+      // (MIN(ReviewEvent.createdAt)) est intervenue après todayStart. On ne s'appuie
+      // pas sur Review.createdAt car un record Review peut être créé à la création
+      // de la carte ou à l'import, sans aucun événement de révision.
       prisma.$queryRaw<[{ count: bigint }]>`
-        SELECT COUNT(DISTINCT re."cardId") AS count
-        FROM "ReviewEvent" re
-        JOIN "Card" c ON c.id = re."cardId"
-        JOIN "Review" r ON r."cardId" = re."cardId" AND r."userId" = re."userId"
-        WHERE re."userId" = ${user.id}
-          AND c."deckId" = ${deckId}
-          AND re."createdAt" >= ${todayStart}
-          AND r."createdAt" >= ${todayStart}
+        SELECT COUNT(*) AS count FROM (
+          SELECT re."cardId", MIN(re."createdAt") AS first_event
+          FROM "ReviewEvent" re
+          JOIN "Card" c ON c.id = re."cardId"
+          WHERE re."userId" = ${user.id}
+            AND c."deckId" = ${deckId}
+          GROUP BY re."cardId"
+          HAVING MIN(re."createdAt") >= ${todayStart}
+        ) firsts
       `,
     ]);
 
@@ -201,6 +209,20 @@ export async function GET(request: NextRequest) {
 
     const allCards = [...reviewCards, ...newCards];
 
+    // Prochaine carte due (parmi celles non sélectionnées dans cette session).
+    // Si la session est vide (budget épuisé OU pas de cartes due maintenant),
+    // ça renseigne l'utilisateur sur l'horaire de la prochaine carte à réviser.
+    const nextDueRow = await prisma.review.findFirst({
+      where: {
+        userId: user.id,
+        card: { deckId },
+        status: { in: ['LEARNING', 'REVIEW', 'RELEARNING'] },
+        nextReview: { gt: now },
+      },
+      orderBy: { nextReview: 'asc' },
+      select: { nextReview: true },
+    });
+
     return NextResponse.json({
       cards: allCards.map(mapRawCard),
       learningMethod: deck.learningMethod,
@@ -210,6 +232,13 @@ export async function GET(request: NextRequest) {
         newBudget,
         reviewBudget,
         customStudy,
+        doneToday: {
+          newCards: newCardsDoneToday,
+          reviews: reviewsDoneToday,
+          newCardsLimit: deck.newCardsPerDay,
+          reviewsLimit: deck.maxReviewsPerDay,
+        },
+        nextDueAt: nextDueRow?.nextReview ?? null,
       },
     });
   } catch (error) {
