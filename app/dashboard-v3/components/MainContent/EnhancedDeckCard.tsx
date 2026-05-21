@@ -40,9 +40,6 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
   const isAnki = deck.learningMethod === 'ANKI';
   const dueCount = deck.ankiStats?.due || 0;
   const hasDueCards = isAnki && dueCount > 0;
-  // Bouton disabled SEULEMENT pour Anki avec 0 cartes dues
-  // Pour IMMEDIATE : toujours enabled
-  const canReview = deck.learningMethod === 'IMMEDIATE' || (isAnki && dueCount > 0);
 
 
   // Calculate progress bar segments
@@ -284,15 +281,10 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
         {/* Review Button */}
         <button
           onClick={() => onReview(deck.id)}
-          disabled={!canReview}
-          className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-900 ${
-            canReview
-              ? 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
-              : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-          }`}
-          aria-label={canReview ? 'Réviser les cartes' : 'Aucune carte à réviser'}
+          className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+          aria-label="Réviser les cartes"
         >
-          {canReview ? '⚡ Réviser' : 'Aucune carte'}
+          Réviser
         </button>
 
         {/* Edit Button (hidden if imported) */}
@@ -306,14 +298,6 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
           </button>
         )}
 
-        {/* Study Button */}
-        <button
-          onClick={() => onStudy(deck.id)}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
-          aria-label="Étudier le deck"
-        >
-          ▶ Étudier
-        </button>
       </div>
 
       <style jsx global>{`
