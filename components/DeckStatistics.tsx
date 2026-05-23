@@ -8,6 +8,9 @@ import { InsightsSection } from './DeckStatistics/v2/InsightsSection';
 import { TrendChart } from './DeckStatistics/v2/TrendChart';
 import { DifficultCardsListV2 } from './DeckStatistics/v2/DifficultCardsListV2';
 import { DistributionTabs } from './DeckStatistics/v2/DistributionTabs';
+import WorkloadChart, { type WorkloadForecast } from './DeckStatistics/shared/WorkloadChart';
+import TrueRetentionTable, { type RetentionTable } from './DeckStatistics/shared/TrueRetentionTable';
+import CardCountsCard from './DeckStatistics/shared/CardCountsCard';
 
 interface ExtendedDeckStats {
   totalCards: number;
@@ -41,8 +44,13 @@ interface ExtendedDeckStats {
     new: number;
     learning: number;
     review: number;
+    relearning?: number;
+    young?: number;
+    mature?: number;
     dueToday: number;
     avgInterval: number;
+    forecast?: WorkloadForecast;
+    trueRetentionTable?: RetentionTable;
   } | null;
 
   // Nouvelles métriques enrichies
@@ -189,31 +197,7 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
         <DistributionTabs ratingDistribution={stats.ratingDistribution} />
 
         {/* 6. Stats ANKI (si applicable) */}
-        {stats.ankiStats && (
-          <div className="rounded-lg border border-zinc-700/50 bg-zinc-900/50 p-6 backdrop-blur-sm">
-            <h3 className="mb-4 text-lg font-semibold text-foreground">
-              Statistiques ANKI
-            </h3>
-            <div className="grid gap-4 sm:grid-cols-4">
-              <div className="rounded-lg border border-blue-700/30 bg-blue-900/10 p-4">
-                <p className="text-xs text-zinc-400">Nouvelles</p>
-                <p className="mt-1 text-2xl font-bold text-blue-400">{stats.ankiStats.new}</p>
-              </div>
-              <div className="rounded-lg border border-yellow-700/30 bg-yellow-900/10 p-4">
-                <p className="text-xs text-zinc-400">Apprentissage</p>
-                <p className="mt-1 text-2xl font-bold text-yellow-400">{stats.ankiStats.learning}</p>
-              </div>
-              <div className="rounded-lg border border-green-700/30 bg-green-900/10 p-4">
-                <p className="text-xs text-zinc-400">Révision</p>
-                <p className="mt-1 text-2xl font-bold text-green-400">{stats.ankiStats.review}</p>
-              </div>
-              <div className="rounded-lg border border-orange-700/30 bg-orange-900/10 p-4">
-                <p className="text-xs text-zinc-400">Dues aujourd'hui</p>
-                <p className="mt-1 text-2xl font-bold text-orange-400">{stats.ankiStats.dueToday}</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {stats.ankiStats && <AnkiSectionV2 ankiStats={stats.ankiStats} />}
       </div>
     );
   }
@@ -269,32 +253,38 @@ export default function DeckStatistics({ deckId }: DeckStatisticsProps) {
       <TabsContent value="details" className="mt-6 space-y-6">
         <DistributionTabs ratingDistribution={stats.ratingDistribution} />
 
-        {stats.ankiStats && (
-          <div className="rounded-lg border border-zinc-700/50 bg-zinc-900/50 p-6 backdrop-blur-sm">
-            <h3 className="mb-4 text-lg font-semibold text-foreground">
-              Statistiques ANKI
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-lg border border-blue-700/30 bg-blue-900/10 p-4">
-                <p className="text-xs text-zinc-400">Nouvelles</p>
-                <p className="mt-1 text-2xl font-bold text-blue-400">{stats.ankiStats.new}</p>
-              </div>
-              <div className="rounded-lg border border-yellow-700/30 bg-yellow-900/10 p-4">
-                <p className="text-xs text-zinc-400">Apprentissage</p>
-                <p className="mt-1 text-2xl font-bold text-yellow-400">{stats.ankiStats.learning}</p>
-              </div>
-              <div className="rounded-lg border border-green-700/30 bg-green-900/10 p-4">
-                <p className="text-xs text-zinc-400">Révision</p>
-                <p className="mt-1 text-2xl font-bold text-green-400">{stats.ankiStats.review}</p>
-              </div>
-              <div className="rounded-lg border border-orange-700/30 bg-orange-900/10 p-4">
-                <p className="text-xs text-zinc-400">Dues aujourd'hui</p>
-                <p className="mt-1 text-2xl font-bold text-orange-400">{stats.ankiStats.dueToday}</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {stats.ankiStats && <AnkiSectionV2 ankiStats={stats.ankiStats} />}
       </TabsContent>
     </Tabs>
+  );
+}
+
+interface AnkiSectionV2Props {
+  ankiStats: NonNullable<ExtendedDeckStats['ankiStats']>;
+}
+
+function AnkiSectionV2({ ankiStats }: AnkiSectionV2Props) {
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-foreground">Statistiques ANKI (FSRS-5)</h3>
+
+      {/* Charge de travail (Future Due) */}
+      {ankiStats.forecast && <WorkloadChart forecast={ankiStats.forecast} />}
+
+      {/* Nombre de cartes (catégories Anki) */}
+      <CardCountsCard
+        counts={{
+          new: ankiStats.new,
+          learning: ankiStats.learning,
+          young: ankiStats.young ?? 0,
+          mature: ankiStats.mature ?? 0,
+        }}
+      />
+
+      {/* Rétention réelle par période */}
+      {ankiStats.trueRetentionTable && (
+        <TrueRetentionTable data={ankiStats.trueRetentionTable} />
+      )}
+    </div>
   );
 }

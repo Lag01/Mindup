@@ -451,4 +451,29 @@ Tous les détails (avec sévérités, fichiers, statuts) sont dans `AUDIT.md`.
 
 ---
 
-**Dernière mise à jour** : 21/05/2026
+## Refonte des statistiques Anki et fiabilisation des compteurs (23/05/2026)
+
+### Contexte
+Les indicateurs Anki donnaient des chiffres peu crédibles : compteur « à réviser » gonflé par toutes les cartes neuves, estimation de maîtrise absurde (« ~480 semaines »), et stats peu pertinentes sur la charge de travail. Objectif : se rapprocher du rapport officiel Anki (Future Due, catégories de cartes, rétention réelle).
+
+### Modifications
+- **Compteur « à réviser » réaliste** (accueil) : aligné sur la file de révision réelle via le helper partagé `computeRealisticDue()` (`lib/anki.ts`). Dues et nouvelles cartes sont chacune plafonnées par le budget quotidien restant. Fuseau transmis via header `X-Timezone` (`lib/store/decks.ts` → `app/api/decks/route.ts`).
+- **Estimation de maîtrise corrigée** : vélocité de maturation normalisée par les jours réellement étudiés, bornée, avec état « Données insuffisantes » (`app/api/decks/[id]/stats/route.ts`, `formatCompletionDays` v1/v2).
+- **Charge de travail « Future Due »** : prévision 365 jours segmentée par statut (apprentissage / récentes / matures), graphe empilé + courbe cumulative + sélecteur de période (1 mois / 3 mois / 1 an) + KPIs (aujourd'hui, demain, 7 j, charge journalière). Nouveau composant partagé `components/DeckStatistics/shared/WorkloadChart.tsx`, intégré en v1 ET v2.
+- **Catégories de cartes Anki** : carte « Nombre de cartes » (Inédites / En apprentissage / Récentes / Matures) — `shared/CardCountsCard.tsx`.
+- **Rétention réelle par période** : tableau Aujourd'hui / Hier / Semaine / Mois / Année × Récentes / Matures / Tout — `shared/TrueRetentionTable.tsx`.
+- **Traduction** : labels de la barre de progression de l'accueil passés en français (`EnhancedDeckCard.tsx`).
+
+### Fichiers modifiés / créés
+- `lib/anki.ts` (helper `computeRealisticDue`, constante `MATURE_INTERVAL_DAYS`)
+- `app/api/decks/route.ts`, `lib/store/decks.ts`
+- `app/api/decks/[id]/stats/route.ts` (vélocité, forecast 365 j, rétention périodisée, young/mature)
+- `components/DeckStatistics/shared/WorkloadChart.tsx`, `TrueRetentionTable.tsx`, `CardCountsCard.tsx` (nouveaux)
+- `components/DeckStatistics.tsx` (v2), `components/DeckStatistics/DeckStatisticsV1.tsx`
+- `components/DeckStatistics/v1/StatsHeroSection.tsx`, `v2/StatsHeroSection.tsx`
+- `app/dashboard-v3/components/MainContent/EnhancedDeckCard.tsx`
+- `log_erreurs.md` (entrée 23/05/2026)
+
+---
+
+**Dernière mise à jour** : 23/05/2026

@@ -4,8 +4,10 @@ import { getCurrentUser } from '@/lib/auth';
 import { unimportPublicDeck } from '@/lib/sync-decks';
 import { getAppSettings } from '@/lib/settings';
 import { deleteImagesAsync } from '@/lib/image-cleanup';
+import { computeLocalDayStart } from '@/lib/dates';
+import { computeRealisticDue } from '@/lib/anki';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
 
@@ -15,6 +17,11 @@ export async function GET() {
         { status: 401 }
       );
     }
+
+    // Début du jour dans le fuseau du client (header X-Timezone), pour aligner
+    // le budget quotidien sur la file de révision réelle. Fallback UTC.
+    const tz = request.headers.get('x-timezone') || 'UTC';
+    const todayStart = computeLocalDayStart(new Date(), tz);
 
     // Optimisation : utiliser une requête SQL agrégée au lieu de charger toutes les cartes et reviews
     // Cela élimine le problème N+1 et réduit considérablement la charge mémoire
@@ -34,7 +41,8 @@ export async function GET() {
       ankiLearning: bigint | null;
       ankiReview: bigint | null;
       ankiRelearning: bigint | null;
-      ankiDue: bigint | null;
+      ankiDueReviews: bigint | null;
+      reviewsDoneToday: bigint | null;
     }>>`
       SELECT
         d.id,
@@ -66,10 +74,17 @@ export async function GET() {
           WHEN d."learningMethod" = 'ANKI' AND r."status" = 'RELEARNING'
           THEN c.id
         END) as "ankiRelearning",
+        -- Cartes de révision réellement dues (hors nouvelles), pour le plafonnage budget
         COUNT(DISTINCT CASE
-          WHEN d."learningMethod" = 'ANKI' AND (r."nextReview" IS NULL OR r."nextReview" <= NOW())
+          WHEN d."learningMethod" = 'ANKI'
+            AND r."status" IN ('LEARNING', 'REVIEW', 'RELEARNING')
+            AND r."nextReview" <= NOW()
           THEN c.id
-        END) as "ankiDue"
+        END) as "ankiDueReviews",
+        -- Révisions distinctes déjà effectuées aujourd'hui (budget consommé)
+        COUNT(DISTINCT CASE
+          WHEN re."createdAt" >= ${todayStart} THEN re."cardId"
+        END) as "reviewsDoneToday"
 
       FROM "Deck" d
       LEFT JOIN "Card" c ON c."deckId" = d.id
@@ -80,6 +95,24 @@ export async function GET() {
                d."newCardsPerDay", d."maxReviewsPerDay"
       ORDER BY d."createdAt" DESC
     `;
+
+    // Nouvelles cartes déjà vues aujourd'hui, par deck : une carte est « nouvelle
+    // vue aujourd'hui » si son TOUT PREMIER ReviewEvent (MIN createdAt) est >= todayStart.
+    // Même définition que /api/review pour rester cohérent avec le budget réel.
+    const newDoneTodayRows = await prisma.$queryRaw<Array<{ deckId: string; count: bigint }>>`
+      SELECT firsts."deckId" AS "deckId", COUNT(*) AS count FROM (
+        SELECT re."cardId", c."deckId", MIN(re."createdAt") AS first_event
+        FROM "ReviewEvent" re
+        JOIN "Card" c ON c.id = re."cardId"
+        WHERE re."userId" = ${user.id}
+        GROUP BY re."cardId", c."deckId"
+        HAVING MIN(re."createdAt") >= ${todayStart}
+      ) firsts
+      GROUP BY firsts."deckId"
+    `;
+    const newDoneTodayByDeck = new Map<string, number>(
+      newDoneTodayRows.map(r => [r.deckId, Number(r.count)])
+    );
 
     // Convertir les bigint en number pour JSON
     const decks = decksWithStats.map(deck => ({
@@ -101,7 +134,16 @@ export async function GET() {
         learning: Number(deck.ankiLearning),
         review: Number(deck.ankiReview),
         relearning: Number(deck.ankiRelearning),
-        due: Number(deck.ankiDue),
+        // Compteur « à réviser » réaliste : dues + nouvelles, chacune plafonnée
+        // par le budget quotidien restant (cf. computeRealisticDue / /api/review).
+        due: computeRealisticDue({
+          dueReviews: Number(deck.ankiDueReviews ?? 0),
+          newAvailable: Number(deck.ankiNew ?? 0),
+          maxReviewsPerDay: deck.maxReviewsPerDay,
+          newCardsPerDay: deck.newCardsPerDay,
+          reviewsDoneToday: Number(deck.reviewsDoneToday ?? 0),
+          newCardsDoneToday: newDoneTodayByDeck.get(deck.id) ?? 0,
+        }),
       } : null,
     }));
 

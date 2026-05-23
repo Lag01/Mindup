@@ -243,15 +243,15 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
           <div className="flex items-center justify-between text-xs text-zinc-500">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 bg-orange-500 rounded-full" />
-              {deck.ankiStats.new} New
+              {deck.ankiStats.new} Nouvelles
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 bg-yellow-500 rounded-full" />
-              {deck.ankiStats.learning} Learning
+              {deck.ankiStats.learning} En apprentissage
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 bg-green-500 rounded-full" />
-              {deck.ankiStats.review} Review
+              {deck.ankiStats.review} Maîtrisées
             </span>
           </div>
         </div>

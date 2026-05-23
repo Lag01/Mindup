@@ -56,7 +56,10 @@ export const useDecksStore = create<DecksState>((set, get) => ({
     set({ loading: true, error: null });
 
     try {
-      const response = await fetch('/api/decks');
+      // Transmet le fuseau client pour aligner le compteur « à réviser » (budget
+      // quotidien) sur la file de révision réelle (/api/review).
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const response = await fetch('/api/decks', { headers: { 'X-Timezone': tz } });
 
       if (!response.ok) {
         const error = await response.json();

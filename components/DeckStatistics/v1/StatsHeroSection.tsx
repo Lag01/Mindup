@@ -17,13 +17,20 @@ interface StatsHeroSectionProps {
 }
 
 function formatCompletionDays(days: number): string {
-  if (days === -1) return 'Commencez à réviser';
+  if (days === -1) return 'Données insuffisantes';
   if (days === 0) return 'Terminé !';
   if (days === 1) return '1 jour';
   if (days <= 7) return `${days} jours`;
   if (days <= 30) return `~${days} jours`;
-  const weeks = Math.round(days / 7);
-  return `~${weeks} semaine${weeks > 1 ? 's' : ''}`;
+  if (days <= 365) {
+    const weeks = Math.round(days / 7);
+    return `~${weeks} semaine${weeks > 1 ? 's' : ''}`;
+  }
+  if (days < 3650) {
+    const months = Math.round(days / 30);
+    return `~${months} mois`;
+  }
+  return '> 10 ans';
 }
 
 export default function StatsHeroSection({

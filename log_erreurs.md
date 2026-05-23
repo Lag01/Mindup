@@ -4,6 +4,24 @@ Ce fichier consigne les bugs rencontrés sur l'application, leur cause racine et
 
 ---
 
+## 2026-05-23 — Estimation de temps de maîtrise absurde (« ~480 semaines ») + compteur « à réviser » irréaliste
+
+### Symptôme
+1. Sur la page de statistiques d'un deck Anki, la carte « Estimation maîtrise » affichait des valeurs aberrantes (ex. « ~480 semaines » / « ~69 semaines ») pour un petit deck.
+2. Sur l'accueil, le compteur « X à réviser » (en rouge) des decks Anki comptait *toutes* les cartes jamais vues + toutes les cartes dues, sans plafond — un deck de 480 nouvelles cartes affichait « 480 à réviser » alors que la file ne propose que `newCardsPerDay` (20 par défaut).
+
+### Cause racine
+1. `app/api/decks/[id]/stats/route.ts` calculait `avgMasteredPerDay = COUNT(cartes avec easyCount/reps>0.7) / 30`. Division par 30 jours *fixes* : pour un utilisateur ayant maîtrisé peu de cartes, le taux tendait vers ~0,1/jour, donc `remainingCards / taux` explosait.
+2. `app/api/decks/route.ts` calculait `ankiDue` via `nextReview IS NULL OR nextReview <= NOW()` : le `IS NULL` incluait toutes les cartes NEW, sans tenir compte du budget quotidien ni des révisions déjà faites.
+
+### Solution implémentée
+1. **Vélocité de maturation réaliste** : `maturedRecently` (cartes REVIEW interval≥21 touchées sur 30 j, ou définition IMMEDIATE) ÷ **nombre de jours réellement étudiés** (DISTINCT DATE(ReviewEvent)). Garde-fous : sentinel `-1` (« Données insuffisantes ») si < 3 jours actifs ou 0 carte maturée ; borne dure à 3650 jours ; `formatCompletionDays` plafonne l'affichage (mois, « > 10 ans »).
+2. **Compteur « à réviser » plafonné** : nouveau helper partagé `computeRealisticDue()` dans `lib/anki.ts`, répliquant la logique de budget de `/api/review` : `min(dues, maxReviewsPerDay - reviewsFaitsAujourdhui) + min(nouvelles, newCardsPerDay - newCardsFaitsAujourdhui)`. Le fuseau client est transmis via header `X-Timezone` pour aligner la fenêtre du jour.
+
+À retenir : ne jamais diviser un *stock* (nombre de cartes) par une fenêtre temporelle fixe pour estimer un *flux* ; normaliser par l'activité réelle et borner toute extrapolation. Garder une source de vérité unique pour le « due » (compteur dashboard = file de révision).
+
+---
+
 ## 2026-05-21 — 500 sur PATCH /api/admin/settings (migration prod non appliquée)
 
 ### Symptôme

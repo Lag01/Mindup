@@ -124,3 +124,36 @@ export interface AnkiCardCounts {
   review: number;
   due: number;
 }
+
+/**
+ * Seuil (en jours) au-delà duquel une carte en REVIEW est considérée comme
+ * « mature » dans Anki. En deçà, elle est « récente » (young).
+ */
+export const MATURE_INTERVAL_DAYS = 21;
+
+/**
+ * Calcule le nombre réaliste de cartes « à réviser » pour un deck Anki, en
+ * répliquant la logique de la file de révision (`/api/review`) : les cartes de
+ * révision dues et les nouvelles cartes sont chacune plafonnées par le budget
+ * quotidien restant (limite - déjà fait aujourd'hui).
+ *
+ * Source de vérité partagée entre `/api/decks` (compteur du tableau de bord) et
+ * `/api/review` (file réelle) afin d'éviter toute divergence.
+ */
+export function computeRealisticDue(params: {
+  /** Cartes LEARNING/REVIEW/RELEARNING dont nextReview <= maintenant. */
+  dueReviews: number;
+  /** Cartes jamais étudiées (status NULL/NEW). */
+  newAvailable: number;
+  maxReviewsPerDay: number;
+  newCardsPerDay: number;
+  reviewsDoneToday: number;
+  newCardsDoneToday: number;
+}): number {
+  const reviewBudget = Math.max(0, params.maxReviewsPerDay - params.reviewsDoneToday);
+  const newBudget = Math.max(0, params.newCardsPerDay - params.newCardsDoneToday);
+  return (
+    Math.min(params.dueReviews, reviewBudget) +
+    Math.min(params.newAvailable, newBudget)
+  );
+}
