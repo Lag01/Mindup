@@ -460,7 +460,7 @@ Les indicateurs Anki donnaient des chiffres peu crédibles : compteur « à rév
 - **Compteur « à réviser » réaliste** (accueil) : aligné sur la file de révision réelle via le helper partagé `computeRealisticDue()` (`lib/anki.ts`). Dues et nouvelles cartes sont chacune plafonnées par le budget quotidien restant. Fuseau transmis via header `X-Timezone` (`lib/store/decks.ts` → `app/api/decks/route.ts`).
 - **Estimation de maîtrise corrigée** : vélocité de maturation normalisée par les jours réellement étudiés, bornée, avec état « Données insuffisantes » (`app/api/decks/[id]/stats/route.ts`, `formatCompletionDays` v1/v2).
 - **Charge de travail « Future Due »** : prévision 365 jours segmentée par statut (apprentissage / récentes / matures), graphe empilé + courbe cumulative + sélecteur de période (1 mois / 3 mois / 1 an) + KPIs (aujourd'hui, demain, 7 j, charge journalière). Nouveau composant partagé `components/DeckStatistics/shared/WorkloadChart.tsx`, intégré en v1 ET v2.
-- **Catégories de cartes Anki** : carte « Nombre de cartes » (Inédites / En apprentissage / Récentes / Matures) — `shared/CardCountsCard.tsx`.
+- **Catégories de cartes Anki** : carte « Nombre de cartes » (Nouvelles / En apprentissage / Réapprentissage / Jeunes / Matures) — `shared/CardCountsCard.tsx`, couleurs issues de `lib/cardCategories.ts`.
 - **Rétention réelle par période** : tableau Aujourd'hui / Hier / Semaine / Mois / Année × Récentes / Matures / Tout — `shared/TrueRetentionTable.tsx`.
 - **Traduction** : labels de la barre de progression de l'accueil passés en français (`EnhancedDeckCard.tsx`).
 
@@ -495,6 +495,32 @@ Le compteur « à réviser » reposait sur deux budgets quotidiens indépendants
 - `app/api/decks/route.ts`, `app/api/review/route.ts`, `app/api/decks/[id]/settings/route.ts`
 - `components/DeckSettings/DeckSettingsV1.tsx`, `DeckSettingsV2.tsx`, `components/Review/ReviewV1.tsx`
 - `log_erreurs.md` (entrée 26/05/2026)
+
+---
+
+## Catégorisation Anki unifiée + couleurs cohérentes (26/05/2026)
+
+### Contexte
+La notion de « carte maîtrisée » était définie différemment selon l'écran : le dashboard comptait toutes les cartes en révision (`status='REVIEW'`), la page de stats uniquement les matures (`interval >= 21`). D'où des chiffres contradictoires (ex. « 40 maîtrisées » au dashboard vs « 4/113 » dans les stats). En parallèle, la catégorie « Réapprentissage » n'était affichée nulle part et chaque écran utilisait sa propre palette de couleurs.
+
+### Modifications
+- **5 catégories façon Anki**, dérivées du champ FSRS `status` + intervalle (seuil `MATURE_INTERVAL_DAYS = 21`) :
+  - Nouvelles (`NEW`), En apprentissage (`LEARNING`), Réapprentissage (`RELEARNING`), Jeunes (`REVIEW` + `interval < 21`), Matures (`REVIEW` + `interval >= 21`).
+  - **« Maîtrisé » = Matures** uniquement (définition Anki), désormais identique entre dashboard et stats.
+- **Source unique de vérité** : nouveau `lib/cardCategories.ts` (labels + couleurs + helper `toDashboardGroups`). Palette unifiée : Nouvelles `#3b82f6`, Apprentissage `#f59e0b`, Réapprentissage `#ef4444`, Jeunes `#84cc16`, Matures `#22c55e`.
+- **API dashboard** (`app/api/decks/route.ts`) : split des cartes `REVIEW` en young/mature, exposés dans `ankiStats`.
+- **Dashboard v3** (`EnhancedDeckCard`) : barre compacte 3 groupes (Nouvelles · En cours · Maîtrisées). **Dashboard v1** : libellés et couleurs alignés.
+- **Page de stats** (`CardCountsCard`) : 5 catégories affichées (ajout de Réapprentissage). `WorkloadChart` aligné sur la palette.
+
+### Fichiers modifiés
+- `lib/cardCategories.ts` (nouveau), `lib/types.ts`
+- `app/api/decks/route.ts`
+- `app/dashboard-v3/components/MainContent/EnhancedDeckCard.tsx`, `app/dashboard/page.tsx`
+- `components/DeckStatistics/shared/CardCountsCard.tsx`, `WorkloadChart.tsx`
+- `components/DeckStatistics.tsx`, `components/DeckStatistics/DeckStatisticsV1.tsx`
+- `log_erreurs.md` (entrée 26/05/2026)
+
+Aucune migration Prisma (catégorisation purement calculée, aucun nouveau champ persisté).
 
 ---
 

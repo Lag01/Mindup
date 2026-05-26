@@ -42,6 +42,8 @@ export async function GET(request: NextRequest) {
       ankiLearning: bigint | null;
       ankiReview: bigint | null;
       ankiRelearning: bigint | null;
+      ankiYoung: bigint | null;
+      ankiMature: bigint | null;
       ankiDueReviews: bigint | null;
       reviewsDoneToday: bigint | null;
     }>>`
@@ -76,6 +78,16 @@ export async function GET(request: NextRequest) {
           WHEN d."learningMethod" = 'ANKI' AND r."status" = 'RELEARNING'
           THEN c.id
         END) as "ankiRelearning",
+        -- Découpage des cartes REVIEW selon le seuil de maturité (21j, cf. MATURE_INTERVAL_DAYS).
+        -- « Matures » = maîtrisées (définition Anki, alignée sur la page de stats).
+        COUNT(DISTINCT CASE
+          WHEN d."learningMethod" = 'ANKI' AND r."status" = 'REVIEW' AND r.interval >= 21
+          THEN c.id
+        END) as "ankiMature",
+        COUNT(DISTINCT CASE
+          WHEN d."learningMethod" = 'ANKI' AND r."status" = 'REVIEW' AND (r.interval < 21 OR r.interval IS NULL)
+          THEN c.id
+        END) as "ankiYoung",
         -- Cartes de révision réellement dues (hors nouvelles), pour le plafonnage budget
         COUNT(DISTINCT CASE
           WHEN d."learningMethod" = 'ANKI'
@@ -119,6 +131,8 @@ export async function GET(request: NextRequest) {
         learning: Number(deck.ankiLearning),
         review: Number(deck.ankiReview),
         relearning: Number(deck.ankiRelearning),
+        young: Number(deck.ankiYoung),
+        mature: Number(deck.ankiMature),
         // Compteur « à réviser » réaliste : dues + nouvelles, chacune plafonnée
         // par le budget quotidien restant (cf. computeRealisticDue / /api/review).
         due: computeRealisticDue({

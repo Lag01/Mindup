@@ -4,6 +4,28 @@ Ce fichier consigne les bugs rencontrés sur l'application, leur cause racine et
 
 ---
 
+## 2026-05-26 — Incohérence « maîtrisées » entre dashboard et page de stats
+
+### Symptôme
+Sur le deck « Verbes irréguliers », le dashboard affichait **40 maîtrisées** alors que la page de stats indiquait **4 % (4/113) maîtrisé** — pour un taux de réussite de 57 %. Trois chiffres apparemment contradictoires sur le même deck.
+
+### Cause racine
+Deux définitions différentes du mot « maîtrisé » coexistaient :
+- **Dashboard** (`app/api/decks/route.ts`) : `ankiStats.review = COUNT(status='REVIEW')`, libellé « Maîtrisées » → comptait **toutes** les cartes en révision (jeunes + matures) = 40.
+- **Page stats** (`app/api/decks/[id]/stats/route.ts`) : `masteredCardsAnki = COUNT(status='REVIEW' AND interval >= 21)` → seulement les **matures** = 4.
+
+Le taux de réussite (57 %) est `(good+easy)/totalReviews` sur toute la vie de la carte : métrique indépendante de la maturité, donc pas réellement contradictoire — juste trompeuse par voisinage. La catégorie « Réapprentissage » (`RELEARNING`), pourtant calculée par l'API, n'était affichée nulle part, et les couleurs des catégories divergeaient entre chaque écran.
+
+### Solution implémentée
+- **Définition unique** : « maîtrisé » = **Matures** (`status='REVIEW' AND interval >= 21`), alignée sur Anki et sur la page de stats. Le dashboard expose désormais `ankiStats.young`/`mature` et n'utilise plus `review` pour ce libellé.
+- **Source unique de vérité** `lib/cardCategories.ts` : 5 catégories (Nouvelles, En apprentissage, Réapprentissage, Jeunes, Matures) avec leurs couleurs (bleu / amber / rouge / lime / vert), plus `toDashboardGroups()` pour le regroupement compact 3 segments du dashboard.
+- Dashboard (v1 + v3), `CardCountsCard` et `WorkloadChart` consomment ce module → couleurs et compteurs cohérents partout.
+
+### Leçon
+Un même terme métier (« maîtrisé ») doit avoir **une seule définition** centralisée. Quand deux écrans affichent le même concept avec des chiffres différents, chercher d'abord une divergence de formule entre leurs sources de données respectives.
+
+---
+
 ## 2026-05-26 — Dashboard vide / 500 sur `/api/decks` : `column d.cardsPerDay does not exist` (42703)
 
 ### Symptôme

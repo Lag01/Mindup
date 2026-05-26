@@ -50,8 +50,10 @@ export type CardStatus = 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING';
 export interface AnkiStats {
   new: number;          // Cartes jamais étudiées
   learning: number;     // Cartes en apprentissage initial
-  review: number;       // Cartes en révision long terme
+  review: number;       // Cartes en révision long terme (jeunes + matures)
   relearning?: number;  // Cartes en ré-apprentissage après oubli (FSRS-5)
+  young?: number;       // REVIEW avec interval < 21j
+  mature?: number;      // REVIEW avec interval >= 21j → « maîtrisées »
   due: number;          // Cartes dues maintenant
   avgStability?: number; // Stabilité mémoire moyenne (jours, FSRS-5)
 }

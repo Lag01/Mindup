@@ -1,8 +1,11 @@
 'use client';
 
+import { CARD_CATEGORIES } from '@/lib/cardCategories';
+
 export interface CardCounts {
   new: number;
   learning: number;
+  relearning: number;
   young: number;
   mature: number;
 }
@@ -11,22 +14,13 @@ interface CardCountsCardProps {
   counts: CardCounts;
 }
 
-// Catégories façon « Nombre de cartes » d'Anki. Les états Suspendues/Enfouies
-// ne sont pas gérés par l'application et sont donc omis.
-const CATEGORIES: Array<{
-  key: keyof CardCounts;
-  label: string;
-  dot: string;
-  text: string;
-}> = [
-  { key: 'new', label: 'Inédites', dot: 'bg-blue-500', text: 'text-blue-400' },
-  { key: 'learning', label: 'En apprentissage', dot: 'bg-orange-500', text: 'text-orange-400' },
-  { key: 'young', label: 'Récentes', dot: 'bg-cyan-500', text: 'text-cyan-400' },
-  { key: 'mature', label: 'Matures', dot: 'bg-green-500', text: 'text-green-400' },
-];
+// Catégories façon « Nombre de cartes » d'Anki, alignées sur la source unique
+// (lib/cardCategories). Les états Suspendues/Enfouies ne sont pas gérés par
+// l'application et sont donc omis.
+const CATEGORIES = CARD_CATEGORIES;
 
 export default function CardCountsCard({ counts }: CardCountsCardProps) {
-  const total = counts.new + counts.learning + counts.young + counts.mature;
+  const total = counts.new + counts.learning + counts.relearning + counts.young + counts.mature;
 
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-6">

@@ -1,0 +1,74 @@
+// Source unique de vérité pour la catégorisation Anki des cartes et leurs
+// couleurs. Toute UI affichant des catégories (dashboard, page de stats,
+// graphiques) doit importer d'ici afin de rester cohérente.
+//
+// La catégorisation est entièrement dérivée du champ FSRS `Review.status`
+// (NEW / LEARNING / REVIEW / RELEARNING) et de l'intervalle, avec le seuil
+// MATURE_INTERVAL_DAYS = 21 (cf. lib/anki.ts) :
+//   - new         : status='NEW' (ou aucune Review)
+//   - learning    : status='LEARNING'
+//   - relearning  : status='RELEARNING' (carte de révision oubliée)
+//   - young       : status='REVIEW' AND interval < 21
+//   - mature      : status='REVIEW' AND interval >= 21  → « maîtrisée »
+
+export type CardCategoryKey = 'new' | 'learning' | 'relearning' | 'young' | 'mature';
+
+export interface CardCategory {
+  key: CardCategoryKey;
+  label: string;
+  hex: string;   // pour styles inline / Recharts
+  dot: string;   // classe Tailwind de fond (pastille / segment)
+  text: string;  // classe Tailwind de texte
+}
+
+// Ordre = progression d'apprentissage (nouvelle → maîtrisée).
+export const CARD_CATEGORIES: CardCategory[] = [
+  { key: 'new',        label: 'Nouvelles',        hex: '#3b82f6', dot: 'bg-blue-500',  text: 'text-blue-400' },
+  { key: 'learning',   label: 'En apprentissage', hex: '#f59e0b', dot: 'bg-amber-500', text: 'text-amber-400' },
+  { key: 'relearning', label: 'Réapprentissage',  hex: '#ef4444', dot: 'bg-red-500',   text: 'text-red-400' },
+  { key: 'young',      label: 'Jeunes',           hex: '#84cc16', dot: 'bg-lime-500',  text: 'text-lime-400' },
+  { key: 'mature',     label: 'Matures',          hex: '#22c55e', dot: 'bg-green-500', text: 'text-green-400' },
+];
+
+// Map clé → hex, pratique pour Recharts ou styles inline.
+export const CARD_CATEGORY_COLORS: Record<CardCategoryKey, string> = CARD_CATEGORIES.reduce(
+  (acc, c) => {
+    acc[c.key] = c.hex;
+    return acc;
+  },
+  {} as Record<CardCategoryKey, string>
+);
+
+export interface CardCategoryCounts {
+  new: number;
+  learning: number;
+  relearning: number;
+  young: number;
+  mature: number;
+}
+
+// Regroupement compact pour le dashboard : 3 segments lisibles sur une petite
+// carte de deck. « En cours » fusionne apprentissage + réapprentissage + jeunes.
+// « Maîtrisées » = matures uniquement (définition Anki, alignée sur la page stats).
+export interface DashboardGroups {
+  new: { count: number; hex: string; label: string };
+  inProgress: { count: number; hex: string; label: string };
+  mature: { count: number; hex: string; label: string };
+}
+
+export function toDashboardGroups(counts: {
+  new?: number;
+  learning?: number;
+  relearning?: number;
+  young?: number;
+  mature?: number;
+}): DashboardGroups {
+  const learning = counts.learning ?? 0;
+  const relearning = counts.relearning ?? 0;
+  const young = counts.young ?? 0;
+  return {
+    new: { count: counts.new ?? 0, hex: CARD_CATEGORY_COLORS.new, label: 'Nouvelles' },
+    inProgress: { count: learning + relearning + young, hex: CARD_CATEGORY_COLORS.learning, label: 'En cours' },
+    mature: { count: counts.mature ?? 0, hex: CARD_CATEGORY_COLORS.mature, label: 'Maîtrisées' },
+  };
+}

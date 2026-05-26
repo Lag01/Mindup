@@ -12,6 +12,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { CARD_CATEGORY_COLORS } from '@/lib/cardCategories';
 
 export interface WorkloadForecast {
   dueToday: number;
@@ -40,12 +41,11 @@ const RANGES: Array<{ key: RangeKey; label: string; days: number; bucket: number
   { key: '1y', label: '1 an', days: 365, bucket: 7 },
 ];
 
-// Couleurs alignées sur la sémantique Anki : apprentissage (orange), récentes
-// (bleu), matures (vert).
+// Couleurs alignées sur la source unique (lib/cardCategories).
 const COLORS = {
-  learning: '#f97316',
-  young: '#3b82f6',
-  mature: '#22c55e',
+  learning: CARD_CATEGORY_COLORS.learning,
+  young: CARD_CATEGORY_COLORS.young,
+  mature: CARD_CATEGORY_COLORS.mature,
 };
 
 function formatBucketLabel(dateStr: string, bucketDays: number): string {
@@ -168,7 +168,7 @@ export default function WorkloadChart({ forecast }: WorkloadChartProps) {
               />
               <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '0.5rem' }} />
               <Bar yAxisId="left" dataKey="learning" name="Apprentissage" stackId="a" fill={COLORS.learning} />
-              <Bar yAxisId="left" dataKey="young" name="Récentes" stackId="a" fill={COLORS.young} />
+              <Bar yAxisId="left" dataKey="young" name="Jeunes" stackId="a" fill={COLORS.young} />
               <Bar yAxisId="left" dataKey="mature" name="Matures" stackId="a" fill={COLORS.mature} radius={[3, 3, 0, 0]} />
               <Line
                 yAxisId="right"

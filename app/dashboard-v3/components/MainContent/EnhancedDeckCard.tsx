@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, memo } from 'react';
 import type { DeckWithStats } from '@/lib/types';
+import { toDashboardGroups } from '@/lib/cardCategories';
 import DropdownPortal from './DropdownPortal';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
@@ -42,19 +43,22 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
   const hasDueCards = isAnki && dueCount > 0;
 
 
-  // Calculate progress bar segments
+  // Barre de progression compacte : 3 groupes (Nouvelles · En cours · Maîtrisées).
+  // « En cours » = apprentissage + réapprentissage + jeunes ; « Maîtrisées » = matures.
   const getProgressSegments = () => {
     if (!isAnki || !deck.ankiStats) return null;
 
-    const { new: newCards, learning, review } = deck.ankiStats;
-    const total = newCards + learning + review;
+    const groups = toDashboardGroups(deck.ankiStats);
+    const total = groups.new.count + groups.inProgress.count + groups.mature.count;
 
     if (total === 0) return null;
 
     return {
-      new: (newCards / total) * 100,
-      learning: (learning / total) * 100,
-      review: (review / total) * 100,
+      groups,
+      total,
+      new: (groups.new.count / total) * 100,
+      inProgress: (groups.inProgress.count / total) * 100,
+      mature: (groups.mature.count / total) * 100,
     };
   };
 
@@ -210,30 +214,30 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
           {/* Progress Bar Container */}
           <div className="h-2 bg-zinc-800/50 rounded-full overflow-hidden mb-2">
             <div className="flex h-full">
-              {/* New segment */}
+              {/* Nouvelles */}
               {segments.new > 0 && (
                 <div
-                  className="bg-orange-500 transition-all duration-800 ease-out animate-[fillProgress_0.8s_ease-out]"
-                  style={{ width: `${segments.new}%` }}
-                  title={`${deck.ankiStats.new} nouvelles cartes`}
+                  className="transition-all duration-800 ease-out animate-[fillProgress_0.8s_ease-out]"
+                  style={{ width: `${segments.new}%`, backgroundColor: segments.groups.new.hex }}
+                  title={`${segments.groups.new.count} nouvelles cartes`}
                 />
               )}
 
-              {/* Learning segment */}
-              {segments.learning > 0 && (
+              {/* En cours (apprentissage + réapprentissage + jeunes) */}
+              {segments.inProgress > 0 && (
                 <div
-                  className="bg-yellow-500 transition-all duration-800 ease-out animate-[fillProgress_0.8s_ease-out_0.1s]"
-                  style={{ width: `${segments.learning}%` }}
-                  title={`${deck.ankiStats.learning} cartes en apprentissage`}
+                  className="transition-all duration-800 ease-out animate-[fillProgress_0.8s_ease-out_0.1s]"
+                  style={{ width: `${segments.inProgress}%`, backgroundColor: segments.groups.inProgress.hex }}
+                  title={`${segments.groups.inProgress.count} cartes en cours d'apprentissage`}
                 />
               )}
 
-              {/* Review segment */}
-              {segments.review > 0 && (
+              {/* Maîtrisées (matures) */}
+              {segments.mature > 0 && (
                 <div
-                  className="bg-green-500 transition-all duration-800 ease-out animate-[fillProgress_0.8s_ease-out_0.2s]"
-                  style={{ width: `${segments.review}%` }}
-                  title={`${deck.ankiStats.review} cartes maîtrisées`}
+                  className="transition-all duration-800 ease-out animate-[fillProgress_0.8s_ease-out_0.2s]"
+                  style={{ width: `${segments.mature}%`, backgroundColor: segments.groups.mature.hex }}
+                  title={`${segments.groups.mature.count} cartes maîtrisées (matures)`}
                 />
               )}
             </div>
@@ -242,16 +246,16 @@ const EnhancedDeckCard = memo(function EnhancedDeckCard({
           {/* Progress Labels */}
           <div className="flex items-center justify-between text-xs text-zinc-500">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-orange-500 rounded-full" />
-              {deck.ankiStats.new} Nouvelles
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: segments.groups.new.hex }} />
+              {segments.groups.new.count} Nouvelles
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-yellow-500 rounded-full" />
-              {deck.ankiStats.learning} En apprentissage
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: segments.groups.inProgress.hex }} />
+              {segments.groups.inProgress.count} En cours
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-green-500 rounded-full" />
-              {deck.ankiStats.review} Maîtrisées
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: segments.groups.mature.hex }} />
+              {segments.groups.mature.count} Maîtrisées
             </span>
           </div>
         </div>

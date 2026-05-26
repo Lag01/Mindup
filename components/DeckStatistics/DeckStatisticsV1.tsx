@@ -298,6 +298,7 @@ function AnkiStatsSection({ ankiStats }: AnkiStatsSectionProps) {
           counts={{
             new: ankiStats.new,
             learning: ankiStats.learning,
+            relearning: ankiStats.relearning ?? 0,
             young: ankiStats.young ?? 0,
             mature: ankiStats.mature ?? 0,
           }}

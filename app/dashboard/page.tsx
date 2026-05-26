@@ -258,14 +258,14 @@ export default function Dashboard() {
                           {deck.totalCards} carte{deck.totalCards > 1 ? 's' : ''}
                         </p>
                         <div className="flex gap-2 text-xs flex-wrap max-w-full">
-                          <span className="text-orange-400 whitespace-nowrap">
+                          <span className="text-blue-400 whitespace-nowrap">
                             {deck.ankiStats.new} nouv.
                           </span>
-                          <span className="text-yellow-400 whitespace-nowrap">
-                            {deck.ankiStats.learning} appr.
+                          <span className="text-amber-400 whitespace-nowrap">
+                            {(deck.ankiStats.learning) + (deck.ankiStats.relearning ?? 0) + (deck.ankiStats.young ?? 0)} en cours
                           </span>
                           <span className="text-green-400 whitespace-nowrap">
-                            {deck.ankiStats.review} maît.
+                            {deck.ankiStats.mature ?? 0} maît.
                           </span>
                         </div>
 

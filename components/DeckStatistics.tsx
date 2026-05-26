@@ -276,6 +276,7 @@ function AnkiSectionV2({ ankiStats }: AnkiSectionV2Props) {
         counts={{
           new: ankiStats.new,
           learning: ankiStats.learning,
+          relearning: ankiStats.relearning ?? 0,
           young: ankiStats.young ?? 0,
           mature: ankiStats.mature ?? 0,
         }}
