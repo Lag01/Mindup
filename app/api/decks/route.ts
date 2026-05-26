@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
       isPublic: boolean;
       originalDeckId: string | null;
       learningMethod: string;
+      cardsPerDay: number;
       newCardsPerDay: number;
       maxReviewsPerDay: number;
       totalCards: bigint;
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
         d."isPublic",
         d."originalDeckId",
         d."learningMethod",
+        d."cardsPerDay",
         d."newCardsPerDay",
         d."maxReviewsPerDay",
         COUNT(DISTINCT c.id) as "totalCards",
@@ -92,27 +94,9 @@ export async function GET(request: NextRequest) {
       LEFT JOIN "ReviewEvent" re ON re."cardId" = c.id AND re."userId" = ${user.id}
       WHERE d."userId" = ${user.id}
       GROUP BY d.id, d.name, d."createdAt", d."isPublic", d."originalDeckId", d."learningMethod",
-               d."newCardsPerDay", d."maxReviewsPerDay"
+               d."cardsPerDay", d."newCardsPerDay", d."maxReviewsPerDay"
       ORDER BY d."createdAt" DESC
     `;
-
-    // Nouvelles cartes déjà vues aujourd'hui, par deck : une carte est « nouvelle
-    // vue aujourd'hui » si son TOUT PREMIER ReviewEvent (MIN createdAt) est >= todayStart.
-    // Même définition que /api/review pour rester cohérent avec le budget réel.
-    const newDoneTodayRows = await prisma.$queryRaw<Array<{ deckId: string; count: bigint }>>`
-      SELECT firsts."deckId" AS "deckId", COUNT(*) AS count FROM (
-        SELECT re."cardId", c."deckId", MIN(re."createdAt") AS first_event
-        FROM "ReviewEvent" re
-        JOIN "Card" c ON c.id = re."cardId"
-        WHERE re."userId" = ${user.id}
-        GROUP BY re."cardId", c."deckId"
-        HAVING MIN(re."createdAt") >= ${todayStart}
-      ) firsts
-      GROUP BY firsts."deckId"
-    `;
-    const newDoneTodayByDeck = new Map<string, number>(
-      newDoneTodayRows.map(r => [r.deckId, Number(r.count)])
-    );
 
     // Convertir les bigint en number pour JSON
     const decks = decksWithStats.map(deck => ({
@@ -120,6 +104,7 @@ export async function GET(request: NextRequest) {
       name: deck.name,
       createdAt: deck.createdAt,
       learningMethod: deck.learningMethod,
+      cardsPerDay: deck.cardsPerDay,
       newCardsPerDay: deck.newCardsPerDay,
       maxReviewsPerDay: deck.maxReviewsPerDay,
       totalCards: Number(deck.totalCards),
@@ -139,10 +124,8 @@ export async function GET(request: NextRequest) {
         due: computeRealisticDue({
           dueReviews: Number(deck.ankiDueReviews ?? 0),
           newAvailable: Number(deck.ankiNew ?? 0),
-          maxReviewsPerDay: deck.maxReviewsPerDay,
-          newCardsPerDay: deck.newCardsPerDay,
-          reviewsDoneToday: Number(deck.reviewsDoneToday ?? 0),
-          newCardsDoneToday: newDoneTodayByDeck.get(deck.id) ?? 0,
+          cardsPerDay: deck.cardsPerDay,
+          cardsSeenToday: Number(deck.reviewsDoneToday ?? 0),
         }),
       } : null,
     }));

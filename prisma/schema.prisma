@@ -71,7 +71,11 @@ model Deck {
   createdAt      DateTime        @default(now())
   learningMethod LearningMethod  @default(IMMEDIATE)
 
-  // Limites quotidiennes FSRS
+  // Objectif quotidien unique (toutes catégories confondues). Priorité aux cartes
+  // dues déjà vues, complété par des nouvelles cartes pour atteindre l'objectif.
+  cardsPerDay      Int  @default(20)
+  // Champs legacy (budgets séparés) conservés pour compat schéma — plus utilisés
+  // par la logique de file/compteur depuis le passage à `cardsPerDay`.
   newCardsPerDay   Int  @default(20)
   maxReviewsPerDay Int  @default(200)
 

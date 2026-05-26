@@ -214,10 +214,8 @@ export default function ReviewV1() {
   const [learningMethod, setLearningMethod] = useState<'IMMEDIATE' | 'ANKI'>('IMMEDIATE');
   const [noDueCards, setNoDueCards] = useState(false);
   const [doneToday, setDoneToday] = useState<{
-    newCards: number;
-    reviews: number;
-    newCardsLimit: number;
-    reviewsLimit: number;
+    cardsSeen: number;
+    cardsLimit: number;
   } | null>(null);
   const [nextDueAt, setNextDueAt] = useState<string | null>(null);
   const router = useRouter();
@@ -570,8 +568,7 @@ export default function ReviewV1() {
   if (noDueCards && learningMethod === 'ANKI') {
     const limitReached =
       doneToday !== null &&
-      doneToday.newCards >= doneToday.newCardsLimit &&
-      doneToday.reviews >= doneToday.reviewsLimit;
+      doneToday.cardsSeen >= doneToday.cardsLimit;
     const nextDueDate = nextDueAt ? new Date(nextDueAt) : null;
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -586,18 +583,14 @@ export default function ReviewV1() {
           </h2>
           <p className="text-zinc-400 mb-3">
             {limitReached
-              ? `Vous avez atteint vos plafonds du jour (${doneToday!.newCardsLimit} nouvelles, ${doneToday!.reviewsLimit} révisions).`
+              ? `Vous avez atteint votre objectif du jour (${doneToday!.cardsLimit} cartes).`
               : 'Aucune carte n\'est due pour le moment.'}
           </p>
           {doneToday && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-4 text-sm">
-              <div className="flex justify-between text-zinc-300 mb-1">
-                <span>Nouvelles cartes aujourd'hui</span>
-                <span className="font-mono">{doneToday.newCards} / {doneToday.newCardsLimit}</span>
-              </div>
               <div className="flex justify-between text-zinc-300">
-                <span>Révisions aujourd'hui</span>
-                <span className="font-mono">{doneToday.reviews} / {doneToday.reviewsLimit}</span>
+                <span>Cartes révisées aujourd'hui</span>
+                <span className="font-mono">{doneToday.cardsSeen} / {doneToday.cardsLimit}</span>
               </div>
             </div>
           )}
@@ -716,13 +709,9 @@ export default function ReviewV1() {
               <span>
                 Aujourd'hui :{' '}
                 <span className="text-zinc-200 font-mono">
-                  {doneToday.newCards}/{doneToday.newCardsLimit}
+                  {doneToday.cardsSeen}/{doneToday.cardsLimit}
                 </span>{' '}
-                nouvelles ·{' '}
-                <span className="text-zinc-200 font-mono">
-                  {doneToday.reviews}/{doneToday.reviewsLimit}
-                </span>{' '}
-                révisions
+                cartes
               </span>
             </div>
           )}

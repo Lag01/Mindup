@@ -20,7 +20,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const { id: deckId } = await context.params;
     const body = await request.json();
-    const { learningMethod, newCardsPerDay, maxReviewsPerDay } = body;
+    const { learningMethod, cardsPerDay } = body;
 
     if (learningMethod && !['IMMEDIATE', 'ANKI'].includes(learningMethod)) {
       return NextResponse.json(
@@ -29,13 +29,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const validatedNewCardsPerDay =
-      typeof newCardsPerDay === 'number' && newCardsPerDay >= 1
-        ? Math.round(newCardsPerDay)
-        : undefined;
-    const validatedMaxReviewsPerDay =
-      typeof maxReviewsPerDay === 'number' && maxReviewsPerDay >= 1
-        ? Math.round(maxReviewsPerDay)
+    const validatedCardsPerDay =
+      typeof cardsPerDay === 'number' && cardsPerDay >= 1
+        ? Math.round(cardsPerDay)
         : undefined;
 
     // Vérifier que le deck existe et appartient à l'utilisateur
@@ -85,8 +81,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           where: { id: deckId },
           data: {
             learningMethod,
-            ...(validatedNewCardsPerDay !== undefined ? { newCardsPerDay: validatedNewCardsPerDay } : {}),
-            ...(validatedMaxReviewsPerDay !== undefined ? { maxReviewsPerDay: validatedMaxReviewsPerDay } : {}),
+            ...(validatedCardsPerDay !== undefined ? { cardsPerDay: validatedCardsPerDay } : {}),
           },
         }),
       ]);
@@ -104,14 +99,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       });
     }
 
-    // Mise à jour des limites uniquement (sans réinitialisation)
-    if (validatedNewCardsPerDay !== undefined || validatedMaxReviewsPerDay !== undefined) {
+    // Mise à jour de l'objectif quotidien uniquement (sans réinitialisation)
+    if (validatedCardsPerDay !== undefined) {
       await prisma.deck.update({
         where: { id: deckId },
-        data: {
-          ...(validatedNewCardsPerDay !== undefined ? { newCardsPerDay: validatedNewCardsPerDay } : {}),
-          ...(validatedMaxReviewsPerDay !== undefined ? { maxReviewsPerDay: validatedMaxReviewsPerDay } : {}),
-        },
+        data: { cardsPerDay: validatedCardsPerDay },
       });
     }
 

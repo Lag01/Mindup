@@ -10,8 +10,7 @@ export default function DeckSettingsV2() {
 
   const [deck, setDeck] = useState<any>(null);
   const [learningMethod, setLearningMethod] = useState<'IMMEDIATE' | 'ANKI'>('IMMEDIATE');
-  const [newCardsPerDay, setNewCardsPerDay] = useState(20);
-  const [maxReviewsPerDay, setMaxReviewsPerDay] = useState(200);
+  const [cardsPerDay, setCardsPerDay] = useState(20);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -29,8 +28,7 @@ export default function DeckSettingsV2() {
       if (foundDeck) {
         setDeck(foundDeck);
         setLearningMethod(foundDeck.learningMethod || 'IMMEDIATE');
-        setNewCardsPerDay(foundDeck.newCardsPerDay ?? 20);
-        setMaxReviewsPerDay(foundDeck.maxReviewsPerDay ?? 200);
+        setCardsPerDay(foundDeck.cardsPerDay ?? 20);
       } else {
         setError('Deck non trouvé');
       }
@@ -45,9 +43,7 @@ export default function DeckSettingsV2() {
     if (!deck) return;
 
     const methodChanged = learningMethod !== deck.learningMethod;
-    const limitsChanged =
-      newCardsPerDay !== (deck.newCardsPerDay ?? 20) ||
-      maxReviewsPerDay !== (deck.maxReviewsPerDay ?? 200);
+    const limitsChanged = cardsPerDay !== (deck.cardsPerDay ?? 20);
 
     if (!methodChanged && !limitsChanged) {
       router.push('/dashboard-entry');
@@ -69,7 +65,7 @@ export default function DeckSettingsV2() {
       const response = await fetch(`/api/decks/${deckId}/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ learningMethod, newCardsPerDay, maxReviewsPerDay }),
+        body: JSON.stringify({ learningMethod, cardsPerDay }),
       });
 
       if (!response.ok) {
@@ -194,31 +190,23 @@ export default function DeckSettingsV2() {
           {learningMethod === 'ANKI' && (
             <div className="mb-6 space-y-4">
               <label className="block text-sm font-medium text-zinc-300 mb-3">
-                Limites quotidiennes
+                Objectif quotidien
               </label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Nouvelles cartes / jour</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={9999}
-                    value={newCardsPerDay}
-                    onChange={e => setNewCardsPerDay(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full bg-zinc-800/70 border border-zinc-700/50 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Révisions max / jour</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={9999}
-                    value={maxReviewsPerDay}
-                    onChange={e => setMaxReviewsPerDay(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full bg-zinc-800/70 border border-zinc-700/50 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Cartes / jour</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={9999}
+                  value={cardsPerDay}
+                  onChange={e => setCardsPerDay(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full bg-zinc-800/70 border border-zinc-700/50 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50"
+                />
+                <p className="text-xs text-zinc-500 mt-2">
+                  Nombre total de cartes à réviser par jour, toutes catégories confondues.
+                  Les cartes déjà vues à revoir sont prioritaires ; on complète avec des
+                  nouvelles cartes pour atteindre cet objectif.
+                </p>
               </div>
             </div>
           )}

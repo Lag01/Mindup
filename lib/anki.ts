@@ -132,10 +132,13 @@ export interface AnkiCardCounts {
 export const MATURE_INTERVAL_DAYS = 21;
 
 /**
- * Calcule le nombre réaliste de cartes « à réviser » pour un deck Anki, en
- * répliquant la logique de la file de révision (`/api/review`) : les cartes de
- * révision dues et les nouvelles cartes sont chacune plafonnées par le budget
- * quotidien restant (limite - déjà fait aujourd'hui).
+ * Calcule le nombre réaliste de cartes « à réviser » pour un deck Anki selon un
+ * **objectif quotidien unique** (`cardsPerDay`, toutes catégories confondues) :
+ * on vise `cardsPerDay` cartes distinctes par jour, en priorisant les cartes
+ * dues déjà vues, puis en complétant avec des nouvelles cartes.
+ *
+ * Le budget restant = `cardsPerDay - cardsSeenToday` (cartes distinctes déjà
+ * révisées aujourd'hui), et le compteur affiché = min(budget, dues + nouvelles).
  *
  * Source de vérité partagée entre `/api/decks` (compteur du tableau de bord) et
  * `/api/review` (file réelle) afin d'éviter toute divergence.
@@ -145,15 +148,11 @@ export function computeRealisticDue(params: {
   dueReviews: number;
   /** Cartes jamais étudiées (status NULL/NEW). */
   newAvailable: number;
-  maxReviewsPerDay: number;
-  newCardsPerDay: number;
-  reviewsDoneToday: number;
-  newCardsDoneToday: number;
+  /** Objectif quotidien unique, toutes catégories confondues. */
+  cardsPerDay: number;
+  /** Cartes distinctes déjà révisées aujourd'hui (budget consommé). */
+  cardsSeenToday: number;
 }): number {
-  const reviewBudget = Math.max(0, params.maxReviewsPerDay - params.reviewsDoneToday);
-  const newBudget = Math.max(0, params.newCardsPerDay - params.newCardsDoneToday);
-  return (
-    Math.min(params.dueReviews, reviewBudget) +
-    Math.min(params.newAvailable, newBudget)
-  );
+  const budget = Math.max(0, params.cardsPerDay - params.cardsSeenToday);
+  return Math.min(budget, params.dueReviews + params.newAvailable);
 }

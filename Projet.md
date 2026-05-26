@@ -476,4 +476,26 @@ Les indicateurs Anki donnaient des chiffres peu crédibles : compteur « à rév
 
 ---
 
-**Dernière mise à jour** : 23/05/2026
+## Objectif quotidien unique « N cartes/jour » (26/05/2026)
+
+### Contexte
+Le compteur « à réviser » reposait sur deux budgets quotidiens indépendants (`newCardsPerDay` pour les nouvelles, `maxReviewsPerDay` pour les révisions). Après une session, le budget de nouvelles restant continuait d'alimenter le compteur (ex. « 19 à réviser » après 27 révisions), ce qui ne correspondait pas au modèle mental de l'utilisateur.
+
+### Modifications
+- **Objectif quotidien unique** : nouveau champ par deck `cardsPerDay` (défaut 20, toutes catégories confondues). On vise `cardsPerDay` cartes distinctes par jour, **priorité aux cartes dues déjà vues**, puis complétées par des nouvelles cartes.
+- **`computeRealisticDue` réécrit** (`lib/anki.ts`) : `budget = cardsPerDay - cardsSeenToday` ; compteur = `min(budget, dues + nouvelles)`.
+- **File de révision** (`app/api/review/route.ts`) : sélection des dues en priorité (LIMIT budget), complétée par des nouvelles (LIMIT budget restant). `meta.doneToday` simplifié en `{ cardsSeen, cardsLimit }`.
+- **Dashboard** (`app/api/decks/route.ts`) : suppression de la requête « nouvelles vues aujourd'hui » devenue inutile.
+- **UI réglages** (`DeckSettingsV1/V2`) : un seul champ « Cartes / jour » à la place des deux limites. Affichage session « X / N cartes aujourd'hui » (`ReviewV1`).
+- **Schéma** : migration additive `20260526000000_add_cards_per_day` (⚠️ à appliquer en prod). `newCardsPerDay`/`maxReviewsPerDay` conservés mais non utilisés par la logique.
+
+### Fichiers modifiés
+- `prisma/schema.prisma`, `prisma/migrations/20260526000000_add_cards_per_day/migration.sql`
+- `lib/anki.ts`, `lib/types.ts`
+- `app/api/decks/route.ts`, `app/api/review/route.ts`, `app/api/decks/[id]/settings/route.ts`
+- `components/DeckSettings/DeckSettingsV1.tsx`, `DeckSettingsV2.tsx`, `components/Review/ReviewV1.tsx`
+- `log_erreurs.md` (entrée 26/05/2026)
+
+---
+
+**Dernière mise à jour** : 26/05/2026

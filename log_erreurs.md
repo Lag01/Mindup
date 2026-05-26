@@ -4,6 +4,29 @@ Ce fichier consigne les bugs rencontrés sur l'application, leur cause racine et
 
 ---
 
+## 2026-05-26 — Compteur « à réviser » persistant après une session (ex. « 19 à réviser » après 27 révisions)
+
+### Symptôme
+Après avoir révisé 27 cartes le matin, le dashboard affichait encore « 19 cartes à réviser » l'après-midi, alors que l'utilisateur avait l'impression d'avoir « fini » ses révisions.
+
+### Cause racine
+Le compteur n'était pas faux, mais le modèle prêtait à confusion. `computeRealisticDue` (`lib/anki.ts`) utilisait **deux budgets quotidiens indépendants** :
+`à réviser = min(dues, maxReviewsPerDay - revDoneToday) + min(nouvelles, newCardsPerDay - newDoneToday)`.
+Les 27 révisions du matin étaient surtout des cartes dues/en apprentissage, donc le budget de **nouvelles** restait presque intact (~19). Le compteur additionnait donc ~0 due + 19 nouvelles, sans distinguer les deux catégories dans un chiffre unique — d'où l'impression de bug.
+
+### Solution implémentée
+Remplacement des deux budgets séparés par un **objectif quotidien unique** `cardsPerDay` (par deck, défaut 20, toutes catégories confondues) :
+- `budget = max(0, cardsPerDay - cardsSeenToday)` où `cardsSeenToday` = cartes distinctes révisées aujourd'hui.
+- Compteur dashboard = `min(budget, dues + nouvelles)` (`computeRealisticDue` réécrit).
+- File `/api/review` : on prend d'abord les cartes dues (priorité), puis on complète avec des nouvelles jusqu'au budget.
+- Schéma : nouveau champ `Deck.cardsPerDay` (migration additive `20260526000000_add_cards_per_day`). `newCardsPerDay`/`maxReviewsPerDay` conservés mais inutilisés par la logique.
+- UI réglages : champ unique « Cartes / jour » ; affichage session « X / N cartes aujourd'hui ».
+
+### Leçon
+Un compteur agrégé doit refléter le **modèle mental** de l'utilisateur. Fusionner deux budgets distincts (nouvelles vs révisions) dans un seul chiffre sans le matérialiser crée une confusion structurelle, même quand le calcul est exact.
+
+---
+
 ## 2026-05-23 — Estimation de temps de maîtrise absurde (« ~480 semaines ») + compteur « à réviser » irréaliste
 
 ### Symptôme

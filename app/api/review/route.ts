@@ -81,8 +81,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         learningMethod: true,
-        newCardsPerDay: true,
-        maxReviewsPerDay: true,
+        cardsPerDay: true,
       },
     });
 
@@ -124,51 +123,32 @@ export async function GET(request: NextRequest) {
     const todayStart = computeLocalDayStart(now, tz);
     const customStudy = searchParams.get('customStudy') === 'true';
 
-    // Compter les cartes déjà révisées aujourd'hui (cartes distinctes)
-    const [doneReviewsResult, doneNewResult] = await Promise.all([
-      prisma.$queryRaw<[{ count: bigint }]>`
-        SELECT COUNT(DISTINCT re."cardId") AS count
-        FROM "ReviewEvent" re
-        JOIN "Card" c ON c.id = re."cardId"
-        WHERE re."userId" = ${user.id}
-          AND c."deckId" = ${deckId}
-          AND re."createdAt" >= ${todayStart}
-      `,
-      // Nouvelles cartes vues aujourd'hui = cartes dont la TOUTE PREMIÈRE révision
-      // (MIN(ReviewEvent.createdAt)) est intervenue après todayStart. On ne s'appuie
-      // pas sur Review.createdAt car un record Review peut être créé à la création
-      // de la carte ou à l'import, sans aucun événement de révision.
-      prisma.$queryRaw<[{ count: bigint }]>`
-        SELECT COUNT(*) AS count FROM (
-          SELECT re."cardId", MIN(re."createdAt") AS first_event
-          FROM "ReviewEvent" re
-          JOIN "Card" c ON c.id = re."cardId"
-          WHERE re."userId" = ${user.id}
-            AND c."deckId" = ${deckId}
-          GROUP BY re."cardId"
-          HAVING MIN(re."createdAt") >= ${todayStart}
-        ) firsts
-      `,
-    ]);
+    // Cartes distinctes déjà révisées aujourd'hui (budget consommé de l'objectif quotidien).
+    const doneReviewsResult = await prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(DISTINCT re."cardId") AS count
+      FROM "ReviewEvent" re
+      JOIN "Card" c ON c.id = re."cardId"
+      WHERE re."userId" = ${user.id}
+        AND c."deckId" = ${deckId}
+        AND re."createdAt" >= ${todayStart}
+    `;
 
-    const reviewsDoneToday = Number(doneReviewsResult[0].count);
-    const newCardsDoneToday = Number(doneNewResult[0].count);
+    const cardsSeenToday = Number(doneReviewsResult[0].count);
 
     // Plafond dur pour éviter qu'un budget anormalement élevé (customStudy ou paramètre
-     // user mal configuré) ne génère une requête SQL avec LIMIT illimité.
+    // user mal configuré) ne génère une requête SQL avec LIMIT illimité.
     const MAX_REVIEW_LIMIT = 1000;
-    const reviewBudget = Math.min(
+    // Objectif quotidien unique : on vise `cardsPerDay` cartes distinctes/jour, priorité
+    // aux dues déjà vues puis complétées par des nouvelles.
+    const budget = Math.min(
       MAX_REVIEW_LIMIT,
-      customStudy ? 99999 : Math.max(0, deck.maxReviewsPerDay - reviewsDoneToday)
-    );
-    const newBudget = Math.min(
-      MAX_REVIEW_LIMIT,
-      customStudy ? 99999 : Math.max(0, deck.newCardsPerDay - newCardsDoneToday)
+      customStudy ? 99999 : Math.max(0, deck.cardsPerDay - cardsSeenToday)
     );
 
-    // Récupérer les cartes de révision (LEARNING / REVIEW / RELEARNING, dues maintenant)
+    // 1) Récupérer les cartes de révision (LEARNING / REVIEW / RELEARNING, dues maintenant)
+    //    en priorité, dans la limite du budget.
     const reviewCards: RawCard[] =
-      reviewBudget > 0
+      budget > 0
         ? await prisma.$queryRaw<RawCard[]>`
             SELECT c.id, c.front, c.back,
                    c."frontType", c."backType",
@@ -183,11 +163,13 @@ export async function GET(request: NextRequest) {
               AND r.status IN ('LEARNING', 'REVIEW', 'RELEARNING')
               AND r."nextReview" <= ${now}
             ORDER BY r."nextReview" ASC
-            LIMIT ${reviewBudget}
+            LIMIT ${budget}
           `
         : [];
 
-    // Récupérer les nouvelles cartes (jamais vues ou status=NEW)
+    // 2) Compléter avec des nouvelles cartes (jamais vues ou status=NEW) pour atteindre
+    //    le budget restant après les dues.
+    const newBudget = Math.max(0, budget - reviewCards.length);
     const newCards: RawCard[] =
       newBudget > 0
         ? await prisma.$queryRaw<RawCard[]>`
@@ -229,14 +211,11 @@ export async function GET(request: NextRequest) {
       meta: {
         newCount: newCards.length,
         reviewCount: reviewCards.length,
-        newBudget,
-        reviewBudget,
+        budget,
         customStudy,
         doneToday: {
-          newCards: newCardsDoneToday,
-          reviews: reviewsDoneToday,
-          newCardsLimit: deck.newCardsPerDay,
-          reviewsLimit: deck.maxReviewsPerDay,
+          cardsSeen: cardsSeenToday,
+          cardsLimit: deck.cardsPerDay,
         },
         nextDueAt: nextDueRow?.nextReview ?? null,
       },
