@@ -4,6 +4,24 @@ Ce fichier consigne les bugs rencontrés sur l'application, leur cause racine et
 
 ---
 
+## 2026-05-26 — Dashboard vide / 500 sur `/api/decks` : `column d.cardsPerDay does not exist` (42703)
+
+### Symptôme
+Après déploiement du modèle « objectif quotidien unique », plus aucun deck ne s'affichait dans le dashboard. Logs Vercel : `PrismaClientKnownRequestError` / `Raw query failed. Code: 42703. Message: column d.cardsPerDay does not exist`. Côté navigateur : `GET /api/decks 500`.
+
+### Cause racine
+Le code déployé sur Vercel sélectionnait la nouvelle colonne `Deck.cardsPerDay` (via `$queryRaw`), mais la migration `20260526000000_add_cards_per_day` n'avait **jamais été appliquée à la base de prod (Neon)**. Le code et le schéma de base étaient désynchronisés. **Deuxième occurrence du même problème** (cf. incident du 2026-05-26 sur `PATCH /api/admin/settings`, commit `4f06e92`).
+
+### Solution implémentée
+Application directe de la migration additive sur la base Neon de prod :
+`ALTER TABLE "Deck" ADD COLUMN IF NOT EXISTS "cardsPerDay" INTEGER NOT NULL DEFAULT 20;`
+Non destructif : les decks existants démarrent à 20. Aucun redéploiement Vercel nécessaire (erreur purement côté base). Colonne vérifiée via `information_schema.columns`.
+
+### Leçon
+**Tout commit introduisant un nouveau champ Prisma doit s'accompagner de l'application de la migration en prod (`npx prisma migrate deploy` ou SQL sur Neon) AVANT/AVEC le déploiement du code.** Pousser le code sans appliquer la migration casse systématiquement la prod avec un `42703`. À intégrer comme étape obligatoire du flux de déploiement.
+
+---
+
 ## 2026-05-26 — Compteur « à réviser » persistant après une session (ex. « 19 à réviser » après 27 révisions)
 
 ### Symptôme
