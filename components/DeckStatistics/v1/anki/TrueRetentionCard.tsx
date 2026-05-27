@@ -1,5 +1,7 @@
 'use client';
 
+import { CHART_COLORS } from '@/lib/cardCategories';
+
 interface TrueRetentionCardProps {
   trueRetention: number;
   apparentSuccessRate: number;
@@ -7,10 +9,10 @@ interface TrueRetentionCardProps {
 }
 
 function retentionTone(value: number) {
-  if (value >= 90) return { color: 'text-green-400', ring: '#10b981', label: 'Excellente' };
-  if (value >= 85) return { color: 'text-blue-400', ring: '#3b82f6', label: 'Bonne' };
-  if (value >= 75) return { color: 'text-orange-400', ring: '#f97316', label: 'Moyenne' };
-  return { color: 'text-red-400', ring: '#ef4444', label: 'Faible' };
+  if (value >= 90) return { color: 'text-green-400', ring: CHART_COLORS.success, label: 'Excellente' };
+  if (value >= 85) return { color: 'text-blue-400', ring: CHART_COLORS.info, label: 'Bonne' };
+  if (value >= 75) return { color: 'text-orange-400', ring: CHART_COLORS.warning, label: 'Moyenne' };
+  return { color: 'text-red-400', ring: CHART_COLORS.danger, label: 'Faible' };
 }
 
 export default function TrueRetentionCard({

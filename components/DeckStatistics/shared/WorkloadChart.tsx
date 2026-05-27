@@ -12,7 +12,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { CARD_CATEGORY_COLORS } from '@/lib/cardCategories';
+import { CARD_CATEGORY_COLORS, CHART_COLORS } from '@/lib/cardCategories';
 
 export interface WorkloadForecast {
   dueToday: number;
@@ -175,7 +175,7 @@ export default function WorkloadChart({ forecast }: WorkloadChartProps) {
                 type="monotone"
                 dataKey="cumulative"
                 name="Cumul"
-                stroke="#a78bfa"
+                stroke={CHART_COLORS.accent}
                 strokeWidth={2}
                 dot={false}
               />

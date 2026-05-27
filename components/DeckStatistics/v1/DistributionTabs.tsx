@@ -2,6 +2,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from 'recharts';
+import { CHART_COLORS } from '@/lib/cardCategories';
 
 interface DistributionTabsProps {
   ratingDistribution: {
@@ -13,10 +14,10 @@ interface DistributionTabsProps {
 }
 
 const ratingColors = {
-  again: '#ef4444',
-  hard: '#f97316',
-  good: '#06b6d4',
-  easy: '#10b981',
+  again: CHART_COLORS.danger,
+  hard: CHART_COLORS.warning,
+  good: CHART_COLORS.cyan,
+  easy: CHART_COLORS.success,
 };
 
 export default function DistributionTabs({ ratingDistribution }: DistributionTabsProps) {

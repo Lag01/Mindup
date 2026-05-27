@@ -26,9 +26,21 @@ export const CARD_CATEGORIES: CardCategory[] = [
   { key: 'new',        label: 'Nouvelles',        hex: '#3b82f6', dot: 'bg-blue-500',  text: 'text-blue-400' },
   { key: 'learning',   label: 'En apprentissage', hex: '#f59e0b', dot: 'bg-amber-500', text: 'text-amber-400' },
   { key: 'relearning', label: 'Réapprentissage',  hex: '#ef4444', dot: 'bg-red-500',   text: 'text-red-400' },
-  { key: 'young',      label: 'Jeunes',           hex: '#84cc16', dot: 'bg-lime-500',  text: 'text-lime-400' },
-  { key: 'mature',     label: 'Matures',          hex: '#22c55e', dot: 'bg-green-500', text: 'text-green-400' },
+  { key: 'young',      label: 'Jeunes',           hex: '#4ade80', dot: 'bg-green-400', text: 'text-green-300' },
+  { key: 'mature',     label: 'Matures',          hex: '#166534', dot: 'bg-green-800', text: 'text-green-500' },
 ];
+
+// Palette sémantique pour les graphiques de diagnostic (hors catégories Anki).
+// Une seule valeur par rôle pour éviter les quasi-doublons d'une vue à l'autre.
+export const CHART_COLORS = {
+  danger:  '#ef4444', // rouge   — échec, fragile, court intervalle
+  warning: '#f97316', // orange  — difficile, moyen terme
+  caution: '#eab308', // jaune   — moyenne difficulté, intervalle moyen
+  info:    '#3b82f6', // bleu    — neutre / moyen long terme, tendance
+  success: '#22c55e', // vert    — solide, facile, bon intervalle
+  accent:  '#a855f7', // violet  — long intervalle, cumul
+  cyan:    '#06b6d4', // cyan    — réponse « Bon »
+} as const;
 
 // Map clé → hex, pratique pour Recharts ou styles inline.
 export const CARD_CATEGORY_COLORS: Record<CardCategoryKey, string> = CARD_CATEGORIES.reduce(

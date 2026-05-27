@@ -524,4 +524,24 @@ Aucune migration Prisma (catégorisation purement calculée, aucun nouveau champ
 
 ---
 
-**Dernière mise à jour** : 26/05/2026
+## Lisibilité des verts + consolidation de la palette stats (27/05/2026)
+
+### Contexte
+Deux verts de catégorie trop proches visuellement (Jeunes `#84cc16` lime / Matures `#22c55e` green-500), souvent affichés côte à côte (barre `CardCountsCard`, barres empilées `WorkloadChart`) → distinction difficile. En parallèle, la page de stats redéfinissait des palettes ad hoc dans plusieurs composants, avec des quasi-doublons pour un même rôle (deux verts « succès » `#22c55e`/`#10b981`, deux bleus `#3b82f6`/`#2563eb`, deux violets `#a855f7`/`#a78bfa`).
+
+### Modifications
+- **Verts recolorés** (`lib/cardCategories.ts`) avec fort contraste de luminosité : **Jeunes `#4ade80`** (green-400, clair) et **Matures `#166534`** (green-800, foncé). Se propage automatiquement à tout consommateur de `CARD_CATEGORIES` / `CARD_CATEGORY_COLORS` (dashboard, stats).
+- **Palette sémantique partagée** : nouveau `CHART_COLORS` dans `lib/cardCategories.ts` (un token par rôle : `danger`, `warning`, `caution`, `info`, `success`, `accent`, `cyan`) pour supprimer les doublons.
+- **Composants stats rattachés à `CHART_COLORS`** : `DeckHealthCard`, `IntervalsHistogram`, `DistributionTabs` (v1 + v2), `TrendChart` (`#2563eb→info`), `WorkloadChart` (cumul `#a78bfa→accent`), `TrueRetentionCard`. `#10b981` (emerald) remplacé par `success` (`#22c55e`) partout.
+
+### Fichiers modifiés
+- `lib/cardCategories.ts` (verts + `CHART_COLORS`)
+- `components/DeckStatistics/v1/anki/DeckHealthCard.tsx`, `IntervalsHistogram.tsx`, `TrueRetentionCard.tsx`
+- `components/DeckStatistics/v1/DistributionTabs.tsx`, `components/DeckStatistics/v2/DistributionTabs.tsx`
+- `components/DeckStatistics/v1/TrendChart.tsx`, `components/DeckStatistics/shared/WorkloadChart.tsx`
+
+`ProgressRing` (v2) laissé tel quel : ses `#10b981`/`#2563eb` sont des bornes de dégradés deux-tons, pas des doublons de rôle. Aucune migration Prisma.
+
+---
+
+**Dernière mise à jour** : 27/05/2026

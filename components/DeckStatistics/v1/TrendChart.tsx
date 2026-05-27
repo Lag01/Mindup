@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import PeriodSelector from './PeriodSelector';
 import StatCard from './StatCard';
+import { CHART_COLORS } from '@/lib/cardCategories';
 
 export type Period = '7d' | '30d' | '3m' | 'all';
 
@@ -91,8 +92,8 @@ export default function TrendChart({ data, title = 'Évolution des révisions' }
             <LineChart data={filteredData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="chartGradientV1" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#2563eb" stopOpacity={0.2} />
-                  <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+                  <stop offset="0%" stopColor={CHART_COLORS.info} stopOpacity={0.2} />
+                  <stop offset="100%" stopColor={CHART_COLORS.info} stopOpacity={0} />
                 </linearGradient>
               </defs>
 
@@ -132,17 +133,17 @@ export default function TrendChart({ data, title = 'Évolution des révisions' }
                 type="monotone"
                 dataKey="count"
                 name="Révisions"
-                stroke="#2563eb"
+                stroke={CHART_COLORS.info}
                 strokeWidth={3}
                 dot={{
-                  fill: '#2563eb',
+                  fill: CHART_COLORS.info,
                   strokeWidth: 2,
                   stroke: '#18181b',
                   r: 4,
                 }}
                 activeDot={{
-                  fill: '#3b82f6',
-                  stroke: '#2563eb',
+                  fill: CHART_COLORS.info,
+                  stroke: CHART_COLORS.info,
                   strokeWidth: 3,
                   r: 6,
                 }}
