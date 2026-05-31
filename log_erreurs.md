@@ -430,3 +430,21 @@ La décompression zstd utilise `fzstd` (pure JS, compatible Vercel serverless). 
 
 ### Leçon
 Pour les formats binaires propriétaires, toujours valider la structure réelle avec un échantillon avant d'écrire le parser. Ici, un `sqlite3 collection.anki2 ".tables"` montrait `COUNT=1` alors que le deck en contenait 10 — indice immédiat qu'on lisait le mauvais fichier.
+
+---
+
+## 2026-05-31 — Session ANKI : popup « tout révisé » après 1 carte (queue inter-journée)
+
+### Symptôme
+20 cartes annoncées à réviser depuis le dashboard. Après avoir révisé **1 seule** carte, apparition de la popup « Toutes les cartes sont révisées ! ». Retour au menu : **19 cartes** encore marquées à réviser.
+
+### Cause racine
+Une session ANKI d'hier était persistée dans `localStorage` (`review-anki-session-<deckId>`) avec une queue réduite (ex. 1 carte restante). Au chargement, `fetchCards` (`components/Review/ReviewV2.tsx`) restaurait cette vieille session, et `syncedQueue` filtrait la queue sauvegardée **par `id` contre les cartes fraîches de l'API** (intersection). Les cartes nouvellement dues aujourd'hui (LEARNING d'hier devenues dues, nouvelles cartes du budget `cardsPerDay - cardsSeenToday`) étant absentes de la queue d'hier, elles étaient jetées → queue réduite à 1 carte. Après notation, `remainingQueue.length === 0` → popup + `clearSessionState`. Le dashboard, lui, recomptait correctement via `/api/review` : `20 - 1 = 19`.
+
+### Solution implémentée
+`loadSessionState` (`ReviewV2.tsx`) rejette désormais toute session **ANKI** dont l'horodatage `savedAt` ne pointe pas sur le jour calendaire courant (budget quotidien reparti à zéro, ensemble de cartes complètement différent). Le flux retombe alors sur la branche fraîche `setCardQueue(data.cards)` = toutes les cartes dues de l'API. La restauration intra-journée est préservée.
+- Commit initial `89d84e5` : ajout du champ `savedAt` (`lib/types.ts`), écriture dans `saveSessionState`, garde-fou conditionné à la présence de `savedAt`.
+- Durcissement (2026-05-31) : une session ANKI **sans** `savedAt` (héritée d'avant le fix) est aussi rejetée — `savedDate` vaut `null` → `null !== today` → rejet. Évite que le bug ne resurgisse une dernière fois sur une session pré-fix jamais vidée.
+
+### Leçon
+Une queue de révision restaurée depuis `localStorage` ne doit jamais être traitée comme la source de vérité du périmètre à réviser : c'est l'API (recalcul du budget quotidien) qui fait foi. Toute session liée à une « fenêtre du jour » doit être invalidée au changement de jour calendaire — et l'absence d'horodatage doit être traitée comme « jour inconnu », donc invalidée par défaut.

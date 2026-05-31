@@ -544,4 +544,17 @@ Deux verts de catégorie trop proches visuellement (Jeunes `#84cc16` lime / Matu
 
 ---
 
-**Dernière mise à jour** : 27/05/2026
+## Fix session ANKI inter-journée : popup prématurée après 1 carte (31/05/2026)
+
+### Contexte
+Une session ANKI sauvegardée dans `localStorage` la veille (queue réduite à ~1 carte) était restaurée le lendemain, puis filtrée par `id` contre les cartes fraîches de l'API. Les nouvelles cartes dues du jour, absentes de la queue d'hier, étaient écartées → la session tombait à 1 carte, déclenchant la popup « Toutes les cartes sont révisées » après une seule notation alors que le dashboard annonçait 20 cartes.
+
+### Modifications
+- `components/Review/ReviewV2.tsx` : ajout d'un horodatage `savedAt` à chaque sauvegarde de session ; `loadSessionState` rejette toute session **ANKI** dont `savedAt` n'est pas le jour courant **ou est absent** (session héritée d'avant le fix) → repart sur les cartes fraîches de l'API. Restauration intra-journée préservée.
+- `lib/types.ts` : champ `savedAt?: string` ajouté à `SessionState`.
+
+Aucune migration Prisma (état purement côté client). Détail complet dans `log_erreurs.md`.
+
+---
+
+**Dernière mise à jour** : 31/05/2026

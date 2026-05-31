@@ -171,11 +171,12 @@ function loadSessionState(
         return null;
       }
 
-      // Rejeter les sessions ANKI d'un autre jour calendaire : le budget quotidien
-      // repart à zéro et les cartes dues changent complètement. Conserver une session
-      // d'hier provoque le bug "popup après 1 carte" (queue filtrée à 1 élément).
-      if (mode === 'review' && parsed.learningMethod === 'ANKI' && parsed.savedAt) {
-        const savedDate = new Date(parsed.savedAt).toDateString();
+      // Rejeter les sessions ANKI d'un autre jour calendaire OU sans horodatage
+      // (sessions héritées d'avant le fix savedAt) : le budget quotidien repart à zéro
+      // et les cartes dues changent complètement. Conserver une session d'hier provoque
+      // le bug "popup après 1 carte" (queue filtrée à 1 élément).
+      if (mode === 'review' && parsed.learningMethod === 'ANKI') {
+        const savedDate = parsed.savedAt ? new Date(parsed.savedAt).toDateString() : null;
         const today = new Date().toDateString();
         if (savedDate !== today) {
           return null;
