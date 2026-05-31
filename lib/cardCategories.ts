@@ -11,6 +11,9 @@
 //   - young       : status='REVIEW' AND interval < 21
 //   - mature      : status='REVIEW' AND interval >= 21  → « maîtrisée »
 
+import { MATURE_INTERVAL_DAYS } from './anki';
+import type { CardStatus } from './types';
+
 export type CardCategoryKey = 'new' | 'learning' | 'relearning' | 'young' | 'mature';
 
 export interface CardCategory {
@@ -41,6 +44,21 @@ export const CHART_COLORS = {
   accent:  '#a855f7', // violet  — long intervalle, cumul
   cyan:    '#06b6d4', // cyan    — réponse « Bon »
 } as const;
+
+// Catégorise une carte à partir de son état FSRS (`Review.status`) et de son
+// intervalle. Source unique de vérité côté JS, alignée sur la logique SQL des
+// routes API (cf. commentaire d'en-tête + MATURE_INTERVAL_DAYS).
+export function getCardCategory(
+  status?: CardStatus | null,
+  interval?: number | null,
+): CardCategory {
+  let key: CardCategoryKey;
+  if (!status || status === 'NEW') key = 'new';
+  else if (status === 'LEARNING') key = 'learning';
+  else if (status === 'RELEARNING') key = 'relearning';
+  else key = (interval ?? 0) >= MATURE_INTERVAL_DAYS ? 'mature' : 'young'; // REVIEW
+  return CARD_CATEGORIES.find(c => c.key === key)!;
+}
 
 // Map clé → hex, pratique pour Recharts ou styles inline.
 export const CARD_CATEGORY_COLORS: Record<CardCategoryKey, string> = CARD_CATEGORIES.reduce(

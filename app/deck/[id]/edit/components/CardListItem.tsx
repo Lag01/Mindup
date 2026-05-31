@@ -1,5 +1,6 @@
 import CardContentDisplay from '@/components/CardContentDisplay';
 import { Card } from '@/lib/types';
+import { getCardCategory } from '@/lib/cardCategories';
 
 interface CardListItemProps {
   card: Card;
@@ -8,6 +9,7 @@ interface CardListItemProps {
   deleting: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  learningMethod?: 'IMMEDIATE' | 'ANKI';
 }
 
 /**
@@ -21,14 +23,30 @@ export function CardListItem({
   deleting,
   onEdit,
   onDelete,
+  learningMethod,
 }: CardListItemProps) {
+  // Catégorie Anki (jeune/mature/...) : uniquement pertinent pour les decks ANKI.
+  const ankiCategory =
+    learningMethod === 'ANKI'
+      ? getCardCategory(card.review?.status, card.review?.interval)
+      : null;
+
   return (
     <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800">
       <div className="flex justify-between items-start mb-4 gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <h3 className="text-base sm:text-lg font-semibold text-foreground">
             Carte {index + 1}
           </h3>
+          {ankiCategory && (
+            <span
+              className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded bg-zinc-800 ${ankiCategory.text}`}
+              title={`Catégorie Anki : ${ankiCategory.label}`}
+            >
+              <span className={`h-2 w-2 rounded-full ${ankiCategory.dot}`} />
+              {ankiCategory.label}
+            </span>
+          )}
           {isDuplicate && (
             <span className="text-xs px-2 py-0.5 rounded bg-amber-900/30 text-amber-300 border border-amber-700/50">
               ⚠️ Doublon

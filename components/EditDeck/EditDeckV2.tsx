@@ -399,6 +399,7 @@ export default function EditDeckV2() {
                         deleting={deleting === card.id}
                         onEdit={() => startEdit(card.id)}
                         onDelete={() => deleteCard(card.id)}
+                        learningMethod={deck.learningMethod}
                       />
                     )}
                   </div>

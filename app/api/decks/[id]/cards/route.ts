@@ -52,6 +52,7 @@ export async function GET(
         id: true,
         name: true,
         originalDeckId: true,
+        learningMethod: true,
       },
     });
 
@@ -74,8 +75,23 @@ export async function GET(
         orderBy: {
           order: 'desc',
         },
+        include: {
+          // Review de l'utilisateur courant : permet d'afficher la catégorie
+          // Anki (jeune/mature/...) sur la page d'édition.
+          reviews: {
+            where: { userId: user.id },
+            select: { status: true, interval: true },
+            take: 1,
+          },
+        },
       }),
     ]);
+
+    // Aplatir la relation reviews[] en un champ review (forme attendue par le type Card)
+    const mappedCards = cards.map(({ reviews, ...card }) => ({
+      ...card,
+      review: reviews[0] ?? null,
+    }));
 
     const totalPages = Math.ceil(totalCards / limit);
 
@@ -83,8 +99,9 @@ export async function GET(
       deck: {
         id: deck.id,
         name: deck.name,
-        cards,
+        cards: mappedCards,
         originalDeckId: deck.originalDeckId,
+        learningMethod: deck.learningMethod,
       },
       pagination: {
         page,

@@ -557,4 +557,34 @@ Aucune migration Prisma (état purement côté client). Détail complet dans `lo
 
 ---
 
+## Analyse de performance : diagnostic des chargements 1–5 s (31/05/2026)
+
+### Contexte
+Investigation des temps de chargement de 1 à 5 secondes sur les pages principales (dashboard, decks, révision). Rapport de diagnostic complet (sans modification de code) produit dans **`ANALYSE_PERFORMANCE.md`**.
+
+### Conclusions principales
+- **Le SQL n'est pas en cause** : base ≈ 38 Mo, aucune requête applicative lente dans `pg_stat_statements` (inspection MCP du projet Neon `raspy-dawn-60994491`, région Francfort).
+- Causes réelles, par impact : **(1)** cold start du compute Neon (autosuspend), **(2)** cold start des fonctions serverless Vercel, **(3)** latence inter-région si Vercel n'est pas en Europe (`vercel.json` ne fixe aucune `regions`), **(4)** cascade de requêtes client sans cache serveur, **(5)** bundle lourd (KaTeX/recharts/lottie) + rendu KaTeX coûteux.
+- Une « BDD interne au site » est **déconseillée** (incompatible serverless, ne résout pas le vrai problème). Pistes recommandées : aligner la région Vercel sur Neon, cache serveur sur les routes lourdes, atténuation du cold start, suppression de la cascade client.
+
+Leviers détaillés (avantages/inconvénients, effort, coût) et recommandation hiérarchisée dans `ANALYSE_PERFORMANCE.md`. Aucune migration Prisma, aucun changement de code.
+
+---
+
+## Badge de catégorie Anki sur la page d'édition des cartes (31/05/2026)
+
+### Contexte
+Sur la page d'édition d'un deck (`/deck/[id]/edit`), chaque carte affichait des badges (type de contenu, image, doublon) mais aucune indication de son classement dans l'algorithme Anki. Objectif : afficher, pour les decks **ANKI** uniquement, un petit badge de catégorie par carte (Nouvelles / En apprentissage / Réapprentissage / Jeunes / Matures), avec les couleurs déjà utilisées au dashboard et dans les stats.
+
+### Modifications
+- **`lib/cardCategories.ts`** : nouvelle fonction `getCardCategory(status, interval)` — source unique de vérité côté JS de la catégorisation (jusqu'ici uniquement en SQL), alignée sur le seuil `MATURE_INTERVAL_DAYS = 21`.
+- **API** `app/api/decks/[id]/cards/route.ts` et `app/api/decks/[id]/search/route.ts` : chargent désormais la `Review` de l'utilisateur courant (`status`, `interval`) par carte et exposent `learningMethod` du deck. La relation `reviews[]` est aplatie en `card.review`.
+- **`app/deck/[id]/edit/components/CardListItem.tsx`** : nouvelle prop `learningMethod` ; affichage d'un badge de catégorie (pastille + label) à côté du titre de la carte, en réutilisant les classes Tailwind de `CARD_CATEGORIES`. Rien n'est affiché pour les decks IMMEDIATE.
+- **`components/EditDeck/EditDeckV1.tsx` + `EditDeckV2.tsx`** : passage de `deck.learningMethod` à `CardListItem`.
+- **`lib/types.ts`** : `learningMethod?` ajouté à `DeckWithCards`.
+
+Aucune migration Prisma (champs `learningMethod`, `Review.status`, `Review.interval` déjà existants).
+
+---
+
 **Dernière mise à jour** : 31/05/2026

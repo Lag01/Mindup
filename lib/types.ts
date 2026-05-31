@@ -72,6 +72,7 @@ export interface DeckWithStats extends Deck {
 // Interface pour le Deck avec cartes (utilisé dans Edit)
 export interface DeckWithCards extends Deck {
   cards: Card[];
+  learningMethod?: 'IMMEDIATE' | 'ANKI';
 }
 
 // ============================================================================
