@@ -141,7 +141,8 @@ function saveSessionState(
       ...state,
       mode,
       learningMethod,
-      version: state.version ?? 1
+      version: state.version ?? 1,
+      savedAt: new Date().toISOString(),
     };
     const key = getSessionKey(deckId, mode, learningMethod);
     localStorage.setItem(key, JSON.stringify(extendedState));
@@ -168,6 +169,17 @@ function loadSessionState(
 
       if (mode === 'review' && parsed.learningMethod && parsed.learningMethod !== learningMethod) {
         return null;
+      }
+
+      // Rejeter les sessions ANKI d'un autre jour calendaire : le budget quotidien
+      // repart à zéro et les cartes dues changent complètement. Conserver une session
+      // d'hier provoque le bug "popup après 1 carte" (queue filtrée à 1 élément).
+      if (mode === 'review' && parsed.learningMethod === 'ANKI' && parsed.savedAt) {
+        const savedDate = new Date(parsed.savedAt).toDateString();
+        const today = new Date().toDateString();
+        if (savedDate !== today) {
+          return null;
+        }
       }
 
       return parsed;

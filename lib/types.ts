@@ -121,6 +121,7 @@ export interface SessionState {
   baseDeck?: Card[];
   baseIndex?: number;
   pendingReinsertions?: PendingReinsertion[];
+  savedAt?: string;
 }
 
 // ============================================================================
