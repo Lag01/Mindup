@@ -278,6 +278,14 @@ export async function POST(request: NextRequest) {
 
     const learningMethod = currentReview.card.deck.learningMethod;
 
+    // État de la review après mise à jour, renvoyé au client pour décider de la
+    // réinsertion intra-session (boucle d'apprentissage Anki).
+    let reviewState: {
+      status: string | null;
+      nextReview: Date | null;
+      interval: number | null;
+    } | null = null;
+
     await prisma.$transaction(async (tx) => {
       if (learningMethod === 'ANKI') {
         const ankiStats = updateAnkiReviewStats(
@@ -349,6 +357,12 @@ export async function POST(request: NextRequest) {
 
       if (!updatedReview) throw new Error('Review not found after update');
 
+      reviewState = {
+        status: updatedReview.status,
+        nextReview: updatedReview.nextReview,
+        interval: updatedReview.interval,
+      };
+
       await tx.reviewEvent.create({
         data: {
           reviewId: updatedReview.id,
@@ -370,7 +384,7 @@ export async function POST(request: NextRequest) {
       console.error('Erreur lors de la mise à jour du streak:', streakError);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, review: reviewState });
   } catch (error) {
     console.error('Submit review error:', error);
     return NextResponse.json(

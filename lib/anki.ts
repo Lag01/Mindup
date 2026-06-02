@@ -118,6 +118,21 @@ export function isCardDue(nextReview: Date | null): boolean {
   return nextReview <= new Date();
 }
 
+/**
+ * Détermine si une carte doit être réinsérée dans la session de révision en cours
+ * (boucle d'apprentissage Anki). Une carte notée « again »/« hard » reste en
+ * LEARNING/RELEARNING avec un pas d'apprentissage court (interval = scheduled_days = 0,
+ * le délai réel étant en minutes) : elle revient dans la journée et doit donc réapparaître
+ * dans la même session. Une carte graduée (good/easy → REVIEW, interval >= 1 jour) sort
+ * de la session.
+ */
+export function shouldReinsertInSession(
+  status: string | null,
+  interval: number | null
+): boolean {
+  return (status === 'LEARNING' || status === 'RELEARNING') && (interval ?? 0) < 1;
+}
+
 export interface AnkiCardCounts {
   new: number;
   learning: number;

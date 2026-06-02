@@ -4,6 +4,26 @@ Ce fichier consigne les bugs rencontrés sur l'application, leur cause racine et
 
 ---
 
+## 2026-06-02 — Popup « terminé » prématuré + « X à réviser » résiduel (mode ANKI, sans boucle d'apprentissage)
+
+### Symptôme
+Session de cartes journalières d'un deck ANKI : commencée sur téléphone (arrêt à la 15ᵉ carte), reprise 10 min plus tard sur ordinateur où il restait **8 cartes** (au lieu de 5 attendues). Après les avoir finies, le popup « Vous avez terminé pour aujourd'hui » s'affichait — mais de retour sur le dashboard le deck affichait encore **« 3 à réviser »**.
+
+### Cause racine
+Deux défauts distincts :
+1. **Absence de boucle d'apprentissage intra-session (principal).** Dans `components/Review/ReviewV2.tsx`, `handleRating` branche ANKI faisait `cardQueue.slice(1)` et **ne réinsérait jamais** la carte. Une carte notée « Échec »/« Difficile » est replanifiée par FSRS (`lib/anki.ts::updateAnkiReviewStats`) en `LEARNING`/`RELEARNING` avec `interval = scheduled_days = 0` (pas d'apprentissage de quelques minutes) : elle disparaissait de la session. Quand la file statique se vidait, le popup s'affichait alors que ces cartes étaient redevenues dues → le dashboard (`computeRealisticDue`) les recomptait correctement (« 3 à réviser »). Le mode IMMEDIATE possédait déjà une réinsertion (`advanceCyclicQueue`), pas le mode ANKI.
+2. **Incohérence de fuseau horaire.** Le dashboard `/api/decks` envoyait le header `X-Timezone` (`lib/store/decks.ts`), mais le fetch de session `/api/review` dans `ReviewV2.tsx` ne l'envoyait pas (régression vs `ReviewV1.tsx`) → le serveur retombait sur UTC. La fenêtre « début de journée » (`todayStart` → `cardsSeenToday` → `budget`) différait de 1-2 h entre le compteur et la file réelle (contribue au « 8 au lieu de 5 »).
+
+### Solution implémentée
+- **Boucle d'apprentissage Anki** : le POST `/api/review` renvoie désormais l'état de la review (`status`, `nextReview`, `interval`). Côté client, après un retrait optimiste de la carte, la réponse décide via le helper `shouldReinsertInSession(status, interval)` (`lib/anki.ts` : `LEARNING`/`RELEARNING` ET `interval < 1`) si la carte est réinsérée dans la file (`insertWithSpacing`, gap 3) pour réapparaître plus tard dans la session.
+- **Gate du popup** : un `useEffect` n'affiche « terminé » que lorsque `cardQueue` est vide **ET** qu'aucun POST n'est en vol (`pendingPosts === 0`), ce qui gère le cas de la file vidée à 1 carte notée « Échec ».
+- **Fix fuseau** : `fetchCards` envoie maintenant le header `X-Timezone` sur `/api/review`.
+
+### Leçon
+En mode Anki, une carte d'apprentissage à pas court doit réapparaître **dans la même session** (modèle mental utilisateur), sinon le « terminé » et le compteur dashboard divergent inévitablement. Et tout endpoint dépendant d'une fenêtre « jour » doit recevoir le **même** header `X-Timezone` que les compteurs qu'il alimente, sous peine d'incohérence.
+
+---
+
 ## 2026-05-26 — Incohérence « maîtrisées » entre dashboard et page de stats
 
 ### Symptôme

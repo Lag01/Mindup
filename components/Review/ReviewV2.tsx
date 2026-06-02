@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import { useEffect, useState, useCallback, useMemo, memo, useRef } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import MathText from '@/components/MathText';
 import CardContentDisplay from '@/components/CardContentDisplay';
 import ImageOverlay from '@/components/ImageOverlay';
 import LoadingAnimation from '@/components/LoadingAnimation';
 import { advanceCyclicQueue, peekNextCyclicCard, Rating } from '@/lib/revision';
+import { shouldReinsertInSession } from '@/lib/anki';
 import { Card, SessionState, PendingReinsertion } from '@/lib/types';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
@@ -17,6 +18,20 @@ function shuffleArray<T>(array: T[]): T[] {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
+}
+
+/**
+ * Réinsère une carte d'apprentissage dans la file à `gap` positions de la tête, afin
+ * qu'elle réapparaisse plus tard dans la session sans être re-montrée immédiatement.
+ * Si la file est plus courte que `gap`, la carte est placée en fin (ou en tête si la
+ * file est vide : c'est alors la seule carte due). `gap = 3` reprend l'espacement
+ * « again » du mode IMMEDIATE (REVISION_INTERVALS.again).
+ */
+function insertWithSpacing(queue: Card[], card: Card, gap = 3): Card[] {
+  const pos = Math.min(gap, queue.length);
+  const next = [...queue];
+  next.splice(pos, 0, card);
+  return next;
 }
 
 const CardDisplayV2 = memo(({
@@ -222,8 +237,26 @@ export default function ReviewV2() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [learningMethod, setLearningMethod] = useState<'IMMEDIATE' | 'ANKI'>('IMMEDIATE');
   const [noDueCards, setNoDueCards] = useState(false);
+  // Nombre de POST /api/review en vol : tant qu'il est > 0, une réponse peut encore
+  // réinsérer une carte d'apprentissage, donc on retarde l'affichage du popup « terminé ».
+  const [pendingPosts, setPendingPosts] = useState(0);
   const router = useRouter();
   const isMobile = useIsMobile();
+
+  // Miroir synchrone de sessionStats pour persister la dernière valeur depuis des
+  // callbacks asynchrones (réponses POST) sans capturer une valeur périmée.
+  const sessionStatsRef = useRef(sessionStats);
+  useEffect(() => {
+    sessionStatsRef.current = sessionStats;
+  }, [sessionStats]);
+
+  const persistAnki = useCallback((queue: Card[]) => {
+    saveSessionState(deckId, {
+      cardQueue: queue,
+      currentCardId: queue[0]?.id ?? null,
+      sessionStats: sessionStatsRef.current,
+    }, 'review', 'ANKI');
+  }, [deckId]);
 
   const nextCard = useMemo(() => {
     if (learningMethod === 'IMMEDIATE' && !isStudyMode) {
@@ -244,7 +277,11 @@ export default function ReviewV2() {
       const mode: 'study' | 'review' = isStudyMode ? 'study' : 'review';
 
       const customStudy = searchParams.get('customStudy') === 'true';
-      const response = await fetch(`/api/review?deckId=${deckId}${customStudy ? '&customStudy=true' : ''}`);
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const response = await fetch(
+        `/api/review?deckId=${deckId}${customStudy ? '&customStudy=true' : ''}`,
+        { headers: { 'X-Timezone': tz } }
+      );
       if (!response.ok) {
         if (response.status === 401) {
           router.push('/');
@@ -395,6 +432,7 @@ export default function ReviewV2() {
       }
 
       if (learningMethod === 'ANKI') {
+        const ratedCard = currentCard;
         const updatedStats = {
           total: sessionStats.total + 1,
           again: sessionStats.again + (rating === 'again' ? 1 : 0),
@@ -403,35 +441,43 @@ export default function ReviewV2() {
           easy: sessionStats.easy + (rating === 'easy' ? 1 : 0),
         };
         setSessionStats(updatedStats);
+        sessionStatsRef.current = updatedStats;
 
+        // Retrait optimiste de la carte courante : l'UI ne bloque jamais. La réinsertion
+        // éventuelle (boucle d'apprentissage Anki) est décidée au retour du POST selon le
+        // nouvel état renvoyé par le serveur. L'affichage du popup « terminé » est piloté
+        // par un useEffect qui attend file vide ET aucun POST en vol (cf. pendingPosts).
         const remainingQueue = cardQueue.slice(1);
-
-        if (remainingQueue.length === 0) {
-          setNoDueCards(true);
-          setCardQueue([]);
-          setCurrentCard(null);
-          clearSessionState(deckId, 'review', learningMethod);
-        } else {
-          setCardQueue(remainingQueue);
-          setCurrentCard(remainingQueue[0]);
-
-          saveSessionState(deckId, {
-            cardQueue: remainingQueue,
-            currentCardId: remainingQueue[0].id,
-            sessionStats: updatedStats,
-          }, 'review', learningMethod);
-        }
+        setCardQueue(remainingQueue);
+        setCurrentCard(remainingQueue[0] ?? null);
+        persistAnki(remainingQueue);
 
         setIsFlipped(false);
         setSubmitting(false);
 
-        fetch('/api/review', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cardId: currentCard.id, rating }),
-        }).catch(error => {
+        setPendingPosts(n => n + 1);
+        try {
+          const res = await fetch('/api/review', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cardId: ratedCard.id, rating }),
+          });
+          const data = await res.json().catch(() => null);
+          const rv = data?.review;
+          if (rv && shouldReinsertInSession(rv.status, rv.interval)) {
+            setCardQueue(prev => {
+              const next = insertWithSpacing(prev, ratedCard);
+              persistAnki(next);
+              return next;
+            });
+          }
+        } catch (error) {
+          // Erreur réseau : on ne réinsère pas. La carte (LEARNING côté serveur) sera
+          // reprise au prochain fetch, source de vérité.
           console.error('Error saving review:', error);
-        });
+        } finally {
+          setPendingPosts(n => n - 1);
+        }
 
         return;
       }
@@ -501,7 +547,25 @@ export default function ReviewV2() {
       alert('Erreur lors du traitement de la révision');
       setSubmitting(false);
     }
-  }, [submitting, currentCard, isStudyMode, learningMethod, sessionStats, cardQueue, allCards, deckId, isFlipped, baseDeck, baseIndex, pendingReinsertions]);
+  }, [submitting, currentCard, isStudyMode, learningMethod, sessionStats, cardQueue, allCards, deckId, isFlipped, baseDeck, baseIndex, pendingReinsertions, persistAnki]);
+
+  // Pilote l'affichage du popup « terminé » (mode ANKI) : il ne s'affiche que lorsque la
+  // file est vide ET qu'aucun POST n'est en vol (sinon une réponse pourrait encore
+  // réinsérer une carte d'apprentissage — cas de la file vidée à 1 carte notée « Échec »).
+  // Réarme aussi currentCard après une réinsertion qui repeuple une file vide.
+  useEffect(() => {
+    if (loading || isStudyMode || learningMethod !== 'ANKI') return;
+    if (cardQueue.length === 0) {
+      if (pendingPosts === 0) {
+        setNoDueCards(true);
+        setCurrentCard(null);
+        clearSessionState(deckId, 'review', learningMethod);
+      }
+    } else {
+      setNoDueCards(false);
+      setCurrentCard(prev => prev ?? cardQueue[0]);
+    }
+  }, [cardQueue, pendingPosts, loading, isStudyMode, learningMethod, deckId]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -625,6 +689,11 @@ export default function ReviewV2() {
   }
 
   if (!currentCard) {
+    // File momentanément vide alors qu'un POST peut encore réinsérer une carte
+    // d'apprentissage : afficher un loader plutôt qu'un écran vide.
+    if (pendingPosts > 0) {
+      return <LoadingAnimation fullScreen />;
+    }
     return null;
   }
 

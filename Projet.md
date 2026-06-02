@@ -587,4 +587,23 @@ Aucune migration Prisma (champs `learningMethod`, `Review.status`, `Review.inter
 
 ---
 
-**Dernière mise à jour** : 31/05/2026
+## Boucle d'apprentissage ANKI intra-session + fix fuseau `/api/review` (02/06/2026)
+
+### Contexte
+En mode ANKI, les cartes notées « Échec »/« Difficile » disparaissaient de la session au lieu de réapparaître (le mode IMMEDIATE possédait déjà une réinsertion, pas ANKI). Conséquence : le popup « Vous avez terminé pour aujourd'hui » s'affichait dès que la file statique se vidait, alors que ces cartes — replanifiées par FSRS avec un pas d'apprentissage court (`interval = 0`) — étaient redevenues dues, d'où un « X à réviser » résiduel au dashboard. S'ajoutait une incohérence de fenêtre « jour » : `/api/review` ne transmettait pas le header `X-Timezone` (contrairement au dashboard), faussant le budget restant entre les deux.
+
+### Modifications
+- **POST `/api/review`** (`app/api/review/route.ts`) : retourne désormais l'état de la review après mise à jour (`{ success, review: { status, nextReview, interval } }`), sans requête DB supplémentaire (réutilise `updatedReview`).
+- **`lib/anki.ts`** : nouveau helper pur `shouldReinsertInSession(status, interval)` — vrai si `status ∈ {LEARNING, RELEARNING}` ET `interval < 1` (carte qui revient dans la journée). Une carte graduée (`REVIEW`, `interval >= 1`) sort de la session.
+- **`components/Review/ReviewV2.tsx`** :
+  - Branche ANKI de `handleRating` réécrite en **optimiste + réconciliation asynchrone** : retrait immédiat de la carte (UI non bloquante), puis au retour du POST, réinsertion éventuelle via `insertWithSpacing` (gap 3, cohérent avec `REVISION_INTERVALS.again`).
+  - Nouvel état `pendingPosts` (POST en vol) + `useEffect` de gate : le popup « terminé » ne s'affiche que si `cardQueue` est vide **ET** `pendingPosts === 0` → gère le cas de la file vidée à 1 carte notée « Échec ».
+  - Persistance `localStorage` centralisée (`persistAnki`) appelée à chaque mutation de file (retrait ET réinsertion) ; `sessionStatsRef` pour persister la dernière valeur depuis les callbacks async.
+  - `fetchCards` envoie désormais le header `X-Timezone` sur `/api/review` (alignement avec `lib/store/decks.ts`).
+
+### Comportement
+Les cartes Échec/Difficile réapparaissent dans la même session jusqu'à graduation ; le popup ne s'affiche que lorsqu'il ne reste vraiment plus rien de dû ; le compteur dashboard tombe à 0 après une session complète. Cross-device couvert par le fetch serveur (les LEARNING dues sont renvoyées au prochain chargement). Aucune migration Prisma. Détail dans `log_erreurs.md` (entrée 02/06/2026).
+
+---
+
+**Dernière mise à jour** : 02/06/2026
