@@ -118,21 +118,6 @@ export function isCardDue(nextReview: Date | null): boolean {
   return nextReview <= new Date();
 }
 
-/**
- * Détermine si une carte doit être réinsérée dans la session de révision en cours
- * (boucle d'apprentissage Anki). Une carte notée « again »/« hard » reste en
- * LEARNING/RELEARNING avec un pas d'apprentissage court (interval = scheduled_days = 0,
- * le délai réel étant en minutes) : elle revient dans la journée et doit donc réapparaître
- * dans la même session. Une carte graduée (good/easy → REVIEW, interval >= 1 jour) sort
- * de la session.
- */
-export function shouldReinsertInSession(
-  status: string | null,
-  interval: number | null
-): boolean {
-  return (status === 'LEARNING' || status === 'RELEARNING') && (interval ?? 0) < 1;
-}
-
 export interface AnkiCardCounts {
   new: number;
   learning: number;
@@ -147,27 +132,34 @@ export interface AnkiCardCounts {
 export const MATURE_INTERVAL_DAYS = 21;
 
 /**
- * Calcule le nombre réaliste de cartes « à réviser » pour un deck Anki selon un
- * **objectif quotidien unique** (`cardsPerDay`, toutes catégories confondues) :
- * on vise `cardsPerDay` cartes distinctes par jour, en priorisant les cartes
- * dues déjà vues, puis en complétant avec des nouvelles cartes.
+ * Calcule le nombre réaliste de cartes « à réviser » pour un deck Anki selon **deux
+ * budgets quotidiens indépendants** : un quota de nouvelles cartes (`newCardsPerDay`)
+ * et un quota de révisions (`maxReviewsPerDay`). Chaque catégorie est plafonnée par son
+ * propre budget restant, puis additionnée :
  *
- * Le budget restant = `cardsPerDay - cardsSeenToday` (cartes distinctes déjà
- * révisées aujourd'hui), et le compteur affiché = min(budget, dues + nouvelles).
+ *   min(dues, maxReviewsPerDay - reviewDoneToday) + min(nouvelles, newCardsPerDay - newDoneToday)
  *
- * Source de vérité partagée entre `/api/decks` (compteur du tableau de bord) et
- * `/api/review` (file réelle) afin d'éviter toute divergence.
+ * Séparer les deux budgets évite que la révision étrangle l'introduction de matière
+ * neuve (et inversement). Source de vérité partagée entre `/api/decks` (compteur du
+ * tableau de bord) et `/api/review` (file réelle) afin d'éviter toute divergence : les
+ * deux endpoints comptent `newDoneToday` / `reviewDoneToday` avec la même sémantique
+ * (une carte est « nouvelle aujourd'hui » si son tout premier ReviewEvent est aujourd'hui).
  */
 export function computeRealisticDue(params: {
   /** Cartes LEARNING/REVIEW/RELEARNING dont nextReview <= maintenant. */
   dueReviews: number;
   /** Cartes jamais étudiées (status NULL/NEW). */
   newAvailable: number;
-  /** Objectif quotidien unique, toutes catégories confondues. */
-  cardsPerDay: number;
-  /** Cartes distinctes déjà révisées aujourd'hui (budget consommé). */
-  cardsSeenToday: number;
+  /** Quota de nouvelles cartes par jour. */
+  newCardsPerDay: number;
+  /** Quota de révisions par jour. */
+  maxReviewsPerDay: number;
+  /** Nouvelles cartes distinctes introduites aujourd'hui (premier ReviewEvent aujourd'hui). */
+  newDoneToday: number;
+  /** Cartes de révision distinctes faites aujourd'hui (premier ReviewEvent avant aujourd'hui). */
+  reviewDoneToday: number;
 }): number {
-  const budget = Math.max(0, params.cardsPerDay - params.cardsSeenToday);
-  return Math.min(budget, params.dueReviews + params.newAvailable);
+  const reviewBudget = Math.max(0, params.maxReviewsPerDay - params.reviewDoneToday);
+  const newBudget = Math.max(0, params.newCardsPerDay - params.newDoneToday);
+  return Math.min(params.dueReviews, reviewBudget) + Math.min(params.newAvailable, newBudget);
 }

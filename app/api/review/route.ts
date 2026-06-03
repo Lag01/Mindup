@@ -81,7 +81,8 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         learningMethod: true,
-        cardsPerDay: true,
+        newCardsPerDay: true,
+        maxReviewsPerDay: true,
       },
     });
 
@@ -123,32 +124,44 @@ export async function GET(request: NextRequest) {
     const todayStart = computeLocalDayStart(now, tz);
     const customStudy = searchParams.get('customStudy') === 'true';
 
-    // Cartes distinctes déjà révisées aujourd'hui (budget consommé de l'objectif quotidien).
-    const doneReviewsResult = await prisma.$queryRaw<[{ count: bigint }]>`
-      SELECT COUNT(DISTINCT re."cardId") AS count
-      FROM "ReviewEvent" re
-      JOIN "Card" c ON c.id = re."cardId"
-      WHERE re."userId" = ${user.id}
-        AND c."deckId" = ${deckId}
-        AND re."createdAt" >= ${todayStart}
+    // Cartes « faites aujourd'hui » ventilées en deux budgets indépendants : nouvelles
+    // (premier ReviewEvent aujourd'hui) vs révisions (premier ReviewEvent avant aujourd'hui).
+    // Même sémantique que le compteur dashboard (/api/decks) pour éviter toute divergence.
+    const doneTodayResult = await prisma.$queryRaw<[{ new_today: bigint; review_today: bigint }]>`
+      SELECT
+        COUNT(*) FILTER (WHERE first_at >= ${todayStart}) AS new_today,
+        COUNT(*) FILTER (WHERE first_at <  ${todayStart}) AS review_today
+      FROM (
+        SELECT re."cardId", MIN(re."createdAt") AS first_at, MAX(re."createdAt") AS last_at
+        FROM "ReviewEvent" re
+        JOIN "Card" c ON c.id = re."cardId"
+        WHERE re."userId" = ${user.id}
+          AND c."deckId" = ${deckId}
+        GROUP BY re."cardId"
+        HAVING MAX(re."createdAt") >= ${todayStart}
+      ) seen
     `;
 
-    const cardsSeenToday = Number(doneReviewsResult[0].count);
+    const newDoneToday = Number(doneTodayResult[0]?.new_today ?? 0);
+    const reviewDoneToday = Number(doneTodayResult[0]?.review_today ?? 0);
 
     // Plafond dur pour éviter qu'un budget anormalement élevé (customStudy ou paramètre
     // user mal configuré) ne génère une requête SQL avec LIMIT illimité.
     const MAX_REVIEW_LIMIT = 1000;
-    // Objectif quotidien unique : on vise `cardsPerDay` cartes distinctes/jour, priorité
-    // aux dues déjà vues puis complétées par des nouvelles.
-    const budget = Math.min(
+    // Deux budgets indépendants : révisions et nouvelles cartes.
+    const reviewBudget = Math.min(
       MAX_REVIEW_LIMIT,
-      customStudy ? 99999 : Math.max(0, deck.cardsPerDay - cardsSeenToday)
+      customStudy ? 99999 : Math.max(0, deck.maxReviewsPerDay - reviewDoneToday)
+    );
+    const newBudget = Math.min(
+      MAX_REVIEW_LIMIT,
+      customStudy ? 99999 : Math.max(0, deck.newCardsPerDay - newDoneToday)
     );
 
     // 1) Récupérer les cartes de révision (LEARNING / REVIEW / RELEARNING, dues maintenant)
-    //    en priorité, dans la limite du budget.
+    //    dans la limite du budget de révision.
     const reviewCards: RawCard[] =
-      budget > 0
+      reviewBudget > 0
         ? await prisma.$queryRaw<RawCard[]>`
             SELECT c.id, c.front, c.back,
                    c."frontType", c."backType",
@@ -162,14 +175,21 @@ export async function GET(request: NextRequest) {
             WHERE c."deckId" = ${deckId}
               AND r.status IN ('LEARNING', 'REVIEW', 'RELEARNING')
               AND r."nextReview" <= ${now}
+              -- Garantie « une vue par carte par jour » : une carte déjà notée aujourd'hui
+              -- (typiquement une ratée replanifiée à quelques minutes) ne ressort pas dans
+              -- la journée, quel que soit l'appareil. Elle reviendra demain.
+              AND NOT EXISTS (
+                SELECT 1 FROM "ReviewEvent" re2
+                WHERE re2."cardId" = c.id
+                  AND re2."userId" = ${user.id}
+                  AND re2."createdAt" >= ${todayStart}
+              )
             ORDER BY r."nextReview" ASC
-            LIMIT ${budget}
+            LIMIT ${reviewBudget}
           `
         : [];
 
-    // 2) Compléter avec des nouvelles cartes (jamais vues ou status=NEW) pour atteindre
-    //    le budget restant après les dues.
-    const newBudget = Math.max(0, budget - reviewCards.length);
+    // 2) Nouvelles cartes (jamais vues ou status=NEW), dans la limite de leur propre budget.
     const newCards: RawCard[] =
       newBudget > 0
         ? await prisma.$queryRaw<RawCard[]>`
@@ -188,6 +208,7 @@ export async function GET(request: NextRequest) {
             LIMIT ${newBudget}
           `
         : [];
+
 
     const allCards = [...reviewCards, ...newCards];
 
@@ -211,11 +232,17 @@ export async function GET(request: NextRequest) {
       meta: {
         newCount: newCards.length,
         reviewCount: reviewCards.length,
-        budget,
+        reviewBudget,
+        newBudget,
         customStudy,
         doneToday: {
-          cardsSeen: cardsSeenToday,
-          cardsLimit: deck.cardsPerDay,
+          newSeen: newDoneToday,
+          newLimit: deck.newCardsPerDay,
+          reviewSeen: reviewDoneToday,
+          reviewLimit: deck.maxReviewsPerDay,
+          // Agrégats rétro-compatibles (ReviewV1 lit cardsSeen/cardsLimit).
+          cardsSeen: newDoneToday + reviewDoneToday,
+          cardsLimit: deck.newCardsPerDay + deck.maxReviewsPerDay,
         },
         nextDueAt: nextDueRow?.nextReview ?? null,
       },

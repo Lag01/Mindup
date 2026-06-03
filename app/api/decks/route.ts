@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
       ankiYoung: bigint | null;
       ankiMature: bigint | null;
       ankiDueReviews: bigint | null;
-      reviewsDoneToday: bigint | null;
     }>>`
       SELECT
         d.id,
@@ -88,17 +87,21 @@ export async function GET(request: NextRequest) {
           WHEN d."learningMethod" = 'ANKI' AND r."status" = 'REVIEW' AND (r.interval < 21 OR r.interval IS NULL)
           THEN c.id
         END) as "ankiYoung",
-        -- Cartes de révision réellement dues (hors nouvelles), pour le plafonnage budget
+        -- Cartes de révision réellement dues (hors nouvelles), pour le plafonnage budget.
+        -- Exclut les cartes déjà notées aujourd'hui (cohérent avec /api/review : une carte
+        -- vue aujourd'hui ne revient pas dans la journée), pour ne pas regonfler le compteur.
         COUNT(DISTINCT CASE
           WHEN d."learningMethod" = 'ANKI'
             AND r."status" IN ('LEARNING', 'REVIEW', 'RELEARNING')
             AND r."nextReview" <= NOW()
+            AND NOT EXISTS (
+              SELECT 1 FROM "ReviewEvent" re2
+              WHERE re2."cardId" = c.id
+                AND re2."userId" = ${user.id}
+                AND re2."createdAt" >= ${todayStart}
+            )
           THEN c.id
-        END) as "ankiDueReviews",
-        -- Révisions distinctes déjà effectuées aujourd'hui (budget consommé)
-        COUNT(DISTINCT CASE
-          WHEN re."createdAt" >= ${todayStart} THEN re."cardId"
-        END) as "reviewsDoneToday"
+        END) as "ankiDueReviews"
 
       FROM "Deck" d
       LEFT JOIN "Card" c ON c."deckId" = d.id
@@ -109,6 +112,36 @@ export async function GET(request: NextRequest) {
                d."cardsPerDay", d."newCardsPerDay", d."maxReviewsPerDay"
       ORDER BY d."createdAt" DESC
     `;
+
+    // Cartes « faites aujourd'hui » par deck, ventilées en nouvelles (premier ReviewEvent
+    // aujourd'hui) vs révisions (premier ReviewEvent avant aujourd'hui). Même sémantique que
+    // /api/review pour garantir l'alignement compteur dashboard ↔ file réelle.
+    const doneTodayRows = await prisma.$queryRaw<Array<{
+      deck_id: string;
+      new_today: bigint;
+      review_today: bigint;
+    }>>`
+      SELECT c."deckId" AS deck_id,
+             COUNT(*) FILTER (WHERE seen.first_at >= ${todayStart}) AS new_today,
+             COUNT(*) FILTER (WHERE seen.first_at <  ${todayStart}) AS review_today
+      FROM (
+        SELECT re."cardId", MIN(re."createdAt") AS first_at, MAX(re."createdAt") AS last_at
+        FROM "ReviewEvent" re
+        WHERE re."userId" = ${user.id}
+        GROUP BY re."cardId"
+        HAVING MAX(re."createdAt") >= ${todayStart}
+      ) seen
+      JOIN "Card" c ON c.id = seen."cardId"
+      GROUP BY c."deckId"
+    `;
+
+    const doneTodayByDeck = new Map<string, { newToday: number; reviewToday: number }>();
+    for (const row of doneTodayRows) {
+      doneTodayByDeck.set(row.deck_id, {
+        newToday: Number(row.new_today),
+        reviewToday: Number(row.review_today),
+      });
+    }
 
     // Convertir les bigint en number pour JSON
     const decks = decksWithStats.map(deck => ({
@@ -133,13 +166,16 @@ export async function GET(request: NextRequest) {
         relearning: Number(deck.ankiRelearning),
         young: Number(deck.ankiYoung),
         mature: Number(deck.ankiMature),
-        // Compteur « à réviser » réaliste : dues + nouvelles, chacune plafonnée
-        // par le budget quotidien restant (cf. computeRealisticDue / /api/review).
+        // Compteur « à réviser » réaliste : dues plafonnées par le budget de révision,
+        // nouvelles plafonnées par le budget de nouvelles (cf. computeRealisticDue /
+        // /api/review).
         due: computeRealisticDue({
           dueReviews: Number(deck.ankiDueReviews ?? 0),
           newAvailable: Number(deck.ankiNew ?? 0),
-          cardsPerDay: deck.cardsPerDay,
-          cardsSeenToday: Number(deck.reviewsDoneToday ?? 0),
+          newCardsPerDay: deck.newCardsPerDay,
+          maxReviewsPerDay: deck.maxReviewsPerDay,
+          newDoneToday: doneTodayByDeck.get(deck.id)?.newToday ?? 0,
+          reviewDoneToday: doneTodayByDeck.get(deck.id)?.reviewToday ?? 0,
         }),
       } : null,
     }));
