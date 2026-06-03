@@ -604,6 +604,26 @@ En mode ANKI, les cartes notées « Échec »/« Difficile » disparaissaient de
 ### Comportement
 Les cartes Échec/Difficile réapparaissent dans la même session jusqu'à graduation ; le popup ne s'affiche que lorsqu'il ne reste vraiment plus rien de dû ; le compteur dashboard tombe à 0 après une session complète. Cross-device couvert par le fetch serveur (les LEARNING dues sont renvoyées au prochain chargement). Aucune migration Prisma. Détail dans `log_erreurs.md` (entrée 02/06/2026).
 
+> **Note (04/06/2026)** : cette réinsertion intra-session a été **retirée** — voir la section suivante.
+
 ---
 
-**Dernière mise à jour** : 02/06/2026
+## Suppression de la réinsertion intra-session ANKI + quotas neuf/révision séparés (04/06/2026)
+
+### Contexte
+La réinsertion intra-session (section précédente) transformait une session de N cartes en session de longueur indéterminée dès qu'une carte était ratée, et l'espacement court (`gap 3`, ~30-60 s) faisait travailler la mémoire de travail plutôt que la mémoire à long terme — biaisant la note finale (une carte crammée finissait en « Bon »). Décision : **revenir à la répétition espacée pure** — une carte ratée n'est plus remontrée dans la session, FSRS la replanifie (retour à la prochaine session / le lendemain). En parallèle, remplacement de l'**objectif quotidien unique** (`cardsPerDay`) par **deux budgets indépendants** (`newCardsPerDay` / `maxReviewsPerDay`), pour que la révision n'étrangle plus l'introduction de nouvelles cartes.
+
+### Modifications
+- **`components/Review/ReviewV2.tsx`** : branche ANKI de `handleRating` simplifiée — retrait définitif de la carte + POST `/api/review` en *fire-and-forget*. Suppression de `insertWithSpacing`, de l'état `pendingPosts` et du gate associé (une file vide signifie désormais toujours la fin de session).
+- **`lib/anki.ts`** : suppression de `shouldReinsertInSession` (sans appelant). `computeRealisticDue` réécrit en **deux budgets** : `min(dues, maxReviewsPerDay - reviewDoneToday) + min(nouvelles, newCardsPerDay - newDoneToday)`.
+- **`app/api/review/route.ts`** (GET) : comptage ventilé `newDoneToday` / `reviewDoneToday` (une carte est « nouvelle aujourd'hui » si son **premier** `ReviewEvent` est aujourd'hui) ; budgets `reviewBudget` et `newBudget` appliqués indépendamment aux deux requêtes. `meta.doneToday` enrichi (`newSeen/newLimit/reviewSeen/reviewLimit`) avec agrégats rétro-compatibles (`cardsSeen/cardsLimit`) pour ReviewV1.
+- **Garantie « une vue par carte par jour » (côté serveur)** : la requête des dues de `/api/review` exclut les cartes déjà notées aujourd'hui via `NOT EXISTS (ReviewEvent du jour)`. Une carte ratée (replanifiée par FSRS à quelques minutes) ne ressort donc **plus dans la journée, quel que soit l'appareil** — elle revient demain. Sans cela, le retrait de réinsertion n'était appliqué que côté client (`localStorage`), laissant un trou sur changement d'appareil / rechargement après fin de session.
+- **`app/api/decks/route.ts`** : requête de comptage par deck alignée sur `/api/review` (même sémantique premier-événement) → `computeRealisticDue` deux budgets. Le comptage `ankiDueReviews` applique la **même exclusion** des cartes vues aujourd'hui, pour que le compteur d'accueil ne regonfle pas avec des cartes déjà traitées. Compteur dashboard et file réelle restent cohérents.
+- **`app/api/decks/[id]/settings/route.ts`** + **`DeckSettingsV1/V2`** : deux champs « Nouvelles cartes / jour » (≥ 0, 0 = pause) et « Révisions max / jour » (≥ 1).
+
+### Comportement
+Une session ANKI de N cartes reste une session de N cartes : chaque carte est vue une fois et ne revient pas avant demain, **y compris en changeant d'appareil ou en rechargeant la page** (garantie serveur). Nouvelles cartes et révisions ont chacune leur quota quotidien réglable par deck. **Réutilise les colonnes legacy `newCardsPerDay`/`maxReviewsPerDay`** (présentes en prod) — aucune migration Prisma. `cardsPerDay` devient inutilisé (conservé pour compat). NB : les decks existants portent d'anciennes valeurs (souvent 20/200) — un alignement manuel des quotas (UI ou UPDATE ponctuel) est conseillé après déploiement.
+
+---
+
+**Dernière mise à jour** : 04/06/2026

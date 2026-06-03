@@ -10,7 +10,8 @@ export default function DeckSettingsV1() {
 
   const [deck, setDeck] = useState<any>(null);
   const [learningMethod, setLearningMethod] = useState<'IMMEDIATE' | 'ANKI'>('IMMEDIATE');
-  const [cardsPerDay, setCardsPerDay] = useState(20);
+  const [newCardsPerDay, setNewCardsPerDay] = useState(20);
+  const [maxReviewsPerDay, setMaxReviewsPerDay] = useState(200);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +29,8 @@ export default function DeckSettingsV1() {
       if (foundDeck) {
         setDeck(foundDeck);
         setLearningMethod(foundDeck.learningMethod || 'IMMEDIATE');
-        setCardsPerDay(foundDeck.cardsPerDay ?? 20);
+        setNewCardsPerDay(foundDeck.newCardsPerDay ?? 20);
+        setMaxReviewsPerDay(foundDeck.maxReviewsPerDay ?? 200);
       } else {
         setError('Deck non trouvé');
       }
@@ -43,7 +45,9 @@ export default function DeckSettingsV1() {
     if (!deck) return;
 
     const methodChanged = learningMethod !== deck.learningMethod;
-    const limitsChanged = cardsPerDay !== (deck.cardsPerDay ?? 20);
+    const limitsChanged =
+      newCardsPerDay !== (deck.newCardsPerDay ?? 20) ||
+      maxReviewsPerDay !== (deck.maxReviewsPerDay ?? 200);
 
     if (!methodChanged && !limitsChanged) {
       router.push('/dashboard-entry');
@@ -65,7 +69,7 @@ export default function DeckSettingsV1() {
       const response = await fetch(`/api/decks/${deckId}/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ learningMethod, cardsPerDay }),
+        body: JSON.stringify({ learningMethod, newCardsPerDay, maxReviewsPerDay }),
       });
 
       if (!response.ok) {
@@ -177,24 +181,43 @@ export default function DeckSettingsV1() {
           {/* Objectif quotidien unique (toutes catégories confondues) */}
           {learningMethod === 'ANKI' && (
             <div className="mb-6 space-y-4">
-              <label className="block text-sm font-medium text-zinc-300 mb-3">
-                Objectif quotidien
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
+                Objectifs quotidiens
               </label>
-              <div>
-                <label className="block text-xs text-zinc-400 mb-1">Cartes / jour</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={9999}
-                  value={cardsPerDay}
-                  onChange={e => setCardsPerDay(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                />
-                <p className="text-xs text-zinc-500 mt-2">
-                  Nombre total de cartes à réviser par jour, toutes catégories confondues.
-                  Les cartes déjà vues à revoir sont prioritaires ; on complète avec des
-                  nouvelles cartes pour atteindre cet objectif.
-                </p>
+              <p className="text-xs text-zinc-500 mb-3">
+                Deux budgets séparés : les révisions n'empiètent plus sur l'introduction de
+                nouvelles cartes (et inversement).
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Nouvelles cartes / jour</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={9999}
+                    value={newCardsPerDay}
+                    onChange={e => setNewCardsPerDay(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="text-xs text-zinc-500 mt-2">
+                    Cartes jamais vues introduites chaque jour. Mettre 0 pour suspendre
+                    l'apprentissage de nouvelles cartes.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Révisions max / jour</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={9999}
+                    value={maxReviewsPerDay}
+                    onChange={e => setMaxReviewsPerDay(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  />
+                  <p className="text-xs text-zinc-500 mt-2">
+                    Plafond de cartes déjà apprises à revoir chaque jour (cartes dues).
+                  </p>
+                </div>
               </div>
             </div>
           )}

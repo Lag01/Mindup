@@ -20,7 +20,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const { id: deckId } = await context.params;
     const body = await request.json();
-    const { learningMethod, cardsPerDay } = body;
+    const { learningMethod, newCardsPerDay, maxReviewsPerDay } = body;
 
     if (learningMethod && !['IMMEDIATE', 'ANKI'].includes(learningMethod)) {
       return NextResponse.json(
@@ -29,10 +29,21 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const validatedCardsPerDay =
-      typeof cardsPerDay === 'number' && cardsPerDay >= 1
-        ? Math.round(cardsPerDay)
+    // Deux quotas indépendants. Nouvelles : >= 0 (0 = pause des nouvelles cartes).
+    // Révisions : >= 1.
+    const validatedNewCardsPerDay =
+      typeof newCardsPerDay === 'number' && newCardsPerDay >= 0
+        ? Math.round(newCardsPerDay)
         : undefined;
+    const validatedMaxReviewsPerDay =
+      typeof maxReviewsPerDay === 'number' && maxReviewsPerDay >= 1
+        ? Math.round(maxReviewsPerDay)
+        : undefined;
+
+    const limitsData = {
+      ...(validatedNewCardsPerDay !== undefined ? { newCardsPerDay: validatedNewCardsPerDay } : {}),
+      ...(validatedMaxReviewsPerDay !== undefined ? { maxReviewsPerDay: validatedMaxReviewsPerDay } : {}),
+    };
 
     // Vérifier que le deck existe et appartient à l'utilisateur
     const deck = await prisma.deck.findFirst({
@@ -81,7 +92,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           where: { id: deckId },
           data: {
             learningMethod,
-            ...(validatedCardsPerDay !== undefined ? { cardsPerDay: validatedCardsPerDay } : {}),
+            ...limitsData,
           },
         }),
       ]);
@@ -99,11 +110,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       });
     }
 
-    // Mise à jour de l'objectif quotidien uniquement (sans réinitialisation)
-    if (validatedCardsPerDay !== undefined) {
+    // Mise à jour des quotas quotidiens uniquement (sans réinitialisation)
+    if (Object.keys(limitsData).length > 0) {
       await prisma.deck.update({
         where: { id: deckId },
-        data: { cardsPerDay: validatedCardsPerDay },
+        data: limitsData,
       });
     }
 
