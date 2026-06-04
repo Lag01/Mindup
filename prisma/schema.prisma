@@ -27,6 +27,13 @@ enum LearningMethod {
   ANKI
 }
 
+enum BudgetMode {
+  // Deux quotas indépendants : newCardsPerDay + maxReviewsPerDay (comportement Anki par défaut).
+  SEPARATE
+  // Objectif total unique (cardsPerDay) : révisions prioritaires, complété par des nouvelles cartes.
+  TOTAL
+}
+
 enum CardStatus {
   NEW
   LEARNING
@@ -71,11 +78,12 @@ model Deck {
   createdAt      DateTime        @default(now())
   learningMethod LearningMethod  @default(IMMEDIATE)
 
-  // Objectif quotidien unique (toutes catégories confondues). Priorité aux cartes
-  // dues déjà vues, complété par des nouvelles cartes pour atteindre l'objectif.
+  // Mode de budget quotidien pour la file ANKI (cf. enum BudgetMode).
+  budgetMode       BudgetMode @default(SEPARATE)
+  // Mode TOTAL uniquement : objectif quotidien unique. Révisions dues prioritaires,
+  // complété par des nouvelles cartes jusqu'à l'objectif.
   cardsPerDay      Int  @default(20)
-  // Champs legacy (budgets séparés) conservés pour compat schéma — plus utilisés
-  // par la logique de file/compteur depuis le passage à `cardsPerDay`.
+  // Mode SEPARATE (défaut) : deux budgets indépendants, nouvelles cartes et révisions.
   newCardsPerDay   Int  @default(20)
   maxReviewsPerDay Int  @default(200)
 

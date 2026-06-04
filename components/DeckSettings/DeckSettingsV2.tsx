@@ -10,6 +10,8 @@ export default function DeckSettingsV2() {
 
   const [deck, setDeck] = useState<any>(null);
   const [learningMethod, setLearningMethod] = useState<'IMMEDIATE' | 'ANKI'>('IMMEDIATE');
+  const [budgetMode, setBudgetMode] = useState<'SEPARATE' | 'TOTAL'>('SEPARATE');
+  const [cardsPerDay, setCardsPerDay] = useState(20);
   const [newCardsPerDay, setNewCardsPerDay] = useState(20);
   const [maxReviewsPerDay, setMaxReviewsPerDay] = useState(200);
   const [loading, setLoading] = useState(true);
@@ -29,6 +31,8 @@ export default function DeckSettingsV2() {
       if (foundDeck) {
         setDeck(foundDeck);
         setLearningMethod(foundDeck.learningMethod || 'IMMEDIATE');
+        setBudgetMode(foundDeck.budgetMode === 'TOTAL' ? 'TOTAL' : 'SEPARATE');
+        setCardsPerDay(foundDeck.cardsPerDay ?? 20);
         setNewCardsPerDay(foundDeck.newCardsPerDay ?? 20);
         setMaxReviewsPerDay(foundDeck.maxReviewsPerDay ?? 200);
       } else {
@@ -46,6 +50,8 @@ export default function DeckSettingsV2() {
 
     const methodChanged = learningMethod !== deck.learningMethod;
     const limitsChanged =
+      budgetMode !== (deck.budgetMode === 'TOTAL' ? 'TOTAL' : 'SEPARATE') ||
+      cardsPerDay !== (deck.cardsPerDay ?? 20) ||
       newCardsPerDay !== (deck.newCardsPerDay ?? 20) ||
       maxReviewsPerDay !== (deck.maxReviewsPerDay ?? 200);
 
@@ -69,7 +75,7 @@ export default function DeckSettingsV2() {
       const response = await fetch(`/api/decks/${deckId}/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ learningMethod, newCardsPerDay, maxReviewsPerDay }),
+        body: JSON.stringify({ learningMethod, budgetMode, cardsPerDay, newCardsPerDay, maxReviewsPerDay }),
       });
 
       if (!response.ok) {
@@ -190,47 +196,96 @@ export default function DeckSettingsV2() {
             </div>
           </div>
 
-          {/* Limites quotidiennes FSRS — deux budgets indépendants */}
+          {/* Mode de budget quotidien + objectifs (mode ANKI uniquement) */}
           {learningMethod === 'ANKI' && (
             <div className="mb-6 space-y-4">
               <label className="block text-sm font-medium text-zinc-300 mb-1">
-                Objectifs quotidiens
+                Mode de budget quotidien
               </label>
-              <p className="text-xs text-zinc-500 mb-3">
-                Deux budgets séparés : les révisions n'empiètent plus sur l'introduction de
-                nouvelles cartes (et inversement).
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBudgetMode('SEPARATE')}
+                  className={`text-left p-3 rounded-xl border-2 transition-all duration-200 ${
+                    budgetMode === 'SEPARATE'
+                      ? 'bg-cyan-500/5 border-cyan-500/30'
+                      : 'bg-zinc-800/50 border-zinc-700/30 hover:border-zinc-600/50'
+                  }`}
+                >
+                  <div className="font-medium text-white text-sm mb-1">Quotas séparés</div>
+                  <div className="text-xs text-zinc-400">
+                    Deux budgets indépendants (Anki classique). Les révisions n'empiètent pas sur
+                    les nouvelles cartes.
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBudgetMode('TOTAL')}
+                  className={`text-left p-3 rounded-xl border-2 transition-all duration-200 ${
+                    budgetMode === 'TOTAL'
+                      ? 'bg-cyan-500/5 border-cyan-500/30'
+                      : 'bg-zinc-800/50 border-zinc-700/30 hover:border-zinc-600/50'
+                  }`}
+                >
+                  <div className="font-medium text-white text-sm mb-1">Objectif total</div>
+                  <div className="text-xs text-zinc-400">
+                    Un seul objectif/jour. Révisions prioritaires, complété par des nouvelles
+                    cartes. Jamais de jour « creux ».
+                  </div>
+                </button>
+              </div>
+
+              {budgetMode === 'TOTAL' ? (
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Nouvelles cartes / jour</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={9999}
-                    value={newCardsPerDay}
-                    onChange={e => setNewCardsPerDay(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-full bg-zinc-800/70 border border-zinc-700/50 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50"
-                  />
-                  <p className="text-xs text-zinc-500 mt-2">
-                    Cartes jamais vues introduites chaque jour. Mettre 0 pour suspendre
-                    l'apprentissage de nouvelles cartes.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Révisions max / jour</label>
+                  <label className="block text-xs text-zinc-400 mb-1">Objectif quotidien (cartes)</label>
                   <input
                     type="number"
                     min={1}
                     max={9999}
-                    value={maxReviewsPerDay}
-                    onChange={e => setMaxReviewsPerDay(Math.max(1, parseInt(e.target.value) || 1))}
+                    value={cardsPerDay}
+                    onChange={e => setCardsPerDay(Math.max(1, parseInt(e.target.value) || 1))}
                     className="w-full bg-zinc-800/70 border border-zinc-700/50 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50"
                   />
                   <p className="text-xs text-zinc-500 mt-2">
-                    Plafond de cartes déjà apprises à revoir chaque jour (cartes dues).
+                    Nombre de cartes visé chaque jour. Les révisions dues passent en premier ; s'il
+                    reste de la place, elle est comblée par des nouvelles cartes. Note : les jours
+                    sans révision, la session sera remplie de cartes neuves (plus exigeantes) —
+                    baissez l'objectif si c'est trop.
                   </p>
                 </div>
-              </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Nouvelles cartes / jour</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={9999}
+                      value={newCardsPerDay}
+                      onChange={e => setNewCardsPerDay(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-full bg-zinc-800/70 border border-zinc-700/50 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50"
+                    />
+                    <p className="text-xs text-zinc-500 mt-2">
+                      Cartes jamais vues introduites chaque jour. Mettre 0 pour suspendre
+                      l'apprentissage de nouvelles cartes.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Révisions max / jour</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={9999}
+                      value={maxReviewsPerDay}
+                      onChange={e => setMaxReviewsPerDay(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full bg-zinc-800/70 border border-zinc-700/50 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50"
+                    />
+                    <p className="text-xs text-zinc-500 mt-2">
+                      Plafond de cartes déjà apprises à revoir chaque jour (cartes dues).
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

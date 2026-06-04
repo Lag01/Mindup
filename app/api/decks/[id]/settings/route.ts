@@ -20,7 +20,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const { id: deckId } = await context.params;
     const body = await request.json();
-    const { learningMethod, newCardsPerDay, maxReviewsPerDay } = body;
+    const { learningMethod, budgetMode, cardsPerDay, newCardsPerDay, maxReviewsPerDay } = body;
 
     if (learningMethod && !['IMMEDIATE', 'ANKI'].includes(learningMethod)) {
       return NextResponse.json(
@@ -29,8 +29,20 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Deux quotas indépendants. Nouvelles : >= 0 (0 = pause des nouvelles cartes).
-    // Révisions : >= 1.
+    if (budgetMode !== undefined && !['SEPARATE', 'TOTAL'].includes(budgetMode)) {
+      return NextResponse.json(
+        { error: 'Mode de budget invalide' },
+        { status: 400 }
+      );
+    }
+
+    // Mode TOTAL : objectif quotidien unique >= 1.
+    const validatedCardsPerDay =
+      typeof cardsPerDay === 'number' && cardsPerDay >= 1
+        ? Math.round(cardsPerDay)
+        : undefined;
+    // Mode SEPARATE : deux quotas indépendants. Nouvelles : >= 0 (0 = pause des nouvelles
+    // cartes). Révisions : >= 1.
     const validatedNewCardsPerDay =
       typeof newCardsPerDay === 'number' && newCardsPerDay >= 0
         ? Math.round(newCardsPerDay)
@@ -41,6 +53,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         : undefined;
 
     const limitsData = {
+      ...(budgetMode !== undefined ? { budgetMode } : {}),
+      ...(validatedCardsPerDay !== undefined ? { cardsPerDay: validatedCardsPerDay } : {}),
       ...(validatedNewCardsPerDay !== undefined ? { newCardsPerDay: validatedNewCardsPerDay } : {}),
       ...(validatedMaxReviewsPerDay !== undefined ? { maxReviewsPerDay: validatedMaxReviewsPerDay } : {}),
     };

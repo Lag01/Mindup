@@ -131,34 +131,56 @@ export interface AnkiCardCounts {
  */
 export const MATURE_INTERVAL_DAYS = 21;
 
+export type BudgetMode = 'SEPARATE' | 'TOTAL';
+
 /**
- * Calcule le nombre réaliste de cartes « à réviser » pour un deck Anki selon **deux
- * budgets quotidiens indépendants** : un quota de nouvelles cartes (`newCardsPerDay`)
- * et un quota de révisions (`maxReviewsPerDay`). Chaque catégorie est plafonnée par son
- * propre budget restant, puis additionnée :
+ * Calcule le nombre réaliste de cartes « à réviser » pour un deck Anki selon le **mode de
+ * budget** du deck. Deux philosophies :
  *
- *   min(dues, maxReviewsPerDay - reviewDoneToday) + min(nouvelles, newCardsPerDay - newDoneToday)
+ * - `SEPARATE` (défaut) : deux budgets quotidiens **indépendants** — un quota de nouvelles
+ *   cartes (`newCardsPerDay`) et un quota de révisions (`maxReviewsPerDay`). Chaque catégorie
+ *   est plafonnée par son propre budget restant, puis additionnée :
+ *     min(dues, maxReviewsPerDay - reviewDoneToday) + min(nouvelles, newCardsPerDay - newDoneToday)
+ *   Séparer les deux budgets évite que la révision étrangle l'introduction de matière neuve.
  *
- * Séparer les deux budgets évite que la révision étrangle l'introduction de matière
- * neuve (et inversement). Source de vérité partagée entre `/api/decks` (compteur du
- * tableau de bord) et `/api/review` (file réelle) afin d'éviter toute divergence : les
- * deux endpoints comptent `newDoneToday` / `reviewDoneToday` avec la même sémantique
- * (une carte est « nouvelle aujourd'hui » si son tout premier ReviewEvent est aujourd'hui).
+ * - `TOTAL` (opt-in) : un **objectif quotidien unique** (`cardsPerDay`). Les révisions sont
+ *   servies en priorité, puis complétées par des nouvelles cartes jusqu'à l'objectif. Le
+ *   *nombre* servi ne dépend pas de l'ordre de priorité, seulement du restant du jour :
+ *     min(dues + nouvelles, cardsPerDay - (newDoneToday + reviewDoneToday))
+ *   Ce mode garantit des sessions de longueur stable (pas de jour « creux »), au prix d'un
+ *   débit de nouvelles cartes variable.
+ *
+ * Source de vérité partagée entre `/api/decks` (compteur du tableau de bord) et `/api/review`
+ * (file réelle) afin d'éviter toute divergence : les deux endpoints comptent `newDoneToday` /
+ * `reviewDoneToday` avec la même sémantique (une carte est « nouvelle aujourd'hui » si son tout
+ * premier ReviewEvent est aujourd'hui).
  */
 export function computeRealisticDue(params: {
+  /** Mode de budget du deck. */
+  budgetMode: BudgetMode;
   /** Cartes LEARNING/REVIEW/RELEARNING dont nextReview <= maintenant. */
   dueReviews: number;
   /** Cartes jamais étudiées (status NULL/NEW). */
   newAvailable: number;
-  /** Quota de nouvelles cartes par jour. */
+  /** Objectif quotidien unique (mode TOTAL). */
+  cardsPerDay: number;
+  /** Quota de nouvelles cartes par jour (mode SEPARATE). */
   newCardsPerDay: number;
-  /** Quota de révisions par jour. */
+  /** Quota de révisions par jour (mode SEPARATE). */
   maxReviewsPerDay: number;
   /** Nouvelles cartes distinctes introduites aujourd'hui (premier ReviewEvent aujourd'hui). */
   newDoneToday: number;
   /** Cartes de révision distinctes faites aujourd'hui (premier ReviewEvent avant aujourd'hui). */
   reviewDoneToday: number;
 }): number {
+  if (params.budgetMode === 'TOTAL') {
+    const totalRemaining = Math.max(
+      0,
+      params.cardsPerDay - (params.newDoneToday + params.reviewDoneToday)
+    );
+    return Math.min(params.dueReviews + params.newAvailable, totalRemaining);
+  }
+
   const reviewBudget = Math.max(0, params.maxReviewsPerDay - params.reviewDoneToday);
   const newBudget = Math.max(0, params.newCardsPerDay - params.newDoneToday);
   return Math.min(params.dueReviews, reviewBudget) + Math.min(params.newAvailable, newBudget);
