@@ -81,6 +81,8 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         learningMethod: true,
+        budgetMode: true,
+        cardsPerDay: true,
         newCardsPerDay: true,
         maxReviewsPerDay: true,
       },
@@ -148,15 +150,25 @@ export async function GET(request: NextRequest) {
     // Plafond dur pour éviter qu'un budget anormalement élevé (customStudy ou paramètre
     // user mal configuré) ne génère une requête SQL avec LIMIT illimité.
     const MAX_REVIEW_LIMIT = 1000;
-    // Deux budgets indépendants : révisions et nouvelles cartes.
-    const reviewBudget = Math.min(
-      MAX_REVIEW_LIMIT,
-      customStudy ? 99999 : Math.max(0, deck.maxReviewsPerDay - reviewDoneToday)
-    );
-    const newBudget = Math.min(
-      MAX_REVIEW_LIMIT,
-      customStudy ? 99999 : Math.max(0, deck.newCardsPerDay - newDoneToday)
-    );
+
+    // Budgets selon le mode du deck (cf. computeRealisticDue, même sémantique).
+    let reviewBudget: number;
+    let newBudget: number;
+    if (customStudy) {
+      // Mode étude libre : on ignore les plafonds dans les deux modes.
+      reviewBudget = MAX_REVIEW_LIMIT;
+      newBudget = MAX_REVIEW_LIMIT;
+    } else if (deck.budgetMode === 'TOTAL') {
+      // Objectif unique : révisions prioritaires, le reste complété par des nouvelles cartes.
+      // newBudget est recalculé plus bas une fois le nombre de révisions servies connu.
+      const totalRemaining = Math.max(0, deck.cardsPerDay - (newDoneToday + reviewDoneToday));
+      reviewBudget = Math.min(MAX_REVIEW_LIMIT, totalRemaining);
+      newBudget = 0; // placeholder, fixé après la requête révisions
+    } else {
+      // Deux budgets indépendants : révisions et nouvelles cartes.
+      reviewBudget = Math.min(MAX_REVIEW_LIMIT, Math.max(0, deck.maxReviewsPerDay - reviewDoneToday));
+      newBudget = Math.min(MAX_REVIEW_LIMIT, Math.max(0, deck.newCardsPerDay - newDoneToday));
+    }
 
     // 1) Récupérer les cartes de révision (LEARNING / REVIEW / RELEARNING, dues maintenant)
     //    dans la limite du budget de révision.
@@ -188,6 +200,13 @@ export async function GET(request: NextRequest) {
             LIMIT ${reviewBudget}
           `
         : [];
+
+    // En mode TOTAL, les nouvelles cartes ne complètent que l'espace laissé par les révisions
+    // réellement servies (révisions prioritaires jusqu'à l'objectif quotidien).
+    if (!customStudy && deck.budgetMode === 'TOTAL') {
+      const totalRemaining = Math.max(0, deck.cardsPerDay - (newDoneToday + reviewDoneToday));
+      newBudget = Math.min(MAX_REVIEW_LIMIT, Math.max(0, totalRemaining - reviewCards.length));
+    }
 
     // 2) Nouvelles cartes (jamais vues ou status=NEW), dans la limite de leur propre budget.
     const newCards: RawCard[] =
@@ -241,9 +260,14 @@ export async function GET(request: NextRequest) {
           reviewSeen: reviewDoneToday,
           reviewLimit: deck.maxReviewsPerDay,
           // Agrégats rétro-compatibles (ReviewV1 lit cardsSeen/cardsLimit).
+          // En mode TOTAL, la limite affichée est l'objectif unique ; sinon la somme des deux quotas.
           cardsSeen: newDoneToday + reviewDoneToday,
-          cardsLimit: deck.newCardsPerDay + deck.maxReviewsPerDay,
+          cardsLimit:
+            deck.budgetMode === 'TOTAL'
+              ? deck.cardsPerDay
+              : deck.newCardsPerDay + deck.maxReviewsPerDay,
         },
+        budgetMode: deck.budgetMode,
         nextDueAt: nextDueRow?.nextReview ?? null,
       },
     });

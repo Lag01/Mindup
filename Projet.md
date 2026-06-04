@@ -626,4 +626,26 @@ Une session ANKI de N cartes reste une session de N cartes : chaque carte est vu
 
 ---
 
+## Mode de budget ANKI optionnel « Objectif total, révisions prioritaires » (04/06/2026)
+
+### Contexte
+Le passage aux deux quotas indépendants (`newCardsPerDay` / `maxReviewsPerDay`) a fait apparaître un effet de bord : **les jours sans révision due**, un deck plafonné par ex. à 5 nouvelles ne sert que 5 cartes, créant un « trou » qui fragilise l'habitude de révision. Pour répondre à ce besoin (sans l'imposer à tous), on réintroduit l'ancien comportement — **objectif quotidien unique, révisions prioritaires, complété par des nouvelles cartes** — mais en **opt-in par deck**, à côté du mode « quotas séparés » resté par défaut.
+
+### Modes de budget (par deck, mode ANKI)
+- **SEPARATE** (défaut, inchangé) : deux budgets indépendants. `min(dues, maxReviewsPerDay − reviewDone) + min(nouvelles, newCardsPerDay − newDone)`.
+- **TOTAL** (opt-in) : objectif unique `cardsPerDay`. Restant du jour = `max(0, cardsPerDay − (newDone + reviewDone))` ; les révisions dues remplissent en priorité, les nouvelles complètent. Compte servi = `min(dues + nouvelles, restant)`. Garantit une longueur de session stable (pas de jour creux), au prix d'un débit de nouvelles cartes variable (les jours sans révision, la session se remplit de cartes neuves).
+
+### Modifications
+- **`prisma/schema.prisma`** : enum `BudgetMode { SEPARATE TOTAL }` + champ `Deck.budgetMode` (`@default(SEPARATE)`). Migration `20260604000000_add_budget_mode` (additive : `CREATE TYPE` + `ADD COLUMN … DEFAULT 'SEPARATE'`). `cardsPerDay` (déjà en prod) redevient utile, dédié au mode TOTAL.
+- **`lib/anki.ts`** : `computeRealisticDue` branche désormais sur `budgetMode` (+ `cardsPerDay`). Reste l'unique source de vérité partagée par `/api/decks` (compteur) et `/api/review` (file) → pas de divergence.
+- **`app/api/review/route.ts`** : `select` enrichi (`budgetMode`, `cardsPerDay`) ; calcul des budgets branché — en TOTAL, `reviewBudget` plafonné par le restant total puis `newBudget = restant − reviewCards.length` (révisions prioritaires). `meta.doneToday.cardsLimit` = `cardsPerDay` en TOTAL, somme des deux quotas en SEPARATE (rétro-compat ReviewV1) ; `meta.budgetMode` exposé. La garantie « une vue par carte par jour » (`NOT EXISTS`) reste valable dans les deux modes.
+- **`app/api/decks/route.ts`** : `d."budgetMode"` ajouté au SELECT/GROUP BY, transmis à `computeRealisticDue`.
+- **`app/api/decks/[id]/settings/route.ts`** : accepte et valide `budgetMode` (enum) et `cardsPerDay` (≥ 1).
+- **`DeckSettingsV1/V2`** : sélecteur de mode (cartes cliquables) ; en TOTAL un seul champ « Objectif quotidien » (avec note sur la charge de cartes neuves), en SEPARATE les deux champs existants.
+
+### Comportement
+Les decks existants restent en `SEPARATE` (aucun changement tant que l'utilisateur n'active pas TOTAL). Un deck en TOTAL ne laisse plus de jour creux : il sert jusqu'à `cardsPerDay` cartes, révisions d'abord. Aucune modification du scheduling FSRS ni du mode IMMEDIATE.
+
+---
+
 **Dernière mise à jour** : 04/06/2026

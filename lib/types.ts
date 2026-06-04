@@ -64,9 +64,10 @@ export interface DeckWithStats extends Deck {
   notStarted: number;      // Pour IMMEDIATE
   totalReviews: number;    // Pour les deux méthodes
   learningMethod: 'IMMEDIATE' | 'ANKI';
-  cardsPerDay?: number;        // Legacy (objectif unique) — conservé pour compat
-  newCardsPerDay?: number;     // Quota de nouvelles cartes / jour (mode ANKI)
-  maxReviewsPerDay?: number;   // Quota de révisions / jour (mode ANKI)
+  budgetMode?: 'SEPARATE' | 'TOTAL'; // Mode de budget quotidien ANKI (défaut SEPARATE)
+  cardsPerDay?: number;        // Objectif quotidien unique (mode TOTAL)
+  newCardsPerDay?: number;     // Quota de nouvelles cartes / jour (mode SEPARATE)
+  maxReviewsPerDay?: number;   // Quota de révisions / jour (mode SEPARATE)
   ankiStats: AnkiStats | null;  // null si IMMEDIATE
   dueCards?: number;  // Deprecated, remplacé par ankiStats.due
 }

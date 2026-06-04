@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
       isPublic: boolean;
       originalDeckId: string | null;
       learningMethod: string;
+      budgetMode: string;
       cardsPerDay: number;
       newCardsPerDay: number;
       maxReviewsPerDay: number;
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
         d."isPublic",
         d."originalDeckId",
         d."learningMethod",
+        d."budgetMode",
         d."cardsPerDay",
         d."newCardsPerDay",
         d."maxReviewsPerDay",
@@ -109,7 +111,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN "ReviewEvent" re ON re."cardId" = c.id AND re."userId" = ${user.id}
       WHERE d."userId" = ${user.id}
       GROUP BY d.id, d.name, d."createdAt", d."isPublic", d."originalDeckId", d."learningMethod",
-               d."cardsPerDay", d."newCardsPerDay", d."maxReviewsPerDay"
+               d."budgetMode", d."cardsPerDay", d."newCardsPerDay", d."maxReviewsPerDay"
       ORDER BY d."createdAt" DESC
     `;
 
@@ -149,6 +151,7 @@ export async function GET(request: NextRequest) {
       name: deck.name,
       createdAt: deck.createdAt,
       learningMethod: deck.learningMethod,
+      budgetMode: deck.budgetMode,
       cardsPerDay: deck.cardsPerDay,
       newCardsPerDay: deck.newCardsPerDay,
       maxReviewsPerDay: deck.maxReviewsPerDay,
@@ -170,8 +173,10 @@ export async function GET(request: NextRequest) {
         // nouvelles plafonnées par le budget de nouvelles (cf. computeRealisticDue /
         // /api/review).
         due: computeRealisticDue({
+          budgetMode: deck.budgetMode === 'TOTAL' ? 'TOTAL' : 'SEPARATE',
           dueReviews: Number(deck.ankiDueReviews ?? 0),
           newAvailable: Number(deck.ankiNew ?? 0),
+          cardsPerDay: deck.cardsPerDay,
           newCardsPerDay: deck.newCardsPerDay,
           maxReviewsPerDay: deck.maxReviewsPerDay,
           newDoneToday: doneTodayByDeck.get(deck.id)?.newToday ?? 0,
